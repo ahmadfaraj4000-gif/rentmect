@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin/
+Disallow: /admin.html
+Disallow: /admin-dashboard.html
+Disallow: /private/
+Disallow: /portal-admin/
+Disallow: /src/
+Disallow: /.env
+Disallow: /.env.local
+
+Allow: /assets/
+Allow: /llms.txt
+
+Sitemap: https://rentmect.com/sitemap.xml

@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Available Rental Cars in Farmington CT | Rent Me CT Fleet</title>
+  <meta name="description" content="Browse available rental cars from Rent Me CT in Farmington, Connecticut. Reserve sedans, SUVs, luxury vehicles, trucks, and passenger vans near Hartford and Bradley International Airport." />
+  <meta name="keywords" content="available rental cars Farmington CT, Rent Me CT fleet, SUV rental CT, luxury car rental Connecticut, truck rental CT, Audi rental CT, Mercedes rental CT, BMW rental CT" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://rentmect.com/cars.html" />
+  <meta property="og:title" content="Available Rental Cars | Rent Me CT Farmington CT" />
+  <meta property="og:description" content="Browse sedans, SUVs, luxury vehicles, trucks, and vans from Rent Me CT." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://rentmect.com/cars.html" />
+  <meta property="og:image" content="https://rentmect.com/assets/logo.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="assets/logo.png" />
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Available Rental Cars | Rent Me CT",
+  "url": "https://rentmect.com/cars.html",
+  "about": {
+    "@id": "https://rentmect.com/#autorental"
+  },
+  "description": "Browse available sedans, SUVs, luxury vehicles, vans, and trucks for rent from Rent Me CT in Farmington, Connecticut.",
+  "mainEntity": {
+    "@type": "ItemList",
+    "name": "Rent Me CT Vehicle Fleet",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Audi rental cars"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Mercedes rental cars"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": "BMW rental cars"
+      },
+      {
+        "@type": "ListItem",
+        "position": 4,
+        "name": "SUV rentals"
+      },
+      {
+        "@type": "ListItem",
+        "position": 5,
+        "name": "Truck rentals"
+      },
+      {
+        "@type": "ListItem",
+        "position": 6,
+        "name": "Passenger van rentals"
+      }
+    ]
+  }
+}
+</script>
+</head>
+
+<body>
+  <div class="top-bar">
+    <div>Call/Text 24/7: <a href="tel:+19592610721">959-261-0721</a></div>
+    <div>Reliable Car Rentals in Connecticut</div>
+  </div>
+
+  <header class="site-header">
+    <a href="index.html" class="logo-wrap">
+      <img src="assets/logo.png" alt="Rent Me CT Logo" />
+    </a>
+
+    <button class="mobile-menu-btn" onclick="toggleMenu()">Menu ☰</button>
+
+    <nav id="mainNav">
+      <a href="index.html">Home</a>
+      <a href="cars.html">Cars</a>
+      <a href="requirements.html">Requirements</a>
+      <a href="agreement.html">Agreement</a>
+      <a href="contact.html">Contact</a>
+      <a class="nav-cta reserve-btn" href="cars.html">Reserve Now</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <p class="eyebrow">Rent Me CT Fleet</p>
+      <h1>Choose Your Rental</h1>
+    </section>
+
+    <section class="section booking-panel" id="bookingPanel">
+      <h2>Select Rental Period</h2>
+      <form class="quick-booking-form wide-form" onsubmit="startBooking(event)">
+        <div>
+          <label>Pickup Date</label>
+          <input type="date" id="pickupDate" required />
+        </div>
+
+        <div>
+          <label>Return Date</label>
+          <input type="date" id="returnDate" required />
+        </div>
+
+        <div>
+          <label>Pickup Time</label>
+          <select id="pickupTime" required></select>
+        </div>
+
+        <div>
+          <label>Return Time</label>
+          <select id="returnTime" required></select>
+        </div>
+
+        <button type="submit">Save Rental Period</button>
+      </form>
+      <p class="booking-note">Minimum rental period is 2 days. Pickup and return are available in hourly intervals from 9 AM to 9 PM.</p>
+    </section>
+
+    <section class="section">
+      <div class="filters">
+        <button class="filter-btn active" onclick="filterCars('all', this)">All Cars</button>
+        <button class="filter-btn" onclick="filterCars('audi', this)">Audi</button>
+        <button class="filter-btn" onclick="filterCars('mercedes', this)">Mercedes</button>
+        <button class="filter-btn" onclick="filterCars('bmw', this)">BMW</button>
+        <button class="filter-btn" onclick="filterCars('cadillac', this)">Cadillac</button>
+        <button class="filter-btn" onclick="filterCars('dodge', this)">Dodge</button>
+        <button class="filter-btn" onclick="filterCars('ford', this)">Ford</button>
+        <button class="filter-btn" onclick="filterCars('suv', this)">SUV</button>
+        <button class="filter-btn" onclick="filterCars('sedan', this)">Sedan</button>
+        <button class="filter-btn" onclick="filterCars('truck', this)">Truck</button>
+        <button class="filter-btn" onclick="filterCars('luxury', this)">Luxury</button>
+      </div>
+     <div class="price-filter" style="margin-top:20px;margin-bottom:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <label for="rentalLength"><strong>Show pricing for:</strong></label>
+        <select id="rentalLength" onchange="updateRentalPrices()" style="padding:10px 14px;border-radius:10px;">
+          <option value="2">2 Days</option>
+          <option value="3">3 Days</option>
+          <option value="4">4 Days</option>
+          <option value="7">7 Days</option>
+        </select>
+      </div>
+
+
+      <div class="vehicle-grid fleet-grid">
+        <article class="vehicle-card car-item" data-brand="audi" data-type="sedan luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-A6-473.png" alt="Audi A6 #473 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi A6 #473</h3>
+            <p>Sedan • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="59">$118.00 / 2 days</strong>
+            <button onclick="selectCar('Audi A6 #473')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="audi" data-type="sedan luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-A4-158.png" alt="Audi A4 #158 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi A4 #158</h3>
+            <p>Sedan • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('Audi A4 #158')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="audi" data-type="sedan luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-A8L-YPS.png" alt="Audi A6 #473 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi A8L #YPS</h3>
+            <p>Sedan • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="99">$198.00 / 2 days</strong>
+            <button onclick="selectCar('Audi A8L #YPS')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="ford" data-type="truck">
+          <div class="vehicle-image">
+            <img src="assets/Ford-F350-4X4-191.png" alt="Ford F350 4X4 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Ford F350 4X4 #191</h3>
+            <p>Truck • 4x4 • Work Ready</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="119">$238.00 / 2 days</strong>
+            <button onclick="selectCar('Ford F350 4X4 #191')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="mercedes" data-type="sedan luxury">
+          <div class="vehicle-image">
+            <img src="assets/Benz-C300-418.png" alt="Benz C300 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Benz C300 #418</h3>
+            <p>Sedan • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('Benz C300 #418')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="mercedes" data-type="sedan luxury">
+          <div class="vehicle-image">
+            <img src="assets/Benz-CLS-AMG-550-224.png" alt="Audi A6 #473 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Benz CLS (AMG) 550 #224</h3>
+            <p>Sedan • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="59">$118.00 / 2 days</strong>
+            <button onclick="selectCar('Benz CLS (AMG) 550 #224')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="dodge" data-type="van">
+          <div class="vehicle-image">
+            <img src="assets/Dodge-Van-452.png" alt="Dodge Van Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Dodge Van #452</h3>
+            <p>Van • Passenger/Utility • Spacious</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('Dodge Van #452')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="audi" data-type="suv luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-Q5-149.png" alt="Audi Q5 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi Q5 #149</h3>
+            <p>SUV • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('Audi Q5 #149')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="audi" data-type="suv luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-Q5-225.png" alt="Audi Q5 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi Q5 #225</h3>
+            <p>SUV • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('Audi Q5 #225')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="dodge" data-type="van">
+          <div class="vehicle-image">
+            <img src="assets/Dodge-Van-451.png" alt="Dodge Van Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Dodge Van #451</h3>
+            <p>Van • Passenger/Utility • Spacious</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('Dodge Van #451')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="bmw" data-type="sedan luxury">
+          <div class="vehicle-image">
+            <img src="assets/BMW-330I-157.png" alt="Audi A6 #473 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>BMW 330I #157</h3>
+            <p>Sedan • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('BMW 330I #157')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="cadillac" data-type="sedan luxury">
+          <div class="vehicle-image">
+            <img src="assets/Cadillac-ATS-780.png" alt="Cadillac ATS Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Cadillac ATS #780</h3>
+            <p>Sedan • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="39">$78.00 / 2 days</strong>
+            <button onclick="selectCar('Cadillac ATS #780')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="mercedes" data-type="sedan luxury">
+          <div class="vehicle-image">
+            <img src="assets/Mercedes-C300-321.png" alt="Mercedes C300 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Mercedes C300 #321</h3>
+            <p>Sedan • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('Mercedes C300 #321')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="audi" data-type="sedan luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-A4-002.png" alt="Audi A4 #002 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi A4 #002</h3>
+            <p>Sedan • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="39">$78.00 / 2 days</strong>
+            <button onclick="selectCar('Audi A4 #002')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="audi" data-type="sedan luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-A6-385.png" alt="Audi A6 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi A6 #385</h3>
+            <p>Sedan • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="59">$118.00 / 2 days</strong>
+            <button onclick="selectCar('Audi A6 #385')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="audi" data-type="sedan luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-S3-001.png" alt="Audi A6 #473 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi S3 #001</h3>
+            <p>Sedan • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="39">$78.00 / 2 days</strong>
+            <button onclick="selectCar('Audi S3 #001')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="audi" data-type="suv luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-Q5-474.png" alt="Audi Q5 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi Q5 #474</h3>
+            <p>SUV • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('Audi Q5 #474')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="audi" data-type="suv luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-Q5-234.png" alt="Audi-Q5-234 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi Q5 #234</h3>
+            <p>SUV • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('Audi Q5 #234')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="audi" data-type="suv luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-Q5-203.png" alt="Audi Q5 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi Q5 #203</h3>
+            <p>SUV • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('Audi Q5 #203')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="mercedes" data-type="sedan luxury">
+          <div class="vehicle-image">
+            <img src="assets/Mercedes-Benz-C300-677.png" alt="Mercedes Benz C300 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Mercedes Benz C300 #677</h3>
+            <p>Sedan • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('Mercedes Benz C300 #677')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="bmw" data-type="sedan luxury">
+          <div class="vehicle-image">
+            <img src="assets/BMW-328I-004.png" alt="BMW 328I Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>BMW 328I #004</h3>
+            <p>Sedan • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('BMW 328I #004')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="bmw" data-type="sedan luxury">
+          <div class="vehicle-image">
+            <img src="assets/BMW-330XI-166.png" alt="BMW 330XI Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>BMW 330XI #166</h3>
+            <p>Sedan • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('BMW 330XI #166')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="audi" data-type="suv luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-Q5-210.png" alt="Audi Q5 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi Q5 #210</h3>
+            <p>SUV • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="39">$78.00 / 2 days</strong>
+            <button onclick="selectCar('Audi Q5 #210')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="audi" data-type="suv luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-Q3-100.png" alt="Audi Q3 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi Q3 #100</h3>
+            <p>SUV • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('Audi Q3 #100')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="audi" data-type="suv luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-Q5-997.png" alt="Audi Q5 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi Q5 #997</h3>
+            <p>SUV • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('Audi Q5 #997')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-brand="audi" data-type="suv luxury">
+          <div class="vehicle-image">
+            <img src="assets/Audi-Q5-148.png" alt="Audi Q5 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Audi Q5 #148</h3>
+            <p>SUV • Luxury • Comfortable</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$98.00 / 2 days</strong>
+            <button onclick="selectCar('Audi Q5 #148')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section checkout-preview" id="checkoutPreview">
+  <div class="checkout-heading">
+    <h2>Reservation Preview</h2>
+  </div>
+
+  <div class="checkout-box">
+    <p><strong>Selected Vehicle:</strong> <span id="selectedVehicle">None selected yet</span></p>
+    <p><strong>Rental Period:</strong> <span id="selectedPeriod">Choose dates above</span></p>
+    <p><strong>Next Steps:</strong> Create account & Verify Phone Number → Upload License/Insurance → Sign Agreement → Pay Rental, Taxes, and Deposit.</p>
+    <button class="btn-primary" onclick="mockCheckout()">Continue to Account Setup</button>
+  </div>
+
+  <div class="checkout-box insurance-checkout-box">
+    <h2>Need insurance coverage?</h2>
+    <p>
+      Renters must have valid insurance coverage before pickup. You can review these third-party rental coverage options before completing your reservation.
+    </p>
+
+    <div class="insurance-option-list">
+      <a href="https://rentalcover.com/campaign/united-states?utm_source=google&utm_medium=cpc&utm_campaign=EN+%7C+US+%7C+NB+%7C+Generic&targetid=kwd-103285391&adgroupid=137793824364&keyword=rental%20car%20insurance%20coverage&match=b&creative=664769605198&network=g&device=m&loc_interest=&loc_physical=&gad_source=1&gad_campaignid=17076281514&gclid=CjwKCAjwnN3OBhA8EiwAfpTYergtOXAfpu1BPBv9XaEQlj41pA5uNEdy98EOr8pRIDIddil2vgb39hoCwGgQAvD_BwE" target="_blank" rel="noopener">
+        RentalCover
+      </a>
+
+      <a href="https://www.withfaye.com/info/rental-car-coverage/" target="_blank" rel="noopener">
+        Faye Insurance
+      </a>
+
+      <a href="https://www.capitalone.com/learn-grow/more-than-money/capital-one-rental-car-insurance/" target="_blank" rel="noopener">
+        Capital One
+      </a>
+    </div>
+  </div>
+</section>
+  </main>
+
+  <footer class="site-footer">
+    <div>
+      <img src="assets/logo.png" alt="Rent Me CT Logo" />
+      <p>Reliable car rentals in Farmington, Connecticut.</p>
+    </div>
+
+    <div>
+      <h3>Contact</h3>
+      <p>485 Colt Hwy, Farmington, CT</p>
+      <p><a href="tel:+19592610721">959-261-0721</a></p>
+    </div>
+
+    <div>
+      <h3>Quick Links</h3>
+      <a href="requirements.html">Requirements</a>
+      <a href="agreement.html">Rental Agreement</a>
+      <a href="contact.html">Contact</a>
+      <a href="cars.html">Client Portal</a>
+    </div>
+  </footer>
+
+  <button class="chatbot-toggle" onclick="toggleChatbot()">💬</button>
+
+  <div class="chatbot" id="chatbot">
+    <div class="chatbot-header">
+      <strong>Rent Me CT Assistant</strong>
+      <button onclick="toggleChatbot()">×</button>
+    </div>
+    <div class="chatbot-messages" id="chatMessages">
+      <div class="bot-message">Need help choosing a car? Tell me your trip, passengers, and budget.</div>
+    </div>
+    <form class="chatbot-form" onsubmit="sendChatMessage(event)">
+      <input id="chatInput" type="text" placeholder="Ask about vehicles or booking..." />
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    const supabase = window.supabase.createClient(
+      "https://gqmiktepthaafupwdmcl.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxbWlrdGVwdGhhYWZ1cHdkbWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1ODgxNzgsImV4cCI6MjA5MzE2NDE3OH0.dDM6SSAwd03FLWcdOc8OemcFmZ7yOxKsuPq3qpmqoWI"
+    );
+  </script>
+
+  <script src="script.js"></script>
+
+  <script>
+    const RENTMECT_CLIENT_PORTAL_URL = "http://localhost:5173";
+
+    function getRentalPeriodData() {
+      const pickupDate = document.getElementById("pickupDate")?.value || "";
+      const returnDate = document.getElementById("returnDate")?.value || "";
+      const pickupTime = document.getElementById("pickupTime")?.value || "";
+      const returnTime = document.getElementById("returnTime")?.value || "";
+
+      return { pickupDate, returnDate, pickupTime, returnTime };
+    }
+
+    async function goToClientPortal(extraData = {}) {
+      const bookingData = {
+        ...getRentalPeriodData(),
+        ...extraData
+      };
+
+      localStorage.setItem("rentmect_pending_booking", JSON.stringify(bookingData));
+
+      // 🚨 make sure dates exist
+      if (!bookingData.pickupDate || !bookingData.returnDate || !bookingData.pickupTime || !bookingData.returnTime) {
+        alert("Please choose your rental period first.");
+        return;
+      }
+
+      // 🔥 CREATE PENDING BOOKING IN SUPABASE
+      const { data, error } = await supabase
+        .from("pending_bookings")
+        .insert({
+          pickup_date: bookingData.pickupDate,
+          return_date: bookingData.returnDate,
+          pickup_time: bookingData.pickupTime,
+          return_time: bookingData.returnTime,
+          selected_vehicle_name: bookingData.selectedVehicle || null,
+          status: "pending",
+          source: "website"
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error(error);
+        alert("Could not start booking. Try again.");
+        return;
+      }
+
+      // 🔥 REDIRECT WITH BOOKING ID
+      window.location.href = `http://localhost:5173?booking=${data.id}`;
+    }
+
+    function startBooking(event) {
+      event.preventDefault();
+
+      const { pickupDate, returnDate, pickupTime, returnTime } = getRentalPeriodData();
+
+      if (!pickupDate || !returnDate || !pickupTime || !returnTime) {
+        alert("Please choose your pickup date, return date, pickup time, and return time.");
+        return;
+      }
+
+      const pickup = new Date(`${pickupDate}T00:00:00`);
+      const dropoff = new Date(`${returnDate}T00:00:00`);
+      const rentalDays = Math.ceil((dropoff - pickup) / (1000 * 60 * 60 * 24));
+
+      if (rentalDays < 2) {
+        alert("Minimum rental period is 2 days.");
+        return;
+      }
+
+      goToClientPortal();
+    }
+
+    function selectCar(vehicleName) {
+      const selectedVehicle = document.getElementById("selectedVehicle");
+      if (selectedVehicle) selectedVehicle.textContent = vehicleName;
+
+      goToClientPortal({ selectedVehicle: vehicleName });
+    }
+
+    function mockCheckout() {
+      const selectedVehicle = document.getElementById("selectedVehicle")?.textContent || "";
+      const vehicle = selectedVehicle && selectedVehicle !== "None selected yet" ? selectedVehicle : "";
+      goToClientPortal(vehicle ? { selectedVehicle: vehicle } : {});
+    }
+  </script>
+<script>
+    function updateRentalPrices() {
+      const days = Number(document.getElementById("rentalLength").value);
+      const prices = document.querySelectorAll(".rental-price");
+
+      prices.forEach(price => {
+        const dailyRate = Number(price.dataset.dailyRate);
+        const total = dailyRate * days;
+
+        price.textContent = `$${total.toFixed(2)} / ${days} days`;
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      updateRentalPrices();
+    });
+</script>
+</body>
+</html>
