@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Rent Me CT | Connecticut Car Rentals</title>
+  <meta
+    name="description"
+    content="Rent Me CT offers clean, reliable car rentals in Farmington, Connecticut near Hartford and Bradley International Airport."
+  />
+
+  <link rel="icon" href="assets/logo.png" />
+
+  <style>
+    :root {
+      --red: #97000a;
+      --red-bright: #c40f1a;
+      --red-deep: #4f0004;
+      --black: #05060b;
+      --ink: #10131b;
+      --muted: #6f7581;
+      --soft: #f4f5f7;
+      --white: #ffffff;
+      --shadow: 0 24px 70px rgba(18, 20, 28, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top, rgba(151, 0, 10, 0.045), transparent 30%),
+        linear-gradient(180deg, #ffffff 0%, #f2f4f6 100%);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page {
+      width: min(100%, 330px);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: clamp(38px, 8vh, 82px) 18px 26px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .logo-card {
+      width: 96px;
+      height: 96px;
+      padding: 14px;
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      background: var(--white);
+      border: 1px solid rgba(12, 16, 24, 0.06);
+      box-shadow:
+        0 18px 42px rgba(18, 20, 28, 0.17),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    }
+
+    .logo-card img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    h1 {
+      margin: 22px 0 8px;
+      color: var(--ink);
+      font-size: 34px;
+      line-height: 0.95;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      font-weight: 950;
+    }
+
+    .tagline {
+      margin: 0 0 28px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .links {
+      width: 100%;
+      display: grid;
+      gap: 14px;
+    }
+
+    .button {
+      width: 100%;
+      min-height: 54px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 950;
+      letter-spacing: 0.3px;
+      transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        background 0.18s ease;
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+    }
+
+    .button-primary {
+      color: var(--white);
+      background:
+        linear-gradient(180deg, var(--red-bright) 0%, var(--red) 56%, var(--red-deep) 100%);
+      box-shadow:
+        0 20px 42px rgba(151, 0, 10, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    }
+
+    .button-primary:hover {
+      box-shadow:
+        0 24px 52px rgba(151, 0, 10, 0.36),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    }
+
+    .button-light {
+      background: var(--white);
+      color: var(--ink);
+      box-shadow:
+        var(--shadow),
+        inset 0 0 0 1px rgba(12, 16, 24, 0.05);
+    }
+
+    .button-light:hover {
+      background: #fbfbfc;
+      box-shadow:
+        0 28px 76px rgba(18, 20, 28, 0.2),
+        inset 0 0 0 1px rgba(12, 16, 24, 0.08);
+    }
+
+    .location {
+      margin: 30px 0 22px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .powered-by {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .powered-by strong {
+      color: var(--red-bright);
+      font-weight: 950;
+    }
+
+    @media (max-width: 520px) {
+      .page {
+        padding: 34px 18px 24px;
+      }
+
+      .logo-card {
+        width: 92px;
+        height: 92px;
+        border-radius: 17px;
+      }
+
+      .button {
+        min-height: 52px;
+        border-radius: 14px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <div class="logo-card" aria-label="Rent Me CT">
+      <img src="assets/logo.png" alt="Rent Me CT Logo" />
+    </div>
+
+    <h1>Rent Me CT</h1>
+    <p class="tagline">Connecticut Car Rentals</p>
+
+    <nav class="links" aria-label="Rent Me CT quick links">
+      <a class="button button-primary" href="https://rentmect.com/">Visit Our Website</a>
+
+      <!-- Replace # with your Instagram link. -->
+      <a class="button button-light" href="https://www.instagram.com/rentmect?igsh=Z2J5aHVhMGZtbTR6">Instagram</a>
+
+      <!-- Replace # with your Facebook link. -->
+      <a class="button button-light" href="https://www.facebook.com/share/1GRXbBefVu/?mibextid=wwXIfr">Facebook</a>
+
+      <a class="button button-light" href="tel:+18605586031">Call Now</a>
+    </nav>
+
+    <p class="location">Farmington, CT</p>
+
+    <footer class="powered-by">
+      Powered by <strong>RE IMAGE Business Solutions</strong>
+    </footer>
+  </main>
+</body>
+</html>
