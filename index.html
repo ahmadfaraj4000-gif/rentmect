@@ -143,10 +143,10 @@
     },
     {
       "@type": "Question",
-      "name": "What is the minimum rental period?",
+      "name": "Can I book a one-day rental?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Rent Me CT has a 2-day minimum rental period."
+        "text": "Yes. Rental length depends on current vehicle availability."
       }
     },
     {
@@ -232,7 +232,7 @@
           </form>
 
           <p class="booking-note">
-            Minimum 2-day rental. Pickup and return times available between 9 AM and 9 PM.
+            Pickup and return times available between 9 AM and 9 PM.
           </p>
         </div>
       </div>
@@ -289,8 +289,8 @@
 
         <div class="stats-grid">
           <div>
-            <strong>2 Days</strong>
-            <span>Minimum Rental</span>
+            <strong>Daily</strong>
+            <span>Flexible Rentals</span>
           </div>
           <div>
             <strong>200</strong>
@@ -489,8 +489,6 @@
   <script src="script.js"></script>
 
   <script>
-    const RENTMECT_CLIENT_PORTAL_URL = "http://localhost:5173";
-
     function startBooking(event) {
       event.preventDefault();
 
@@ -506,10 +504,8 @@
 
       const pickup = new Date(`${pickupDate}T00:00:00`);
       const dropoff = new Date(`${returnDate}T00:00:00`);
-      const rentalDays = Math.ceil((dropoff - pickup) / (1000 * 60 * 60 * 24));
-
-      if (rentalDays < 2) {
-        alert("Minimum rental period is 2 days.");
+      if (dropoff <= pickup) {
+        alert("Please choose a return date after your pickup date.");
         return;
       }
 

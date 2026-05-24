@@ -1,5 +1,4 @@
 const RENT_ME_CT_ADDRESS = "485 Colt Hwy, Farmington, CT";
-const RENTMECT_CLIENT_PORTAL_URL = "http://localhost:5173";
 
 let selectedVehicleName = "";
 let selectedRentalPeriod = "";
@@ -8,7 +7,9 @@ document.addEventListener("DOMContentLoaded", function () {
   populateTimeSelects();
   setMinDates();
   loadBookingDatesIntoForm();
+  normalizeRentalDateInputs();
   restoreBookingPreview();
+  window.syncVehicleAvailability?.();
 });
 
 function toggleMenu() {
@@ -21,6 +22,9 @@ function populateTimeSelects() {
   const dropoff = document.getElementById("returnTime");
 
   if (!pickup || !dropoff) return;
+
+  const currentPickupValue = pickup.value;
+  const currentReturnValue = dropoff.value;
 
   const times = [];
   for (let hour = 9; hour <= 21; hour++) {
@@ -39,24 +43,69 @@ function populateTimeSelects() {
     });
   });
 
-  pickup.value = "9:00 AM";
-  dropoff.value = "9:00 AM";
+  pickup.value = currentPickupValue || "9:00 AM";
+  dropoff.value = currentReturnValue || "9:00 AM";
 }
 
 function setMinDates() {
-  const today = new Date();
-  const yyyyMmDd = today.toISOString().split("T")[0];
+  const today = getLocalDateInputValue();
 
   const pickup = document.getElementById("pickupDate");
   const dropoff = document.getElementById("returnDate");
 
-  if (pickup) pickup.min = yyyyMmDd;
-  if (dropoff) dropoff.min = yyyyMmDd;
+  if (pickup) pickup.min = today;
+  if (dropoff) dropoff.min = getNextDateInputValue(today);
+
+  pickup?.addEventListener("change", () => {
+    normalizeRentalDateInputs();
+    window.syncVehicleAvailability?.();
+  });
+
+  dropoff?.addEventListener("change", () => {
+    normalizeRentalDateInputs();
+    window.syncVehicleAvailability?.();
+  });
 }
+
+function getLocalDateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getNextDateInputValue(value) {
+  const date = new Date(`${value}T00:00:00`);
+  date.setDate(date.getDate() + 1);
+  return getLocalDateInputValue(date);
+}
+
+function normalizeRentalDateInputs() {
+  const pickup = document.getElementById("pickupDate");
+  const dropoff = document.getElementById("returnDate");
+  if (!pickup || !dropoff) return;
+
+  const today = getLocalDateInputValue();
+  const defaultReturn = getNextDateInputValue(today);
+
+  pickup.min = today;
+  if (!pickup.value || pickup.value < today) pickup.value = today;
+
+  const minReturn = getNextDateInputValue(pickup.value);
+  dropoff.min = minReturn;
+
+  if (!dropoff.value || dropoff.value < minReturn) {
+    dropoff.value = pickup.value === today ? defaultReturn : minReturn;
+  }
+}
+
 function loadBookingDatesIntoForm() {
   let bookingData = {};
 
-  const saved = localStorage.getItem("rentmect_pending_booking");
+  const saved =
+    localStorage.getItem("rentmect_pending_booking") ||
+    localStorage.getItem("rentMeCtBooking") ||
+    localStorage.getItem("pendingBooking");
 
   try {
     bookingData = saved ? JSON.parse(saved) : {};
@@ -66,10 +115,10 @@ function loadBookingDatesIntoForm() {
 
   const params = new URLSearchParams(window.location.search);
 
-  const pickupDate = params.get("pickupDate") || bookingData.pickupDate || "";
-  const returnDate = params.get("returnDate") || bookingData.returnDate || "";
-  const pickupTime = params.get("pickupTime") || bookingData.pickupTime || "9:00 AM";
-  const returnTime = params.get("returnTime") || bookingData.returnTime || "9:00 AM";
+  const pickupDate = params.get("pickupDate") || bookingData.pickupDate || bookingData.pickup_date || "";
+  const returnDate = params.get("returnDate") || bookingData.returnDate || bookingData.return_date || "";
+  const pickupTime = params.get("pickupTime") || bookingData.pickupTime || bookingData.pickup_time || "9:00 AM";
+  const returnTime = params.get("returnTime") || bookingData.returnTime || bookingData.return_time || "9:00 AM";
 
   const pickupInput = document.getElementById("pickupDate");
   const returnInput = document.getElementById("returnDate");
@@ -78,8 +127,8 @@ function loadBookingDatesIntoForm() {
 
   if (pickupInput && pickupDate) pickupInput.value = pickupDate;
   if (returnInput && returnDate) returnInput.value = returnDate;
-  if (pickupSelect && pickupTime) pickupSelect.value = pickupTime;
-  if (returnSelect && returnTime) returnSelect.value = returnTime;
+  if (pickupSelect && pickupTime) pickupSelect.value = decodeURIComponent(pickupTime).replace("%3A", ":");
+  if (returnSelect && returnTime) returnSelect.value = decodeURIComponent(returnTime).replace("%3A", ":");
 }
 
 function startBooking(event) {
@@ -97,10 +146,9 @@ function startBooking(event) {
 
   const pickup = new Date(`${pickupDate}T09:00:00`);
   const dropoff = new Date(`${returnDate}T09:00:00`);
-  const diffDays = Math.ceil((dropoff - pickup) / (1000 * 60 * 60 * 24));
 
-  if (diffDays < 2) {
-    alert("Minimum rental period is 2 days. Please choose a return date at least 2 days after pickup.");
+  if (dropoff <= pickup) {
+    alert("Please choose a return date after pickup.");
     return;
   }
 
@@ -122,8 +170,7 @@ function startBooking(event) {
   const selectedPeriod = document.getElementById("selectedPeriod");
   if (selectedPeriod) selectedPeriod.textContent = selectedRentalPeriod;
 
-  const params = new URLSearchParams(bookingData);
-  window.location.href = `cars.html?${params.toString()}`;
+  window.syncVehicleAvailability?.();
 }
 
 function formatDate(value) {
@@ -154,35 +201,6 @@ function filterCars(filter, button) {
   });
 }
 
-function selectCar(vehicleName) {
-  selectedVehicleName = vehicleName;
-  localStorage.setItem("rentmect_vehicle", vehicleName);
-
-  let existingBooking = {};
-
-  try {
-    existingBooking = JSON.parse(localStorage.getItem("rentmect_pending_booking")) || {};
-  } catch {
-    existingBooking = {};
-  }
-
-  const bookingData = {
-    ...existingBooking,
-    selectedVehicle: vehicleName
-  };
-
-  localStorage.setItem("rentmect_pending_booking", JSON.stringify(bookingData));
-
-  const selectedVehicle = document.getElementById("selectedVehicle");
-  if (selectedVehicle) selectedVehicle.textContent = vehicleName;
-
-  const checkout = document.getElementById("checkoutPreview");
-  if (checkout) checkout.scrollIntoView({ behavior: "smooth" });
-
-  const params = new URLSearchParams(bookingData);
-  window.location.href = `${RENTMECT_CLIENT_PORTAL_URL}?${params.toString()}`;
-}
-
 function restoreBookingPreview() {
   const savedVehicle = localStorage.getItem("rentmect_vehicle");
   const savedPeriod = localStorage.getItem("rentmect_period");
@@ -192,45 +210,6 @@ function restoreBookingPreview() {
 
   if (savedVehicle && selectedVehicle) selectedVehicle.textContent = savedVehicle;
   if (savedPeriod && selectedPeriod) selectedPeriod.textContent = savedPeriod;
-}
-
-function mockCheckout() {
-  const vehicle = localStorage.getItem("rentmect_vehicle");
-  const savedBooking = localStorage.getItem("rentmect_pending_booking");
-
-  let bookingData = {};
-
-  try {
-    bookingData = savedBooking ? JSON.parse(savedBooking) : {};
-  } catch {
-    bookingData = {};
-  }
-
-  if (!vehicle && !bookingData.selectedVehicle) {
-    alert("Please choose a vehicle first.");
-    return;
-  }
-
-  if (!bookingData.pickupDate || !bookingData.returnDate || !bookingData.pickupTime || !bookingData.returnTime) {
-    alert("Please choose your pickup and return dates first.");
-    return;
-  }
-
-  const finalBookingData = {
-    ...bookingData,
-    selectedVehicle: bookingData.selectedVehicle || vehicle
-  };
-
-  localStorage.setItem("rentmect_pending_booking", JSON.stringify(finalBookingData));
-
-  const params = new URLSearchParams(finalBookingData);
-  window.location.href = `${RENTMECT_CLIENT_PORTAL_URL}?${params.toString()}`;
-}
-
-function submitContact(event) {
-  event.preventDefault();
-  alert("Message saved for frontend demo. Next phase: this will send to Supabase admin messages.");
-  event.target.reset();
 }
 
 function toggleChatbot() {
@@ -244,73 +223,18 @@ function sendChatMessage(event) {
   const input = document.getElementById("chatInput");
   const messages = document.getElementById("chatMessages");
 
-  if (!input || !messages) return;
+  if (!input || !messages || !input.value.trim()) return;
 
-  const text = input.value.trim();
-  if (!text) return;
+  const userMessage = document.createElement("div");
+  userMessage.className = "user-message";
+  userMessage.textContent = input.value.trim();
+  messages.appendChild(userMessage);
 
-  addMessage(text, "user-message");
+  const botMessage = document.createElement("div");
+  botMessage.className = "bot-message";
+  botMessage.textContent = "Thanks for reaching out. For the fastest help, call or text Rent Me CT at 959-261-0721.";
+  messages.appendChild(botMessage);
+
   input.value = "";
-
-  const response = getBotResponse(text);
-  setTimeout(() => addMessage(response, "bot-message"), 350);
-}
-
-function addMessage(text, className) {
-  const messages = document.getElementById("chatMessages");
-  const div = document.createElement("div");
-  div.className = className;
-  div.textContent = text;
-  messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
-}
-
-function getBotResponse(message) {
-  const msg = message.toLowerCase();
-
-  if (msg.includes("book") || msg.includes("reserve") || msg.includes("rent")) {
-    return "To book, choose your pickup and return dates, select a car, create an account, upload your license and insurance, sign the rental agreement, then pay the rental amount, tax, and deposit.";
-  }
-
-  if (msg.includes("deposit")) {
-    return "Yes, a security deposit is required. The amount depends on the vehicle class and rental risk. Deposits and post-rental charges can cover damage, cleaning, tolls, tickets, late returns, or policy violations.";
-  }
-
-  if (msg.includes("license") || msg.includes("driver")) {
-    return "You need a valid, unexpired driver’s license. Renters must be at least 21 years old, and renters under 25 may have a young driver fee.";
-  }
-
-  if (msg.includes("insurance")) {
-    return "You must upload proof of valid auto insurance before pickup. Rent Me CT does not provide primary insurance unless it is specifically provided in writing.";
-  }
-
-  if (msg.includes("mileage") || msg.includes("miles")) {
-    return "Each rental includes 200 miles per day. Extra mileage is charged at $0.35 per mile unless unlimited mileage is purchased when available.";
-  }
-
-  if (msg.includes("airport") || msg.includes("bradley")) {
-    return "Rent Me CT is located in Farmington, Connecticut and is convenient for travelers near Bradley International Airport and the greater Hartford area.";
-  }
-
-  if (msg.includes("return") || msg.includes("drop off") || msg.includes("bring back")) {
-    return `Vehicles return to Rent Me CT at ${RENT_ME_CT_ADDRESS}. In the client portal, we will add a button that opens the address in Maps.`;
-  }
-
-  if (msg.includes("smoke") || msg.includes("smoking")) {
-    return "Smoking is not allowed in any rental vehicle. Smoke odor, ash, or residue may result in cleaning and remediation fees.";
-  }
-
-  if (msg.includes("late") || msg.includes("overdue")) {
-    return "Late returns may result in additional rental charges. The client portal will send reminders 1 day before and 6 hours before the rental ends.";
-  }
-
-  if (msg.includes("damage") || msg.includes("accident")) {
-    return "Report any accident, theft, or damage immediately. Customers are responsible for damage during the rental period, and pickup/return photos may be required.";
-  }
-
-  if (msg.includes("hello") || msg.includes("hi") || msg.includes("hey")) {
-    return "Hey! Welcome to Rent Me CT. Are you looking for a sedan, SUV, luxury vehicle, or truck?";
-  }
-
-  return "I can help with booking, deposits, insurance, license uploads, mileage, pickup, return, late fees, and rental rules. What do you want to know?";
 }
