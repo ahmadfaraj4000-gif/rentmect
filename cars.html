@@ -811,7 +811,7 @@
   <script>
     // Rent Me CT live availability sync. Uses the existing Supabase client above.
     const RENTMECT_BLOCKING_RENTAL_STATUSES = ['pending', 'documents_needed', 'document_review', 'ready_for_pickup', 'approved', 'active', 'overdue', 'return_initiated', 'reserved'];
-    const RENTMECT_BLOCKING_VEHICLE_STATUSES = ['reserved', 'rented', 'maintenance', 'unavailable', 'inactive'];
+    const RENTMECT_BLOCKING_VEHICLE_STATUSES = ['maintenance', 'unavailable', 'inactive'];
     let rentmectVehicleAvailability = new Map();
 
     function getBookingDatesFromUrlOrStorage() {
