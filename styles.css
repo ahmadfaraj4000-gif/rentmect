@@ -328,6 +328,9 @@ img {
 .contact-form select,
 .contact-form textarea {
   width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  box-sizing: border-box;
   border-radius: 18px;
   padding: 15px;
   font: inherit;
@@ -337,6 +340,26 @@ img {
   box-shadow:
     inset 0 1px 3px rgba(0,0,0,0.08),
     0 14px 34px rgba(0,0,0,0.16);
+}
+
+.quick-booking-form input[type="date"],
+.quick-booking-form select {
+  height: 52px;
+  line-height: 1.2;
+}
+
+.quick-booking-form select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 42px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #10131b 50%),
+    linear-gradient(135deg, #10131b 50%, transparent 50%);
+  background-position:
+    calc(100% - 20px) 50%,
+    calc(100% - 14px) 50%;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
 }
 
 .quick-booking-form button {
@@ -350,6 +373,8 @@ img {
   color: var(--white);
   border: 0;
   border-radius: 18px;
+  min-height: 52px;
+  box-sizing: border-box;
   padding: 16px 18px;
   font-weight: 950;
   cursor: pointer;
