@@ -157,9 +157,11 @@
         <button class="filter-btn" onclick="filterCars('audi', this)">Audi</button>
         <button class="filter-btn" onclick="filterCars('mercedes', this)">Mercedes</button>
         <button class="filter-btn" onclick="filterCars('bmw', this)">BMW</button>
+        <button class="filter-btn" onclick="filterCars('buick', this)">Buick</button>
         <button class="filter-btn" onclick="filterCars('cadillac', this)">Cadillac</button>
         <button class="filter-btn" onclick="filterCars('dodge', this)">Dodge</button>
         <button class="filter-btn" onclick="filterCars('ford', this)">Ford</button>
+        <button class="filter-btn" onclick="filterCars('kia', this)">Kia</button>
         <button class="filter-btn" onclick="filterCars('suv', this)">SUV</button>
         <button class="filter-btn" onclick="filterCars('sedan', this)">Sedan</button>
         <button class="filter-btn" onclick="filterCars('truck', this)">Truck</button>
@@ -178,6 +180,60 @@
 
 
       <div class="vehicle-grid fleet-grid">
+        <article class="vehicle-card car-item" data-vehicle-id="790137a1-2b04-4169-9027-3a610a8f7d27" data-brand="buick" data-type="suv compact">
+          <div class="vehicle-image">
+            <img src="assets/Buick-Encore-649.png" alt="Buick Encore #649 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Buick Encore #649</h3>
+            <p>SUV • Compact • Efficient</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
+            <button onclick="selectCar('Buick Encore #649')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-vehicle-id="3a27aa73-3c1e-4b4e-bf55-cfbb09e59bf3" data-brand="ford" data-type="suv compact">
+          <div class="vehicle-image">
+            <img src="assets/Ford-Escape-650.png" alt="Ford Escape #650 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Ford Escape #650</h3>
+            <p>SUV • Compact • Efficient</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
+            <button onclick="selectCar('Ford Escape #650')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
+        <article class="vehicle-card car-item" data-vehicle-id="a3e97226-347e-4154-905c-3c8c22613600" data-brand="kia" data-type="compact hatchback">
+          <div class="vehicle-image">
+            <img src="assets/Kia-Soul-656.png" alt="Kia Soul #656 Rental Car" />
+          </div>
+          <div class="vehicle-body">
+            <span class="availability">1 Available</span>
+            <h3>Kia Soul #656</h3>
+            <p>Compact • Hatchback • Efficient</p>
+            <ul class="car-details">
+              <li>Daily mileage: 200 miles/day</li>
+              <li>Extra mileage: $0.35/mile</li>
+              <li>Security deposit required</li>
+            </ul>
+            <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
+            <button onclick="selectCar('Kia Soul #656')" class="btn-primary full">Reserve This Car</button>
+          </div>
+        </article>
+
         <article class="vehicle-card car-item" data-vehicle-id="38f61857-e39e-4569-a4a3-2f7cb754b270" data-brand="audi" data-type="sedan luxury">
           <div class="vehicle-image">
             <img src="assets/Audi-A6-473.png" alt="Audi A6 #473 Rental Car" />
