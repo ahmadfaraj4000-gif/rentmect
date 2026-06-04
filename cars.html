@@ -180,7 +180,7 @@
 
 
       <div class="vehicle-grid fleet-grid">
-        <article class="vehicle-card car-item" data-vehicle-id="790137a1-2b04-4169-9027-3a610a8f7d27" data-brand="buick" data-type="suv compact">
+        <article class="vehicle-card car-item" data-vehicle-id="790137a1-2b04-4169-9027-3a610a8f7d27" data-wheelbase-rental-id="524203" data-brand="buick" data-type="suv compact">
           <div class="vehicle-image">
             <img src="assets/Buick-Encore-649.png" alt="Buick Encore #649 Rental Car" />
           </div>
@@ -198,7 +198,7 @@
           </div>
         </article>
 
-        <article class="vehicle-card car-item" data-vehicle-id="3a27aa73-3c1e-4b4e-bf55-cfbb09e59bf3" data-brand="ford" data-type="suv compact">
+        <article class="vehicle-card car-item" data-vehicle-id="3a27aa73-3c1e-4b4e-bf55-cfbb09e59bf3" data-wheelbase-rental-id="524202" data-brand="ford" data-type="suv compact">
           <div class="vehicle-image">
             <img src="assets/Ford-Escape-650.png" alt="Ford Escape #650 Rental Car" />
           </div>
@@ -216,7 +216,7 @@
           </div>
         </article>
 
-        <article class="vehicle-card car-item" data-vehicle-id="a3e97226-347e-4154-905c-3c8c22613600" data-brand="kia" data-type="compact hatchback">
+        <article class="vehicle-card car-item" data-vehicle-id="a3e97226-347e-4154-905c-3c8c22613600" data-wheelbase-rental-id="524201" data-brand="kia" data-type="compact hatchback">
           <div class="vehicle-image">
             <img src="assets/Kia-Soul-656.png" alt="Kia Soul #656 Rental Car" />
           </div>
@@ -270,7 +270,7 @@
           </div>
         </article>
 
-        <article class="vehicle-card car-item" data-vehicle-id="782ca0a3-e98b-472c-a409-9f86278bf84c" data-brand="audi" data-type="sedan luxury">
+        <article class="vehicle-card car-item" data-vehicle-id="782ca0a3-e98b-472c-a409-9f86278bf84c" data-wheelbase-rental-id="517442" data-brand="audi" data-type="sedan luxury">
           <div class="vehicle-image">
             <img src="assets/Audi-A8L-YPS.png" alt="Audi A6 #473 Rental Car" />
           </div>
@@ -288,7 +288,7 @@
           </div>
         </article>
 
-        <article class="vehicle-card car-item" data-vehicle-id="e68a9588-63b8-4145-ad09-f33ce287d572" data-brand="ford" data-type="truck">
+        <article class="vehicle-card car-item" data-vehicle-id="e68a9588-63b8-4145-ad09-f33ce287d572" data-wheelbase-rental-id="517467" data-brand="ford" data-type="truck">
           <div class="vehicle-image">
             <img src="assets/Ford-F350-4X4-191.png" alt="Ford F350 4X4 Rental Car" />
           </div>
@@ -324,7 +324,7 @@
           </div>
         </article>
 
-        <article class="vehicle-card car-item" data-vehicle-id="0c6c47a0-cf6c-48e3-bef3-ec59464084d7" data-brand="mercedes" data-type="sedan luxury">
+        <article class="vehicle-card car-item" data-vehicle-id="0c6c47a0-cf6c-48e3-bef3-ec59464084d7" data-wheelbase-rental-id="517457" data-brand="mercedes" data-type="sedan luxury">
           <div class="vehicle-image">
             <img src="assets/Benz-CLS-AMG-550-224.png" alt="Audi A6 #473 Rental Car" />
           </div>
@@ -432,7 +432,7 @@
           </div>
         </article>
 
-        <article class="vehicle-card car-item" data-vehicle-id="03117607-8944-42d5-a806-9875dfffd534" data-brand="cadillac" data-type="sedan luxury">
+        <article class="vehicle-card car-item" data-vehicle-id="03117607-8944-42d5-a806-9875dfffd534" data-wheelbase-rental-id="517464" data-brand="cadillac" data-type="sedan luxury">
           <div class="vehicle-image">
             <img src="assets/Cadillac-ATS-780.png" alt="Cadillac ATS Rental Car" />
           </div>
@@ -648,7 +648,7 @@
           </div>
         </article>
 
-        <article class="vehicle-card car-item" data-vehicle-id="9c321d8f-534e-4587-b606-3d01f7574406" data-brand="audi" data-type="suv luxury">
+        <article class="vehicle-card car-item" data-vehicle-id="9c321d8f-534e-4587-b606-3d01f7574406" data-wheelbase-rental-id="517456" data-brand="audi" data-type="suv luxury">
           <div class="vehicle-image">
             <img src="assets/Audi-Q3-100.png" alt="Audi Q3 Rental Car" />
           </div>
@@ -702,6 +702,7 @@
           </div>
         </article>
       </div>
+      <div id="wheelbaseAvailabilitySource" hidden></div>
     </section>
 
     <section class="section checkout-preview" id="checkoutPreview">
@@ -712,8 +713,8 @@
   <div class="checkout-box">
     <p><strong>Selected Vehicle:</strong> <span id="selectedVehicle">None selected yet</span></p>
     <p><strong>Rental Period:</strong> <span id="selectedPeriod">Choose dates above</span></p>
-    <p><strong>Next Steps:</strong> Create account & Verify Phone Number → Upload License/Insurance → Sign Agreement → Pay Rental, Taxes, and Deposit.</p>
-    <button class="btn-primary" onclick="mockCheckout()">Continue to Account Setup</button>
+    <p><strong>Next Steps:</strong> Wheelbase will confirm availability, collect renter details, handle documents, and process payment.</p>
+    <button class="btn-primary" onclick="mockCheckout()">Continue to Wheelbase Checkout</button>
   </div>
 
   <div class="checkout-box insurance-checkout-box" id="insuranceOptions">
@@ -756,7 +757,7 @@
       <a href="requirements.html">Requirements</a>
       <a href="agreement.html">Rental Agreement</a>
       <a href="contact.html">Contact</a>
-      <a href="cars.html">Client Portal</a>
+      <a href="cars.html">Reserve Now</a>
     </div>
   </footer>
 
@@ -776,7 +777,7 @@
       </p>
       <p class="insurance-modal-note">Rent Me CT does not provide insurance directly.</p>
       <div class="insurance-modal-actions">
-        <button class="btn-primary" type="button" onclick="continueSelectedCarBooking()">Continue to Client Portal</button>
+        <button class="btn-primary" type="button" onclick="continueSelectedCarBooking()">Continue to Wheelbase Checkout</button>
         <button class="btn-secondary" type="button" onclick="viewInsuranceOptions()">View My Options</button>
       </div>
     </div>
@@ -796,22 +797,13 @@
     </form>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://d3cuf6g1arkgx6.cloudfront.net/sdk/1-5/wheelbase-widget.min.js"></script>
 
   <script>
-    const RENTMECT_SUPABASE_URL = "https://gqmiktepthaafupwdmcl.supabase.co";
-    const RENTMECT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxbWlrdGVwdGhhYWZ1cHdkbWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1ODgxNzgsImV4cCI6MjA5MzE2NDE3OH0.dDM6SSAwd03FLWcdOc8OemcFmZ7yOxKsuPq3qpmqoWI";
-    const RENTMECT_CLIENT_PORTAL_URL = "http://localhost:5173";
-    const rentmectSupabaseClient = window.supabase?.createClient(RENTMECT_SUPABASE_URL, RENTMECT_SUPABASE_ANON_KEY);
-    window.rentmectSupabaseClient = rentmectSupabaseClient;
-  </script>
-
-
-
-  <script>
-    // Rent Me CT live availability sync. Uses the existing Supabase client above.
-    const RENTMECT_BLOCKING_RENTAL_STATUSES = ['pending', 'documents_needed', 'document_review', 'ready_for_pickup', 'approved', 'active', 'overdue', 'return_initiated', 'reserved'];
-    const RENTMECT_BLOCKING_VEHICLE_STATUSES = ['maintenance', 'unavailable', 'inactive'];
+    const RENTMECT_WHEELBASE_CHECKOUT_URL = "https://widget.wheelbasepro.com/";
+    const RENTMECT_WHEELBASE_DEALER_ID = "4960447";
+    let rentmectWheelbaseApp = null;
+    let rentmectWheelbaseStore = null;
     let rentmectVehicleAvailability = new Map();
 
     function getBookingDatesFromUrlOrStorage() {
@@ -848,66 +840,8 @@
       if (pickupTime && booking.pickupTime) pickupTime.value = booking.pickupTime.replace("%3A", ":");
       if (returnTime && booking.returnTime) returnTime.value = booking.returnTime.replace("%3A", ":");
     }
-    function normalizeVehicleNameForAvailability(value) {
-      return String(value || '')
-        .toLowerCase()
-        .replace(/&amp;/g, '&')
-        .replace(/[^a-z0-9#]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-    }
-
     function getCarCardName(card) {
       return card?.querySelector('h3')?.textContent?.trim() || '';
-    }
-
-    function dateRangesOverlap(startA, endA, startB, endB) {
-      if (!startA || !endA || !startB || !endB) return false;
-      return new Date(`${startA}T00:00:00`) <= new Date(`${endB}T00:00:00`) &&
-        new Date(`${endA}T00:00:00`) >= new Date(`${startB}T00:00:00`);
-    }
-
-    function rentalBlocksFleetCard(rental, pickupDate, returnDate, todayIso) {
-      if (!rental?.pickup_date || !rental?.return_date) return false;
-
-      if (rentalIsCurrentlyOut(rental, todayIso)) return true;
-
-      if (pickupDate && returnDate) {
-        return dateRangesOverlap(pickupDate, returnDate, rental.pickup_date, rental.return_date);
-      }
-
-      return false;
-    }
-
-    function rentalIsPaid(rental) {
-      const paymentStatus = String(rental?.payment_status || '').toLowerCase();
-      const depositStatus = String(rental?.deposit_status || '').toLowerCase();
-      return paymentStatus === 'paid' || depositStatus === 'held' || Boolean(rental?.paid_at);
-    }
-
-    function rentalIsCurrentlyOut(rental, todayIso) {
-      const status = String(rental?.status || '').toLowerCase();
-      return ['active', 'overdue', 'return_initiated'].includes(status) ||
-        (rentalIsPaid(rental) && rental.pickup_date <= todayIso && rental.return_date >= todayIso);
-    }
-
-    function prettyRentalStatusLabel(status) {
-      const normalized = String(status || '').toLowerCase();
-      if (normalized === 'pending') return 'Pending';
-      if (normalized === 'documents_needed') return 'Documents Needed';
-      if (normalized === 'document_review') return 'Document Review';
-      if (normalized === 'ready_for_pickup') return 'Ready for Pickup';
-      if (normalized === 'approved') return 'Approved';
-      if (normalized === 'active') return 'Active Rental';
-      if (normalized === 'overdue') return 'Overdue';
-      if (normalized === 'return_initiated') return 'Return in Progress';
-      if (normalized === 'reserved') return 'Reserved';
-      return 'Unavailable';
-    }
-
-    function availabilityReasonForRental(rental, pickupDate, returnDate, todayIso) {
-      if (rentalIsCurrentlyOut(rental, todayIso) || rentalIsPaid(rental)) return 'Unavailable';
-      return pickupDate && returnDate ? 'Unavailable' : prettyRentalStatusLabel(rental.status);
     }
 
     function setCardAvailability(card, vehicle, isAvailable, reason) {
@@ -919,7 +853,7 @@
       card.dataset.available = isAvailable ? 'true' : 'false';
 
       if (label) {
-        label.textContent = isAvailable ? 'Available' : 'Unavailable';
+        label.textContent = reason || (isAvailable ? 'Ready to check out' : 'Check Wheelbase');
         label.classList.toggle('availability-unavailable', !isAvailable);
         label.classList.toggle('availability-available', isAvailable);
       }
@@ -931,118 +865,124 @@
       }
     }
 
-    function getVehicleAvailabilityFromResult(availabilityByVehicleId, vehicleId) {
-      const result = availabilityByVehicleId.get(vehicleId);
-      if (!result) return null;
-      return {
-        available: Boolean(result.available),
-        reason: result.reason || (result.available ? 'Available' : 'Unavailable'),
-      };
-    }
-
-   window.syncVehicleAvailability = async function syncVehicleAvailability() {
-  const supabaseClient = window.rentmectSupabaseClient;
-  if (!supabaseClient?.from || !supabaseClient?.rpc) {
-    document.querySelectorAll('.car-item').forEach((card) => {
-      setCardAvailability(card, { status: 'unknown' }, false, 'Unavailable');
-    });
-    return;
-  }
-
-  const pickupDate = document.getElementById('pickupDate')?.value || '';
-  const returnDate = document.getElementById('returnDate')?.value || '';
-  const pickupTime = document.getElementById('pickupTime')?.value || '9:00 AM';
-  const returnTime = document.getElementById('returnTime')?.value || '9:00 AM';
-
-  // If no dates selected, show placeholder text
-  if (!pickupDate || !returnDate) {
-    document.querySelectorAll('.car-item').forEach((card) => {
+    function setCardAvailabilityPending(card, reason = 'Check availability in checkout') {
       const label = card.querySelector('.availability');
       const button = card.querySelector('button.btn-primary');
+
+      card.dataset.vehicleStatus = 'wheelbase-pending';
+      card.dataset.available = 'unknown';
+
       if (label) {
-        label.textContent = 'Select dates to check';
+        label.textContent = reason;
         label.classList.remove('availability-unavailable', 'availability-available');
       }
+
       if (button) {
         button.disabled = false;
+        button.classList.remove('disabled');
         button.textContent = 'Reserve This Car';
       }
-    });
-    return;
-  }
-
-  const [{ data: vehicles, error: vehicleError }, { data: availabilityRows, error: availabilityError }] = await Promise.all([
-    supabaseClient.from('vehicles').select('id, name, status'),
-    supabaseClient.rpc('get_fleet_availability', {
-      p_pickup_date: pickupDate,
-      p_pickup_time: pickupTime,
-      p_return_date: returnDate,
-      p_return_time: returnTime,
-    }),
-  ]);
-
-  if (vehicleError || availabilityError) {
-    document.querySelectorAll('.car-item').forEach((card) => {
-      setCardAvailability(card, { status: 'unknown' }, false, 'Unavailable');
-    });
-    return;
-  }
-
-  const vehiclesById = new Map((vehicles || []).map((vehicle) => [vehicle.id, vehicle]));
-  const availabilityByVehicleId = new Map((availabilityRows || []).map((row) => [row.vehicle_id, row]));
-
-  document.querySelectorAll('.car-item').forEach((card) => {
-    const cardVehicleId = card.dataset.vehicleId || '';
-    const vehicle = vehiclesById.get(cardVehicleId);
-    
-    if (!vehicle) {
-      setCardAvailability(card, { status: 'unknown' }, false, 'Call to Confirm');
-      return;
     }
 
-    const availability = availabilityByVehicleId.get(vehicle.id);
-    const isAvailable = availability ? Boolean(availability.available) : false;
-    const reason = availability ? availability.reason : 'Unavailable';
+    function updateWheelbaseRentalAvailability(rental, isAvailable) {
+      const rentalId = String(rental?.id || '');
+      if (!rentalId) return '';
 
-    const label = card.querySelector('.availability');
-    const button = card.querySelector('button.btn-primary');
+      const matchingCard = document.querySelector(`.car-item[data-wheelbase-rental-id="${rentalId}"]`);
+      if (!matchingCard) return '';
 
-    if (label) {
-      label.textContent = isAvailable ? 'Available' : (reason || 'Unavailable');
-      label.classList.toggle('availability-unavailable', !isAvailable);
-      label.classList.toggle('availability-available', isAvailable);
+      const reason = isAvailable ? 'Available' : 'Unavailable';
+      setCardAvailability(matchingCard, { status: 'wheelbase' }, isAvailable, reason);
+      rentmectVehicleAvailability.set(rentalId, { available: isAvailable, reason, vehicleId: rentalId });
+      rentmectVehicleAvailability.set(getCarCardName(matchingCard), { available: isAvailable, reason, vehicleId: rentalId });
+      return '';
     }
 
-    if (button) {
-      button.disabled = !isAvailable;
-      button.classList.toggle('disabled', !isAvailable);
-      button.textContent = isAvailable ? 'Reserve This Car' : (reason || 'Unavailable');
+    function updateWheelbaseDates() {
+      if (!rentmectWheelbaseStore?.dispatch) return;
+
+      const pickupDate = document.getElementById('pickupDate')?.value || '';
+      const returnDate = document.getElementById('returnDate')?.value || '';
+
+      if (!pickupDate || !returnDate) return;
+
+      rentmectWheelbaseStore.dispatch({
+        type: 'CHANGE_DATES',
+        startDate: pickupDate,
+        endDate: returnDate
+      });
     }
 
-    rentmectVehicleAvailability.set(vehicle.id, { available: isAvailable, reason, vehicleId: vehicle.id, status: vehicle.status });
-    rentmectVehicleAvailability.set(vehicle.name, { available: isAvailable, reason, vehicleId: vehicle.id, status: vehicle.status });
-  });
-};
+    function initializeWheelbaseAvailabilityBridge() {
+      if (!window.Wheelbase || rentmectWheelbaseApp) return;
 
-    function prettyVehicleStatusLabel(status) {
-      const normalized = String(status || '').toLowerCase();
-      if (normalized === 'available') return 'Available';
-      if (normalized === 'reserved') return 'Reserved';
-      if (normalized === 'rented') return 'Rented';
-      if (normalized === 'maintenance') return 'Maintenance';
-      if (normalized === 'unavailable') return 'Unavailable';
-      return 'Call to Confirm';
+      rentmectWheelbaseApp = Wheelbase({
+        accountId: Number(RENTMECT_WHEELBASE_DEALER_ID),
+        urlParams: true,
+        currency: 'USD'
+      });
+
+      rentmectWheelbaseApp.addWidget(rentmectWheelbaseApp.widgets.RentalList, "wheelbaseAvailabilitySource", {
+        templates: {
+          available: function(rental) {
+            return updateWheelbaseRentalAvailability(rental, true);
+          },
+          unavailable: function(rental) {
+            return updateWheelbaseRentalAvailability(rental, false);
+          }
+        }
+      });
+
+      rentmectWheelbaseApp.addWidget(function() {
+        return {
+          start: function(store) {
+            rentmectWheelbaseStore = store;
+            updateWheelbaseDates();
+          }
+        };
+      }, "wheelbaseAvailabilitySource");
+
+      rentmectWheelbaseApp.start();
     }
+
+    function buildWheelbaseCheckoutUrl(extraData = {}) {
+      const params = new URLSearchParams({
+        dealer_id: RENTMECT_WHEELBASE_DEALER_ID,
+        store_type: "auto"
+      });
+
+      const bookingData = {
+        ...getBookingDatesFromUrlOrStorage(),
+        ...extraData
+      };
+
+      if (bookingData.pickupDate) params.set("wb-from", bookingData.pickupDate);
+      if (bookingData.returnDate) params.set("wb-to", bookingData.returnDate);
+      if (bookingData.wheelbaseRentalId) params.set("rental_id", bookingData.wheelbaseRentalId);
+
+      return `${RENTMECT_WHEELBASE_CHECKOUT_URL}?${params.toString()}`;
+    }
+
+    window.syncVehicleAvailability = function syncVehicleAvailability() {
+      const hasDates = Boolean(document.getElementById('pickupDate')?.value && document.getElementById('returnDate')?.value);
+      document.querySelectorAll('.car-item').forEach((card) => {
+        const vehicleName = getCarCardName(card);
+        const vehicleId = card.dataset.wheelbaseRentalId || card.dataset.vehicleId || vehicleName;
+        const availability = {
+          available: true,
+          reason: hasDates ? 'Ready to check out' : 'Select dates to check'
+        };
+        rentmectVehicleAvailability.set(vehicleId, availability);
+        rentmectVehicleAvailability.set(vehicleName, availability);
+        setCardAvailabilityPending(card, hasDates ? 'Check availability in checkout' : 'Select dates to check');
+      });
+      updateWheelbaseDates();
+    };
 
     document.addEventListener('DOMContentLoaded', () => {
       applyBookingDatesToCarsPage();
-
       window.syncVehicleAvailability();
-      window.setTimeout(() => {
-        applyBookingDatesToCarsPage();
-        window.syncVehicleAvailability?.();
-      }, 300);
-
+      initializeWheelbaseAvailabilityBridge();
       document.getElementById('pickupDate')?.addEventListener('change', syncVehicleAvailability);
       document.getElementById('returnDate')?.addEventListener('change', syncVehicleAvailability);
       document.getElementById('pickupTime')?.addEventListener('change', syncVehicleAvailability);
@@ -1055,6 +995,7 @@
   <script>
     let pendingInsuranceVehicle = "";
     let pendingInsuranceVehicleId = "";
+    let pendingWheelbaseRentalId = "";
 
     function getRentalPeriodData() {
       const pickupDate = document.getElementById("pickupDate")?.value || "";
@@ -1065,7 +1006,7 @@
       return { pickupDate, returnDate, pickupTime, returnTime };
     }
 
-    async function goToClientPortal(extraData = {}) {
+    function goToWheelbaseCheckout(extraData = {}) {
       const bookingData = {
         ...getRentalPeriodData(),
         ...extraData
@@ -1078,29 +1019,7 @@
         return;
       }
 
-      const supabaseClient = window.rentmectSupabaseClient;
-      if (supabaseClient?.rpc) {
-        const { data, error } = await supabaseClient
-          .rpc("create_website_pending_booking", {
-            p_pickup_date: bookingData.pickupDate,
-            p_return_date: bookingData.returnDate,
-            p_pickup_time: bookingData.pickupTime,
-            p_return_time: bookingData.returnTime,
-            p_vehicle_id: bookingData.selectedVehicleId || null,
-            p_selected_vehicle_name: bookingData.selectedVehicle || null
-          });
-
-        if (error) {
-          alert("Could not start booking. Try again.");
-          return;
-        }
-
-        window.location.href = `${RENTMECT_CLIENT_PORTAL_URL}?booking=${encodeURIComponent(data)}`;
-        return;
-      }
-
-      const params = new URLSearchParams(bookingData);
-      window.location.href = `${RENTMECT_CLIENT_PORTAL_URL}?${params.toString()}`;
+      window.location.href = buildWheelbaseCheckoutUrl(bookingData);
     }
 
     function startBooking(event) {
@@ -1120,12 +1039,13 @@
         return;
       }
 
-      goToClientPortal();
+      goToWheelbaseCheckout();
     }
 
     function selectCar(vehicleName) {
       const card = [...document.querySelectorAll('.car-item')].find((item) => getCarCardName(item) === vehicleName);
       const vehicleId = card?.dataset.vehicleId || "";
+      const wheelbaseRentalId = card?.dataset.wheelbaseRentalId || "";
       const availability = rentmectVehicleAvailability.get(vehicleId) || rentmectVehicleAvailability.get(vehicleName);
       if (availability && !availability.available) {
         alert(`Sorry, ${vehicleName} is currently ${availability.reason.toLowerCase()}. Please choose another vehicle or call us to confirm.`);
@@ -1135,18 +1055,19 @@
       const selectedVehicle = document.getElementById("selectedVehicle");
       if (selectedVehicle) selectedVehicle.textContent = vehicleName;
 
-      openInsuranceReminder(vehicleName, availability?.vehicleId || vehicleId);
+      openInsuranceReminder(vehicleName, availability?.vehicleId || vehicleId, wheelbaseRentalId);
     }
 
-    function openInsuranceReminder(vehicleName, vehicleId = "") {
+    function openInsuranceReminder(vehicleName, vehicleId = "", wheelbaseRentalId = "") {
       pendingInsuranceVehicle = vehicleName;
       pendingInsuranceVehicleId = vehicleId;
+      pendingWheelbaseRentalId = wheelbaseRentalId;
       const modal = document.getElementById("insuranceReminderModal");
       const vehicleLabel = document.getElementById("insuranceReminderVehicle");
 
       if (vehicleLabel) vehicleLabel.textContent = vehicleName;
       if (!modal) {
-        goToClientPortal({ selectedVehicle: vehicleName, selectedVehicleId: vehicleId });
+        goToWheelbaseCheckout({ selectedVehicle: vehicleName, selectedVehicleId: vehicleId, wheelbaseRentalId });
         return;
       }
 
@@ -1167,7 +1088,7 @@
     function continueSelectedCarBooking() {
       const vehicle = pendingInsuranceVehicle || document.getElementById("selectedVehicle")?.textContent || "";
       closeInsuranceReminder();
-      goToClientPortal(vehicle && vehicle !== "None selected yet" ? { selectedVehicle: vehicle, selectedVehicleId: pendingInsuranceVehicleId } : {});
+      goToWheelbaseCheckout(vehicle && vehicle !== "None selected yet" ? { selectedVehicle: vehicle, selectedVehicleId: pendingInsuranceVehicleId, wheelbaseRentalId: pendingWheelbaseRentalId } : {});
     }
 
     function viewInsuranceOptions() {
@@ -1179,7 +1100,7 @@
       const selectedVehicle = document.getElementById("selectedVehicle")?.textContent || "";
       const vehicle = selectedVehicle && selectedVehicle !== "None selected yet" ? selectedVehicle : "";
       const vehicleId = pendingInsuranceVehicleId || "";
-      goToClientPortal(vehicle ? { selectedVehicle: vehicle, selectedVehicleId: vehicleId } : {});
+      goToWheelbaseCheckout(vehicle ? { selectedVehicle: vehicle, selectedVehicleId: vehicleId, wheelbaseRentalId: pendingWheelbaseRentalId } : {});
     }
 
     document.addEventListener("keydown", (event) => {
