@@ -986,7 +986,18 @@
         params.set("to_time", returnTimeSeconds);
         params.set("wb-to-time", returnTimeSeconds);
       }
-      if (bookingData.wheelbaseRentalId) params.set("rental_id", bookingData.wheelbaseRentalId);
+      if (bookingData.wheelbaseRentalId) {
+        params.set("rental_id", bookingData.wheelbaseRentalId);
+
+        const routerState = getWheelbaseRouterState(
+          bookingData.wheelbaseRentalId,
+          bookingData.pickupDate,
+          bookingData.returnDate,
+          pickupTimeSeconds,
+          returnTimeSeconds
+        );
+        if (routerState) params.set("wb_state", routerState);
+      }
 
       return `${RENTMECT_WHEELBASE_CHECKOUT_URL}?${params.toString()}`;
     }
@@ -1048,18 +1059,23 @@
       return String((hours * 60 + minutes) * 60);
     }
 
-    function getWheelbaseRouterState(rentalId, pickupDate, returnDate) {
+    function getWheelbaseRouterState(rentalId, pickupDate, returnDate, pickupTimeSeconds = "", returnTimeSeconds = "") {
       if (!rentalId) return "";
 
       try {
+        const searchParams = {
+          from: pickupDate,
+          to: returnDate
+        };
+
+        if (pickupTimeSeconds) searchParams.from_time = pickupTimeSeconds;
+        if (returnTimeSeconds) searchParams.to_time = returnTimeSeconds;
+
         return btoa(JSON.stringify({
           page: "listing-details",
           rentalId: Number(rentalId),
           locale: "en-us",
-          searchParams: {
-            from: pickupDate,
-            to: returnDate
-          }
+          searchParams
         }));
       } catch (e) {
         return "";
@@ -1098,7 +1114,13 @@
       const rentalId = url.searchParams.get("rental_id") || "";
       const pickupTimeSeconds = getWheelbaseTimeInSeconds(pickupTime);
       const returnTimeSeconds = getWheelbaseTimeInSeconds(returnTime);
-      const routerState = getWheelbaseRouterState(rentalId, pickupDate, returnDate);
+      const routerState = getWheelbaseRouterState(
+        rentalId,
+        pickupDate,
+        returnDate,
+        pickupTimeSeconds,
+        returnTimeSeconds
+      );
 
       url.searchParams.set("page", "listing-details");
       if (rentalId) url.searchParams.set("rental_id", rentalId);
