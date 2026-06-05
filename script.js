@@ -2,12 +2,14 @@ const RENT_ME_CT_ADDRESS = "485 Colt Hwy, Farmington, CT";
 
 let selectedVehicleName = "";
 let selectedRentalPeriod = "";
+let lastRentalTimeNotice = "";
 
 document.addEventListener("DOMContentLoaded", function () {
   populateTimeSelects();
   setMinDates();
   loadBookingDatesIntoForm();
   normalizeRentalDateInputs();
+  normalizeRentalTimeInputs({ notify: true });
   restoreBookingPreview();
   window.syncVehicleAvailability?.();
 });
@@ -74,7 +76,21 @@ function getFirstFutureRentalTime(dateValue) {
   }) || "";
 }
 
-function normalizeRentalTimeInputs() {
+function setRentalTimeNotice(message) {
+  const note = document.querySelector("#bookingPanel .booking-note");
+  if (note && message) note.textContent = message;
+}
+
+function notifyRentalTimeAdjusted(message, noticeKey) {
+  setRentalTimeNotice(message);
+  if (!noticeKey || lastRentalTimeNotice === noticeKey) return;
+
+  lastRentalTimeNotice = noticeKey;
+  alert(message);
+}
+
+function normalizeRentalTimeInputs(options = {}) {
+  const shouldNotify = Boolean(options.notify);
   const pickupDate = document.getElementById("pickupDate");
   const returnDate = document.getElementById("returnDate");
   const pickupTime = document.getElementById("pickupTime");
@@ -87,17 +103,33 @@ function normalizeRentalTimeInputs() {
     const nextTime = getFirstFutureRentalTime(today);
 
     if (!nextTime) {
+      const nextPickupDate = getNextDateInputValue(today);
       pickupDate.value = getNextDateInputValue(today);
       returnDate.min = getNextDateInputValue(pickupDate.value);
       if (returnDate.value < returnDate.min) returnDate.value = returnDate.min;
       pickupTime.value = "9:00 AM";
+      if (shouldNotify) {
+        notifyRentalTimeAdjusted(
+          "Pickup is closed for today. Please choose a pickup time starting tomorrow.",
+          `closed-${nextPickupDate}`
+        );
+      }
     } else {
       const selectedPickup = getRentalDateTime(today, pickupTime.value);
-      if (!selectedPickup || selectedPickup <= new Date()) pickupTime.value = nextTime;
+      if (!selectedPickup || selectedPickup <= new Date()) {
+        pickupTime.value = nextTime;
+        if (shouldNotify) {
+          notifyRentalTimeAdjusted(
+            `That pickup time has passed, so we moved pickup to ${nextTime}.`,
+            `time-${today}-${nextTime}`
+          );
+        }
+      }
     }
   }
 
   if (!returnTime.value) returnTime.value = "9:00 AM";
+  window.syncVehicleAvailability?.();
 }
 
 function setMinDates() {
@@ -111,18 +143,26 @@ function setMinDates() {
 
   pickup?.addEventListener("change", () => {
     normalizeRentalDateInputs();
-    normalizeRentalTimeInputs();
+    normalizeRentalTimeInputs({ notify: true });
     window.syncVehicleAvailability?.();
   });
 
   dropoff?.addEventListener("change", () => {
     normalizeRentalDateInputs();
-    normalizeRentalTimeInputs();
+    normalizeRentalTimeInputs({ notify: true });
     window.syncVehicleAvailability?.();
   });
 
-  document.getElementById("pickupTime")?.addEventListener("change", normalizeRentalTimeInputs);
-  document.getElementById("returnTime")?.addEventListener("change", normalizeRentalTimeInputs);
+  document.getElementById("pickupTime")?.addEventListener("change", () => normalizeRentalTimeInputs({ notify: true }));
+  document.getElementById("returnTime")?.addEventListener("change", () => normalizeRentalTimeInputs({ notify: true }));
+
+  window.setInterval(() => {
+    if (document.visibilityState !== "hidden") normalizeRentalTimeInputs({ notify: true });
+  }, 60000);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") normalizeRentalTimeInputs({ notify: true });
+  });
 }
 
 function getLocalDateInputValue(date = new Date()) {
