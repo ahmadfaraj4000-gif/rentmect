@@ -976,16 +976,7 @@
         params.set("to", bookingData.returnDate);
         params.set("wb-to", bookingData.returnDate);
       }
-      if (bookingData.pickupTime) params.set("pickupTime", bookingData.pickupTime);
-      if (bookingData.returnTime) params.set("returnTime", bookingData.returnTime);
-      if (pickupTimeSeconds) {
-        params.set("from_time", pickupTimeSeconds);
-        params.set("wb-from-time", pickupTimeSeconds);
-      }
-      if (returnTimeSeconds) {
-        params.set("to_time", returnTimeSeconds);
-        params.set("wb-to-time", returnTimeSeconds);
-      }
+      setWheelbaseTimeParams(params, pickupTimeSeconds, returnTimeSeconds);
       if (bookingData.wheelbaseRentalId) {
         params.set("rental_id", bookingData.wheelbaseRentalId);
 
@@ -1059,6 +1050,23 @@
       return String((hours * 60 + minutes) * 60);
     }
 
+    function setWheelbaseTimeParams(params, pickupTimeSeconds, returnTimeSeconds) {
+      if (pickupTimeSeconds) {
+        params.set("from_time", pickupTimeSeconds);
+        params.set("wb-from-time", pickupTimeSeconds);
+        params.set("pickup_time", pickupTimeSeconds);
+        params.set("pickupTime", pickupTimeSeconds);
+        params.set("startTime", pickupTimeSeconds);
+      }
+      if (returnTimeSeconds) {
+        params.set("to_time", returnTimeSeconds);
+        params.set("wb-to-time", returnTimeSeconds);
+        params.set("return_time", returnTimeSeconds);
+        params.set("returnTime", returnTimeSeconds);
+        params.set("endTime", returnTimeSeconds);
+      }
+    }
+
     function getWheelbaseRouterState(rentalId, pickupDate, returnDate, pickupTimeSeconds = "", returnTimeSeconds = "") {
       if (!rentalId) return "";
 
@@ -1070,6 +1078,10 @@
 
         if (pickupTimeSeconds) searchParams.from_time = pickupTimeSeconds;
         if (returnTimeSeconds) searchParams.to_time = returnTimeSeconds;
+        if (pickupTimeSeconds) searchParams.pickup_time = pickupTimeSeconds;
+        if (returnTimeSeconds) searchParams.return_time = returnTimeSeconds;
+        if (pickupTimeSeconds) searchParams.pickupTime = pickupTimeSeconds;
+        if (returnTimeSeconds) searchParams.returnTime = returnTimeSeconds;
 
         return btoa(JSON.stringify({
           page: "listing-details",
@@ -1130,19 +1142,7 @@
       url.searchParams.set("wb-to", returnDate);
       url.searchParams.set("startDate", pickupDate);
       url.searchParams.set("endDate", returnDate);
-      url.searchParams.set("startTime", pickupTime);
-      url.searchParams.set("endTime", returnTime);
-      url.searchParams.set("pickupTime", pickupTime);
-      url.searchParams.set("returnTime", returnTime);
-
-      if (pickupTimeSeconds) {
-        url.searchParams.set("from_time", pickupTimeSeconds);
-        url.searchParams.set("wb-from-time", pickupTimeSeconds);
-      }
-      if (returnTimeSeconds) {
-        url.searchParams.set("to_time", returnTimeSeconds);
-        url.searchParams.set("wb-to-time", returnTimeSeconds);
-      }
+      setWheelbaseTimeParams(url.searchParams, pickupTimeSeconds, returnTimeSeconds);
       if (routerState) url.searchParams.set("wb_state", routerState);
 
       localStorage.setItem("rentmect_pending_booking", JSON.stringify({
