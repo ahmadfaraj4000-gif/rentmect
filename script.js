@@ -25,13 +25,7 @@ function populateTimeSelects() {
 
   const currentPickupValue = pickup.value;
   const currentReturnValue = dropoff.value;
-
-  const times = [];
-  for (let hour = 9; hour <= 21; hour++) {
-    const suffix = hour >= 12 ? "PM" : "AM";
-    const displayHour = hour > 12 ? hour - 12 : hour;
-    times.push(`${displayHour}:00 ${suffix}`);
-  }
+  const times = getRentalTimeOptions();
 
   [pickup, dropoff].forEach((select) => {
     select.innerHTML = "";
@@ -45,6 +39,65 @@ function populateTimeSelects() {
 
   pickup.value = currentPickupValue || "9:00 AM";
   dropoff.value = currentReturnValue || "9:00 AM";
+  normalizeRentalTimeInputs();
+}
+
+function getRentalTimeOptions() {
+  const times = [];
+  for (let hour = 9; hour <= 21; hour++) {
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour > 12 ? hour - 12 : hour;
+    times.push(`${displayHour}:00 ${suffix}`);
+  }
+  return times;
+}
+
+function getRentalDateTime(dateValue, timeLabel) {
+  const match = String(timeLabel || "").trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (!dateValue || !match) return null;
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2] || 0);
+  const period = match[3].toUpperCase();
+
+  if (period === "AM" && hours === 12) hours = 0;
+  if (period === "PM" && hours !== 12) hours += 12;
+
+  return new Date(`${dateValue}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
+}
+
+function getFirstFutureRentalTime(dateValue) {
+  const now = new Date();
+  return getRentalTimeOptions().find((time) => {
+    const dateTime = getRentalDateTime(dateValue, time);
+    return dateTime && dateTime > now;
+  }) || "";
+}
+
+function normalizeRentalTimeInputs() {
+  const pickupDate = document.getElementById("pickupDate");
+  const returnDate = document.getElementById("returnDate");
+  const pickupTime = document.getElementById("pickupTime");
+  const returnTime = document.getElementById("returnTime");
+
+  if (!pickupDate || !returnDate || !pickupTime || !returnTime) return;
+
+  const today = getLocalDateInputValue();
+  if (pickupDate.value === today) {
+    const nextTime = getFirstFutureRentalTime(today);
+
+    if (!nextTime) {
+      pickupDate.value = getNextDateInputValue(today);
+      returnDate.min = getNextDateInputValue(pickupDate.value);
+      if (returnDate.value < returnDate.min) returnDate.value = returnDate.min;
+      pickupTime.value = "9:00 AM";
+    } else {
+      const selectedPickup = getRentalDateTime(today, pickupTime.value);
+      if (!selectedPickup || selectedPickup <= new Date()) pickupTime.value = nextTime;
+    }
+  }
+
+  if (!returnTime.value) returnTime.value = "9:00 AM";
 }
 
 function setMinDates() {
@@ -58,13 +111,18 @@ function setMinDates() {
 
   pickup?.addEventListener("change", () => {
     normalizeRentalDateInputs();
+    normalizeRentalTimeInputs();
     window.syncVehicleAvailability?.();
   });
 
   dropoff?.addEventListener("change", () => {
     normalizeRentalDateInputs();
+    normalizeRentalTimeInputs();
     window.syncVehicleAvailability?.();
   });
+
+  document.getElementById("pickupTime")?.addEventListener("change", normalizeRentalTimeInputs);
+  document.getElementById("returnTime")?.addEventListener("change", normalizeRentalTimeInputs);
 }
 
 function getLocalDateInputValue(date = new Date()) {
@@ -97,6 +155,8 @@ function normalizeRentalDateInputs() {
   if (!dropoff.value || dropoff.value < minReturn) {
     dropoff.value = pickup.value === today ? defaultReturn : minReturn;
   }
+
+  normalizeRentalTimeInputs();
 }
 
 function loadBookingDatesIntoForm() {
@@ -144,11 +204,17 @@ function startBooking(event) {
     return;
   }
 
-  const pickup = new Date(`${pickupDate}T09:00:00`);
-  const dropoff = new Date(`${returnDate}T09:00:00`);
+  const pickup = getRentalDateTime(pickupDate, pickupTime);
+  const dropoff = getRentalDateTime(returnDate, returnTime);
 
-  if (dropoff <= pickup) {
+  if (!pickup || !dropoff || dropoff <= pickup) {
     alert("Please choose a return date after pickup.");
+    return;
+  }
+
+  if (pickup <= new Date()) {
+    alert("Please choose a pickup time later than the current time.");
+    normalizeRentalTimeInputs();
     return;
   }
 

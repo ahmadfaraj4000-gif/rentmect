@@ -1036,6 +1036,40 @@
       return { pickupDate, returnDate, pickupTime, returnTime };
     }
 
+    function getRentalDateTimeForWheelbase(dateValue, timeLabel) {
+      if (typeof getRentalDateTime === "function") return getRentalDateTime(dateValue, timeLabel);
+
+      const match = String(timeLabel || "").trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+      if (!dateValue || !match) return null;
+
+      let hours = Number(match[1]);
+      const minutes = Number(match[2] || 0);
+      const period = match[3].toUpperCase();
+
+      if (period === "AM" && hours === 12) hours = 0;
+      if (period === "PM" && hours !== 12) hours += 12;
+
+      return new Date(`${dateValue}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
+    }
+
+    function validateRentalPeriodForWheelbase({ pickupDate, returnDate, pickupTime, returnTime }) {
+      const pickup = getRentalDateTimeForWheelbase(pickupDate, pickupTime);
+      const dropoff = getRentalDateTimeForWheelbase(returnDate, returnTime);
+
+      if (!pickup || !dropoff || dropoff <= pickup) {
+        alert("Please choose a return date and time after pickup.");
+        return false;
+      }
+
+      if (pickup <= new Date()) {
+        if (typeof normalizeRentalTimeInputs === "function") normalizeRentalTimeInputs();
+        alert("Please choose a pickup time later than the current time.");
+        return false;
+      }
+
+      return true;
+    }
+
     function getWheelbaseTimeInSeconds(timeLabel) {
       const match = String(timeLabel || "").trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
       if (!match) return "";
@@ -1107,6 +1141,8 @@
         return;
       }
 
+      if (!validateRentalPeriodForWheelbase(bookingData)) return;
+
       window.location.href = buildWheelbaseCheckoutUrl(bookingData);
     }
 
@@ -1121,6 +1157,8 @@
         alert("Please choose your rental period first.");
         return;
       }
+
+      if (!validateRentalPeriodForWheelbase({ pickupDate, returnDate, pickupTime, returnTime })) return;
 
       const url = new URL(baseUrl);
       const rentalId = url.searchParams.get("rental_id") || "";
@@ -1170,12 +1208,7 @@
         return;
       }
 
-      const pickup = new Date(`${pickupDate}T00:00:00`);
-      const dropoff = new Date(`${returnDate}T00:00:00`);
-      if (dropoff <= pickup) {
-        alert("Please choose a return date after your pickup date.");
-        return;
-      }
+      if (!validateRentalPeriodForWheelbase({ pickupDate, returnDate, pickupTime, returnTime })) return;
 
       goToWheelbaseCheckout();
     }
