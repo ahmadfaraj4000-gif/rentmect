@@ -1,4 +1,4 @@
-const RENT_ME_CT_ADDRESS = "485 Colt Hwy, Farmington, CT";
+const RENT_ME_CT_ADDRESS = "12 Holmes Circle, Farmington, CT";
 
 let selectedVehicleName = "";
 let selectedRentalPeriod = "";
@@ -351,7 +351,7 @@ function sendChatMessage(event) {
 
   const botMessage = document.createElement("div");
   botMessage.className = "bot-message";
-  botMessage.textContent = "Thanks for reaching out. For the fastest help, call or text Rent Me CT at 959-261-0721.";
+  botMessage.textContent = "Thanks for reaching out. For the fastest help, call or text Rent Me CT at 860-558-6031.";
   messages.appendChild(botMessage);
 
   input.value = "";

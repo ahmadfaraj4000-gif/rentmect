@@ -871,6 +871,10 @@ img {
   max-width: none;
 }
 
+.checkout-preview > .insurance-checkout-box {
+  flex-basis: 100%;
+}
+
 .insurance-checkout-box {
   margin-top: 0 !important;
 }
@@ -1905,34 +1909,70 @@ body.modal-open {
 }
 
 .insurance-option-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
   margin-top: 22px;
 }
 
 .insurance-option-list a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 13px 18px;
-  border-radius: 999px;
+  display: flex;
+  min-height: 190px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 28px;
+  border-radius: var(--radius);
   background:
     linear-gradient(
       145deg,
-      #c40f1a 0%,
-      #97000a 42%,
-      #4f0004 100%
+      rgba(255,255,255,0.98),
+      rgba(244,244,247,0.94)
     );
-  color: #fff;
-  font-weight: 950;
+  border: 1px solid rgba(0,0,0,0.06);
+  color: #050812;
+  text-decoration: none;
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.14),
-    inset 0 -10px 18px rgba(0,0,0,0.22),
-    0 16px 40px rgba(80,0,8,0.22);
+    0 22px 55px rgba(8,11,18,0.10),
+    inset 0 1px 0 rgba(255,255,255,0.9);
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.insurance-option-list a:hover {
+  transform: translateY(-3px);
+  border-color: rgba(155,0,8,0.22);
+  box-shadow:
+    0 28px 70px rgba(8,11,18,0.14),
+    0 12px 32px rgba(155,0,8,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+.insurance-option-list span {
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.insurance-option-list strong {
+  font-size: 24px;
+  font-weight: 950;
+}
+
+.insurance-option-list p {
+  margin: 0;
+  color: #5f6878;
+  font-weight: 650;
+  line-height: 1.55;
 }
 @media (max-width: 900px) {
   .checkout-preview {
+    grid-template-columns: 1fr;
+  }
+
+  .insurance-option-list {
     grid-template-columns: 1fr;
   }
 }

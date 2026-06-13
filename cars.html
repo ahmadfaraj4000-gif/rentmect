@@ -99,7 +99,7 @@
 
 <body>
   <div class="top-bar">
-    <div>Call/Text 24/7: <a href="tel:+19592610721">959-261-0721</a></div>
+    <div>Call/Text 24/7: <a href="tel:+18605586031">860-558-6031</a></div>
     <div>Reliable Car Rentals in Connecticut</div>
   </div>
 
@@ -115,7 +115,7 @@
       <a href="cars.html">Cars</a>
       <a href="requirements.html">Requirements</a>
       <a href="agreement.html">Agreement</a>
-      <a href="contact.html">Contact</a>
+      <a href="tel:+18605586031">Contact</a>
       <a class="nav-cta reserve-btn" href="cars.html">Reserve Now</a>
     </nav>
   </header>
@@ -131,7 +131,7 @@
         <p class="eyebrow">Insurance Required</p>
         <h2>Have coverage ready before pickup</h2>
         <p>
-          Every rental requires valid insurance. You can add this vehicle to your existing auto policy or review third-party coverage options before completing your reservation.
+          Every rental requires valid insurance. You can bring your own active auto insurance, review the third-party coverage options provided on this page, or choose available Wheelbase insurance during checkout.
         </p>
       </div>
       <div class="insurance-notice-actions">
@@ -163,21 +163,8 @@
           <select id="returnTime"></select>
         </div>
       </form>
-      <p class="booking-note">Dates and times are optional here. Wheelbase will confirm final availability during checkout.</p>
     </section>
 
-    <section class="section insurance-top-notice">
-      <div>
-        <p class="eyebrow">Wheelbase Connected</p>
-        <h2>Wheelbase confirms the final schedule</h2>
-        <p>
-          Vehicle cards below show the Rent Me CT fleet. Availability, final pricing, and checkout are confirmed directly inside Wheelbase after you choose your dates and vehicle.
-        </p>
-      </div>
-      <div class="insurance-notice-actions">
-        <a class="btn-primary" href="#rental-results">Browse Custom Fleet</a>
-      </div>
-    </section>
 
     <section class="section">
       <div class="filters" id="filters-sidebar">
@@ -742,34 +729,33 @@
 
     <section class="section checkout-preview" id="checkoutPreview">
   <div class="checkout-heading">
-    <h2>Reservation Preview</h2>
-  </div>
-
-  <div class="checkout-box" id="quote-panel">
-    <p><strong>Selected Vehicle:</strong> <span id="selectedVehicle">None selected yet</span></p>
-    <p><strong>Rental Period:</strong> <span id="selectedPeriod">Optional dates; Wheelbase confirms final times</span></p>
-    <p><strong>Estimated Quote:</strong> <span id="quoteTotal">Choose a vehicle to estimate</span></p>
-    <p><strong>Next Steps:</strong> Wheelbase will confirm availability, collect renter details, handle documents, and process payment.</p>
-    <button class="btn-primary" id="checkout-button" onclick="continueCustomCheckout()">Continue to Wheelbase Checkout</button>
+    <p class="eyebrow">Insurance Required</p>
+    <h2>Insurance Options Before Pickup</h2>
   </div>
 
   <div class="checkout-box insurance-checkout-box" id="insuranceOptions">
     <h2>Need insurance coverage?</h2>
     <p>
-      Renters must have valid insurance coverage before pickup. You can review these third-party rental coverage options before completing your reservation.
+      Renters must have valid insurance coverage before pickup. You may bring your own active auto insurance, review these third-party rental coverage options, or choose available Wheelbase insurance during checkout.
     </p>
 
     <div class="insurance-option-list">
       <a href="https://rentalcover.com/campaign/united-states?utm_source=google&utm_medium=cpc&utm_campaign=EN+%7C+US+%7C+NB+%7C+Generic&targetid=kwd-103285391&adgroupid=137793824364&keyword=rental%20car%20insurance%20coverage&match=b&creative=664769605198&network=g&device=m&loc_interest=&loc_physical=&gad_source=1&gad_campaignid=17076281514&gclid=CjwKCAjwnN3OBhA8EiwAfpTYergtOXAfpu1BPBv9XaEQlj41pA5uNEdy98EOr8pRIDIddil2vgb39hoCwGgQAvD_BwE" target="_blank" rel="noopener">
-        RentalCover
+        <span>Rental Protection</span>
+        <strong>RentalCover</strong>
+        <p>Compare rental car protection options before your reservation.</p>
       </a>
 
       <a href="https://www.withfaye.com/info/rental-car-coverage/" target="_blank" rel="noopener">
-        Faye Insurance
+        <span>Travel Coverage</span>
+        <strong>Faye Insurance</strong>
+        <p>Review rental car coverage options through Faye before driving.</p>
       </a>
 
       <a href="https://www.capitalone.com/learn-grow/more-than-money/capital-one-rental-car-insurance/" target="_blank" rel="noopener">
-        Capital One
+        <span>Card Benefits</span>
+        <strong>Capital One</strong>
+        <p>Learn how Capital One rental car insurance benefits may apply.</p>
       </a>
     </div>
   </div>
@@ -784,15 +770,15 @@
 
     <div>
       <h3>Contact</h3>
-      <p>485 Colt Hwy, Farmington, CT</p>
-      <p><a href="tel:+19592610721">959-261-0721</a></p>
+      <p>12 Holmes Circle, Farmington, CT</p>
+      <p><a href="tel:+18605586031">860-558-6031</a></p>
     </div>
 
     <div>
       <h3>Quick Links</h3>
       <a href="requirements.html">Requirements</a>
       <a href="agreement.html">Rental Agreement</a>
-      <a href="contact.html">Contact</a>
+      <a href="tel:+18605586031">Contact</a>
       <a href="cars.html">Reserve Now</a>
     </div>
   </footer>
@@ -809,9 +795,9 @@
         Selected vehicle: <strong id="insuranceReminderVehicle">None selected yet</strong>
       </p>
       <p>
-        Valid insurance is required before pickup. You can add this rental to your existing auto policy or purchase coverage through a third-party provider.
+        Valid insurance is required before pickup. You can bring your own active auto insurance, review third-party coverage options, or choose available Wheelbase insurance during checkout.
       </p>
-      <p class="insurance-modal-note">Rent Me CT does not provide insurance directly.</p>
+      <p class="insurance-modal-note">Rent Me CT requires every renter to be insured before pickup.</p>
       <div class="insurance-modal-actions">
         <button class="btn-primary" type="button" onclick="continueSelectedCarBooking()">Continue to Wheelbase Checkout</button>
         <button class="btn-secondary" type="button" onclick="viewInsuranceOptions()">View My Options</button>
