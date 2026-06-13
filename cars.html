@@ -14,6 +14,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://rentmect.com/cars.html" />
   <meta property="og:image" content="https://rentmect.com/assets/logo.png" />
+  <link rel="stylesheet" href="https://d3cuf6g1arkgx6.cloudfront.net/sdk/1-5/wheelbase-widget.css" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" href="assets/logo.png" />
   <script type="application/ld+json">
@@ -66,6 +67,12 @@
 </script>
 
   <style>
+    .car-item .availability:not(.availability-available):not(.availability-unavailable) {
+      background: #f1f4f8;
+      color: #3f4a5a;
+      border: 1px solid #d8dee8;
+      box-shadow: none;
+    }
     .availability-available {
       background: linear-gradient(135deg, #34d33f, #0da516);
       color: #ffffff;
@@ -77,6 +84,16 @@
       border: 1px solid rgba(184,0,11,.5);
     }
     .btn-primary.disabled, .btn-primary:disabled { opacity: .55; cursor: not-allowed; filter: grayscale(.4); }
+    .wheelbase-data-layer {
+      position: absolute !important;
+      left: -10000px !important;
+      top: auto !important;
+      width: 1px !important;
+      height: 1px !important;
+      overflow: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
   </style>
 </head>
 
@@ -123,34 +140,47 @@
       </div>
     </section>
 
-    <section class="section booking-panel" id="bookingPanel">
-      <h2>Select Rental Period</h2>
+    <section class="section booking-panel" id="bookingPanel" data-optional-dates="true">
+      <h2>Choose Rental Dates</h2>
       <form class="quick-booking-form wide-form" onsubmit="startBooking(event)">
         <div>
           <label>Pickup Date</label>
-          <input type="date" id="pickupDate" required />
-        </div>
-
-        <div>
-          <label>Return Date</label>
-          <input type="date" id="returnDate" required />
+          <input type="date" id="pickupDate" />
         </div>
 
         <div>
           <label>Pickup Time</label>
-          <select id="pickupTime" required></select>
+          <select id="pickupTime"></select>
+        </div>
+
+        <div>
+          <label>Return Date</label>
+          <input type="date" id="returnDate" />
         </div>
 
         <div>
           <label>Return Time</label>
-          <select id="returnTime" required></select>
+          <select id="returnTime"></select>
         </div>
       </form>
-      <p class="booking-note">Pickup and return are available in hourly intervals from 9 AM to 9 PM.</p>
+      <p class="booking-note">Dates and times are optional here. Wheelbase will confirm final availability during checkout.</p>
+    </section>
+
+    <section class="section insurance-top-notice">
+      <div>
+        <p class="eyebrow">Wheelbase Connected</p>
+        <h2>Wheelbase confirms the final schedule</h2>
+        <p>
+          Vehicle cards below show the Rent Me CT fleet. Availability, final pricing, and checkout are confirmed directly inside Wheelbase after you choose your dates and vehicle.
+        </p>
+      </div>
+      <div class="insurance-notice-actions">
+        <a class="btn-primary" href="#rental-results">Browse Custom Fleet</a>
+      </div>
     </section>
 
     <section class="section">
-      <div class="filters">
+      <div class="filters" id="filters-sidebar">
         <button class="filter-btn active" onclick="filterCars('all', this)">All Cars</button>
         <button class="filter-btn" onclick="filterCars('audi', this)">Audi</button>
         <button class="filter-btn" onclick="filterCars('mercedes', this)">Mercedes</button>
@@ -175,15 +205,16 @@
           <option value="7">7 Days</option>
         </select>
       </div>
+      <div id="location-filter" class="wheelbase-data-layer" aria-hidden="true"></div>
 
 
-      <div class="vehicle-grid fleet-grid">
+      <div class="vehicle-grid fleet-grid" id="rental-results">
         <article class="vehicle-card car-item" data-vehicle-id="790137a1-2b04-4169-9027-3a610a8f7d27" data-wheelbase-rental-id="524203" data-brand="buick" data-type="suv compact">
           <div class="vehicle-image">
             <img src="assets/Buick-Encore-649.png" alt="Buick Encore #649 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Buick Encore #649</h3>
             <p>SUV • Compact • Efficient</p>
             <ul class="car-details">
@@ -192,7 +223,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=524203" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -201,7 +232,7 @@
             <img src="assets/Ford-Escape-650.png" alt="Ford Escape #650 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Ford Escape #650</h3>
             <p>SUV • Compact • Efficient</p>
             <ul class="car-details">
@@ -210,7 +241,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=524202" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -219,7 +250,7 @@
             <img src="assets/Kia-Soul-656.png" alt="Kia Soul #656 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Kia Soul #656</h3>
             <p>Compact • Hatchback • Efficient</p>
             <ul class="car-details">
@@ -228,7 +259,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=524201" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -237,7 +268,7 @@
             <img src="assets/Audi-A6-473.png" alt="Audi A6 #473 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi A6 #473</h3>
             <p>Sedan • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -246,7 +277,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="59">$59.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517449" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -255,7 +286,7 @@
             <img src="assets/Audi-A4-158.png" alt="Audi A4 #158 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi A4 #158</h3>
             <p>Sedan • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -264,7 +295,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517446" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -273,7 +304,7 @@
             <img src="assets/Audi-A8L-YPS.png" alt="Audi A6 #473 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi A8L #YPS</h3>
             <p>Sedan • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -282,7 +313,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="99">$99.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517442" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -291,7 +322,7 @@
             <img src="assets/Ford-F350-4X4-191.png" alt="Ford F350 4X4 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Ford F350 4X4 #191</h3>
             <p>Truck • 4x4 • Work Ready</p>
             <ul class="car-details">
@@ -300,7 +331,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="119">$119.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517467" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -309,7 +340,7 @@
             <img src="assets/Benz-C300-418.png" alt="Benz C300 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Benz C300 #418</h3>
             <p>Sedan • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -318,7 +349,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517460" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -327,7 +358,7 @@
             <img src="assets/Benz-CLS-AMG-550-224.png" alt="Audi A6 #473 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Benz CLS (AMG) 550 #224</h3>
             <p>Sedan • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -336,7 +367,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="59">$59.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517457" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -345,7 +376,7 @@
             <img src="assets/Dodge-Van-452.png" alt="Dodge Van Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Dodge Van #452</h3>
             <p>Van • Passenger/Utility • Spacious</p>
             <ul class="car-details">
@@ -354,7 +385,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517466" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -363,7 +394,7 @@
             <img src="assets/Audi-Q5-149.png" alt="Audi Q5 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi Q5 #149</h3>
             <p>SUV • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -372,7 +403,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517450" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -381,7 +412,7 @@
             <img src="assets/Audi-Q5-225.png" alt="Audi Q5 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi Q5 #225</h3>
             <p>SUV • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -390,7 +421,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517452" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -399,7 +430,7 @@
             <img src="assets/Dodge-Van-451.png" alt="Dodge Van Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Dodge Van #451</h3>
             <p>Van • Passenger/Utility • Spacious</p>
             <ul class="car-details">
@@ -408,7 +439,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517465" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -417,7 +448,7 @@
             <img src="assets/BMW-330I-157.png" alt="Audi A6 #473 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>BMW 330I #157</h3>
             <p>Sedan • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -426,7 +457,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517462" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -435,7 +466,7 @@
             <img src="assets/Cadillac-ATS-780.png" alt="Cadillac ATS Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Cadillac ATS #780</h3>
             <p>Sedan • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -444,7 +475,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="39">$39.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517464" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -453,7 +484,7 @@
             <img src="assets/Mercedes-C300-321.png" alt="Mercedes C300 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Mercedes C300 #321</h3>
             <p>Sedan • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -462,7 +493,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517458" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -471,7 +502,7 @@
             <img src="assets/Audi-A4-002.png" alt="Audi A4 #002 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi A4 #002</h3>
             <p>Sedan • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -480,7 +511,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="39">$39.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517445" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -489,7 +520,7 @@
             <img src="assets/Audi-A6-385.png" alt="Audi A6 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi A6 #385</h3>
             <p>Sedan • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -498,7 +529,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="59">$59.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517448" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -507,7 +538,7 @@
             <img src="assets/Audi-S3-001.png" alt="Audi A6 #473 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi S3 #001</h3>
             <p>Sedan • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -516,7 +547,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="39">$39.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517443" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -525,7 +556,7 @@
             <img src="assets/Audi-Q5-474.png" alt="Audi Q5 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi Q5 #474</h3>
             <p>SUV • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -534,7 +565,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517447" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -543,7 +574,7 @@
             <img src="assets/Audi-Q5-234.png" alt="Audi-Q5-234 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi Q5 #234</h3>
             <p>SUV • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -552,7 +583,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517453" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -561,7 +592,7 @@
             <img src="assets/Audi-Q5-203.png" alt="Audi Q5 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi Q5 #203</h3>
             <p>SUV • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -570,7 +601,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517451" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -579,7 +610,7 @@
             <img src="assets/Mercedes-Benz-C300-677.png" alt="Mercedes Benz C300 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Mercedes Benz C300 #677</h3>
             <p>Sedan • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -588,7 +619,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517459" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -597,7 +628,7 @@
             <img src="assets/BMW-328I-004.png" alt="BMW 328I Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>BMW 328I #004</h3>
             <p>Sedan • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -606,7 +637,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517461" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -615,7 +646,7 @@
             <img src="assets/BMW-330XI-166.png" alt="BMW 330XI Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>BMW 330XI #166</h3>
             <p>Sedan • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -624,7 +655,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517463" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -633,7 +664,7 @@
             <img src="assets/Audi-Q5-210.png" alt="Audi Q5 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi Q5 #210</h3>
             <p>SUV • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -642,7 +673,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="39">$39.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517444" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -651,7 +682,7 @@
             <img src="assets/Audi-Q3-100.png" alt="Audi Q3 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi Q3 #100</h3>
             <p>SUV • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -660,7 +691,7 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517456" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
@@ -669,7 +700,7 @@
             <img src="assets/Audi-Q5-997.png" alt="Audi Q5 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi Q5 #997</h3>
             <p>SUV • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -678,16 +709,16 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <a href="https://widget.wheelbasepro.com/?dealer_id=4960447&store_type=auto&page=listing-details&rental_id=517454" onclick="goToWheelbaseListingWithDates(event, this.href)" class="btn-primary full">Reserve This Car</a>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
 
-        <article class="vehicle-card car-item" data-vehicle-id="4a5cbe4a-12dc-4867-9cfe-a035f0813f52" data-brand="audi" data-type="suv luxury">
+        <article class="vehicle-card car-item" data-vehicle-id="4a5cbe4a-12dc-4867-9cfe-a035f0813f52" data-wheelbase-rental-id="517455" data-brand="audi" data-type="suv luxury">
           <div class="vehicle-image">
             <img src="assets/Audi-Q5-148.png" alt="Audi Q5 Rental Car" />
           </div>
           <div class="vehicle-body">
-            <span class="availability">1 Available</span>
+            <span class="availability">Checking...</span>
             <h3>Audi Q5 #148</h3>
             <p>SUV • Luxury • Comfortable</p>
             <ul class="car-details">
@@ -696,11 +727,17 @@
               <li>Security deposit required</li>
             </ul>
             <strong class="rental-price" data-daily-rate="49">$49.00 / 1 day</strong>
-            <button onclick="selectCar('Audi Q5 #148')" class="btn-primary full">Reserve This Car</button>
+            <a href="#checkoutPreview" onclick="reserveCustomCar(event)" class="btn-primary full">Book This Car</a>
           </div>
         </article>
       </div>
-      <div id="wheelbaseAvailabilitySource" hidden></div>
+      <div id="wheelbase-data-layer" class="wheelbase-data-layer" aria-hidden="true">
+        <div id="wheelbase-rental-list"></div>
+        <div id="wheelbase-date-range"></div>
+        <div id="wheelbase-metadata"></div>
+        <div id="price-filter"></div>
+        <div id="type-filter"></div>
+      </div>
     </section>
 
     <section class="section checkout-preview" id="checkoutPreview">
@@ -708,11 +745,12 @@
     <h2>Reservation Preview</h2>
   </div>
 
-  <div class="checkout-box">
+  <div class="checkout-box" id="quote-panel">
     <p><strong>Selected Vehicle:</strong> <span id="selectedVehicle">None selected yet</span></p>
-    <p><strong>Rental Period:</strong> <span id="selectedPeriod">Choose dates above</span></p>
+    <p><strong>Rental Period:</strong> <span id="selectedPeriod">Optional dates; Wheelbase confirms final times</span></p>
+    <p><strong>Estimated Quote:</strong> <span id="quoteTotal">Choose a vehicle to estimate</span></p>
     <p><strong>Next Steps:</strong> Wheelbase will confirm availability, collect renter details, handle documents, and process payment.</p>
-    <button class="btn-primary" onclick="mockCheckout()">Continue to Wheelbase Checkout</button>
+    <button class="btn-primary" id="checkout-button" onclick="continueCustomCheckout()">Continue to Wheelbase Checkout</button>
   </div>
 
   <div class="checkout-box insurance-checkout-box" id="insuranceOptions">
@@ -798,240 +836,645 @@
   <script src="https://d3cuf6g1arkgx6.cloudfront.net/sdk/1-5/wheelbase-widget.min.js"></script>
 
   <script>
-    const RENTMECT_WHEELBASE_CHECKOUT_URL = "https://widget.wheelbasepro.com/";
-    const RENTMECT_WHEELBASE_DEALER_ID = "4960447";
-    let rentmectWheelbaseApp = null;
-    let rentmectWheelbaseStore = null;
-    let rentmectVehicleAvailability = new Map();
+    const WHEELBASE_OWNER_ID = "4960447";
+    const WHEELBASE_ACCOUNT_ID = "4960447"; // TODO: replace if Wheelbase dashboard gives a different SDK accountId.
+    const WHEELBASE_BRAND_COLOR = "9b0008";
+    const WHEELBASE_RESERVE_URL = "https://checkout.wheelbasepro.com/reserve";
+    const WHEELBASE_AVAILABILITY_PROXY_URL = "https://gqmiktepthaafupwdmcl.supabase.co/functions/v1/wheelbase-availability";
+    var wheelbaseApp = null;
+    var wheelbase = null;
+    let wheelbaseStore = null;
+    let wheelbaseRentalsById = new Map();
+    let rentmectActiveCustomFilter = "all";
+    let wheelbaseAvailabilityTimer = null;
+    let wheelbaseAvailabilityRequestId = 0;
 
-    function getBookingDatesFromUrlOrStorage() {
+    function hasDirectWheelbaseAvailability() {
+      return Boolean(WHEELBASE_AVAILABILITY_PROXY_URL);
+    }
+
+    function getSelectedDates() {
       const params = new URLSearchParams(window.location.search);
+      const pickupDate =
+        document.getElementById("pickupDate")?.value ||
+        params.get("pickupDate") ||
+        params.get("wb-start") ||
+        params.get("wb-from") ||
+        "";
+      const returnDate =
+        document.getElementById("returnDate")?.value ||
+        params.get("returnDate") ||
+        params.get("wb-end") ||
+        params.get("wb-to") ||
+        "";
 
-      let saved = {};
-      try {
-        saved = JSON.parse(
-          localStorage.getItem("rentmect_pending_booking") ||
-          localStorage.getItem("rentMeCtBooking") ||
-          localStorage.getItem("pendingBooking") ||
-          "{}"
-        );
-      } catch (e) {}
+      return { pickupDate, returnDate };
+    }
 
-      return {
-        pickupDate: params.get("pickupDate") || saved.pickupDate || saved.pickup_date || "",
-        returnDate: params.get("returnDate") || saved.returnDate || saved.return_date || "",
-        pickupTime: params.get("pickupTime") || saved.pickupTime || saved.pickup_time || "9:00 AM",
-        returnTime: params.get("returnTime") || saved.returnTime || saved.return_time || "9:00 AM"
-      };
+    function getSelectedTimes() {
+      const params = new URLSearchParams(window.location.search);
+      const pickupTime =
+        document.getElementById("pickupTime")?.value ||
+        params.get("pickupTime") ||
+        params.get("from_time_label") ||
+        "";
+      const returnTime =
+        document.getElementById("returnTime")?.value ||
+        params.get("returnTime") ||
+        params.get("to_time_label") ||
+        "";
+
+      return { pickupTime, returnTime };
+    }
+
+    function getWheelbaseTimeInSeconds(timeLabel) {
+      const match = String(timeLabel || "").trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+      if (!match) return "";
+
+      let hours = Number(match[1]);
+      const minutes = Number(match[2] || 0);
+      const period = match[3].toUpperCase();
+
+      if (period === "AM" && hours === 12) hours = 0;
+      if (period === "PM" && hours !== 12) hours += 12;
+
+      return String((hours * 60 * 60) + (minutes * 60));
     }
 
     function applyBookingDatesToCarsPage() {
-      const booking = getBookingDatesFromUrlOrStorage();
-
+      const dates = getSelectedDates();
       const pickupDate = document.getElementById("pickupDate");
       const returnDate = document.getElementById("returnDate");
-      const pickupTime = document.getElementById("pickupTime");
-      const returnTime = document.getElementById("returnTime");
 
-      if (pickupDate && booking.pickupDate) pickupDate.value = booking.pickupDate;
-      if (returnDate && booking.returnDate) returnDate.value = booking.returnDate;
-      if (pickupTime && booking.pickupTime) pickupTime.value = booking.pickupTime.replace("%3A", ":");
-      if (returnTime && booking.returnTime) returnTime.value = booking.returnTime.replace("%3A", ":");
+      if (pickupDate && dates.pickupDate) pickupDate.value = dates.pickupDate;
+      if (returnDate && dates.returnDate) returnDate.value = dates.returnDate;
     }
+
     function getCarCardName(card) {
       return card?.querySelector('h3')?.textContent?.trim() || '';
     }
 
-    function setCardAvailability(card, vehicle, isAvailable, reason) {
-      const label = card.querySelector('.availability');
-      const button = card.querySelector('button.btn-primary, a.btn-primary');
-      const status = String(vehicle?.status || '').toLowerCase();
-      const canReserve = true;
+    function getWheelbaseRentalId(rental) {
+      return String(
+        rental?.rental_id ||
+        rental?.rentalId ||
+        rental?.rental?.id ||
+        rental?.vehicle?.rental_id ||
+        rental?.vehicle?.rentalId ||
+        rental?.id ||
+        rental?.vehicle_id ||
+        ""
+      );
+    }
 
-      card.dataset.vehicleStatus = status || 'unknown';
-      card.dataset.available = canReserve ? 'true' : 'false';
+    function getWheelbaseRentalName(rental) {
+      return String(rental?.name || rental?.title || rental?.vehicle?.name || rental?.vehicle_name || "").trim();
+    }
 
-      if (label) {
-        label.textContent = reason || 'Available';
-        label.classList.remove('availability-unavailable');
-        label.classList.toggle('availability-available', canReserve);
+    function getWheelbaseRentalDailyRate(rental) {
+      const cents = rental?.price?.day || rental?.price_per_day || rental?.daily_rate_cents;
+      if (Number(cents) > 1000) return Number(cents) / 100;
+
+      const dollars = rental?.daily_rate || rental?.base_price || rental?.rate;
+      return Number(dollars) || 0;
+    }
+
+    function extractRentalsFromWheelbaseState(state) {
+      console.log("Wheelbase state keys", Object.keys(state || {}));
+
+      const candidates = [
+        state?.rentals,
+        state?.rentals?.items,
+        state?.rentals?.data,
+        state?.rentalList?.rentals,
+        state?.rentalList?.items,
+        state?.search?.rentals,
+        state?.search?.results,
+        state?.results?.rentals,
+        state?.results?.items,
+        state?.results?.data,
+        state?.data?.rentals,
+        state?.data?.items,
+        state?.meta?.rentals,
+        state?.rentalMeta?.rentals,
+        state?.rentalMeta?.allRentals,
+        state?.visibleRentals,
+        state?.filteredRentals
+      ].filter(Boolean);
+
+      for (const candidate of candidates) {
+        if (Array.isArray(candidate)) return candidate;
+        if (typeof candidate === "object") return Object.values(candidate);
       }
 
-      if (button) {
-        if (button.tagName === 'BUTTON') button.disabled = !canReserve;
-        if (button.tagName === 'A') {
-          button.setAttribute('aria-disabled', String(!canReserve));
-          button.tabIndex = canReserve ? 0 : -1;
+      const seen = new Set();
+      const looksLikeRental = function(item) {
+        if (!item || typeof item !== "object") return false;
+        return Boolean(
+          getWheelbaseRentalId(item) ||
+          item.price ||
+          item.daily_rate ||
+          item.vehicle ||
+          item.vehicle_name ||
+          item.available_for_period !== undefined ||
+          item.currently_available !== undefined
+        );
+      };
+      const findRentalArray = function(value) {
+        if (!value || typeof value !== "object" || seen.has(value)) return [];
+        seen.add(value);
+
+        if (Array.isArray(value)) {
+          return value.some(looksLikeRental) ? value : [];
         }
-        button.classList.toggle('disabled', !canReserve);
-        button.textContent = 'Reserve This Car';
-      }
-    }
 
-    function setCardAvailabilityPending(card, reason = 'Check availability in checkout') {
-      const label = card.querySelector('.availability');
-      const button = card.querySelector('button.btn-primary, a.btn-primary');
-
-      card.dataset.vehicleStatus = 'wheelbase-pending';
-      card.dataset.available = 'unknown';
-
-      if (label) {
-        label.textContent = reason;
-        label.classList.remove('availability-unavailable', 'availability-available');
-      }
-
-      if (button) {
-        if (button.tagName === 'BUTTON') button.disabled = false;
-        if (button.tagName === 'A') {
-          button.setAttribute('aria-disabled', 'false');
-          button.tabIndex = 0;
+        for (const nested of Object.values(value)) {
+          const result = findRentalArray(nested);
+          if (result.length) return result;
         }
-        button.classList.remove('disabled');
-        button.textContent = 'Reserve This Car';
+
+        return [];
+      };
+      const nestedRentals = findRentalArray(state);
+      if (nestedRentals.length) return nestedRentals;
+
+      console.warn("Could not find rentals in Wheelbase state", state);
+      return [];
+    }
+
+    function markCardAvailable(card, labelText = "Available") {
+      card.dataset.available = "true";
+      card.style.display = "";
+
+      const label = card.querySelector(".availability");
+      if (label) {
+        label.textContent = labelText;
+        label.classList.add("availability-available");
+        label.classList.remove("availability-unavailable");
+      }
+
+      const btn = card.querySelector(".btn-primary");
+      if (btn) {
+        btn.classList.remove("disabled");
+        btn.setAttribute("aria-disabled", "false");
+        btn.tabIndex = 0;
+        btn.textContent = "Book This Car";
       }
     }
 
-    function updateWheelbaseRentalAvailability(rental, isAvailable) {
-      const rentalId = String(rental?.id || '');
-      if (!rentalId) return '';
+    function markCardUnavailable(card, labelText = "Unavailable") {
+      card.dataset.available = "false";
 
-      const matchingCard = document.querySelector(`.car-item[data-wheelbase-rental-id="${rentalId}"]`);
-      if (!matchingCard) return '';
+      const label = card.querySelector(".availability");
+      if (label) {
+        label.textContent = labelText;
+        label.classList.add("availability-unavailable");
+        label.classList.remove("availability-available");
+      }
 
-      const reason = isAvailable ? 'Available' : 'Unavailable';
-      setCardAvailability(matchingCard, { status: 'wheelbase' }, isAvailable, reason);
-      rentmectVehicleAvailability.set(rentalId, { available: isAvailable, reason, vehicleId: rentalId });
-      rentmectVehicleAvailability.set(getCarCardName(matchingCard), { available: isAvailable, reason, vehicleId: rentalId });
-      return '';
+      const btn = card.querySelector(".btn-primary");
+      if (btn) {
+        btn.classList.add("disabled");
+        btn.setAttribute("aria-disabled", "true");
+        btn.tabIndex = -1;
+      }
     }
 
-    function updateWheelbaseDates() {
-      if (!rentmectWheelbaseStore?.dispatch) return;
+    function markCardChecking(card) {
+      if (!card.dataset.wheelbaseRentalId) {
+        markCardNeedsWheelbaseCheckout(card);
+        return;
+      }
 
-      const pickupDate = document.getElementById('pickupDate')?.value || '';
-      const returnDate = document.getElementById('returnDate')?.value || '';
+      card.dataset.available = "checking";
 
-      if (!pickupDate || !returnDate) return;
+      const label = card.querySelector(".availability");
+      if (label) {
+        label.textContent = "Checking...";
+        label.classList.remove("availability-available", "availability-unavailable");
+      }
+    }
 
-      rentmectWheelbaseStore.dispatch({
-        type: 'CHANGE_DATES',
-        startDate: pickupDate,
-        endDate: returnDate
+    function markCardNeedsWheelbaseCheckout(card, labelText = "Checking...") {
+      card.dataset.available = "unknown";
+      card.style.display = "";
+
+      const label = card.querySelector(".availability");
+      if (label) {
+        label.textContent = labelText === "Unavailable" || labelText === "Available" ? labelText : "Checking...";
+        label.classList.toggle("availability-unavailable", label.textContent === "Unavailable");
+        label.classList.toggle("availability-available", label.textContent === "Available");
+      }
+
+      const btn = card.querySelector(".btn-primary");
+      if (btn) {
+        btn.classList.remove("disabled");
+        btn.setAttribute("aria-disabled", "false");
+        btn.tabIndex = 0;
+        btn.textContent = "Book This Car";
+      }
+    }
+
+    function updateCardFromWheelbaseTemplate(rental, isAvailable) {
+      const id = getWheelbaseRentalId(rental);
+      if (!id) return "";
+
+      wheelbaseRentalsById.set(id, rental);
+      const card = document.querySelector(`.car-item[data-wheelbase-rental-id="${id}"]`);
+      if (!card) return "";
+
+      if (hasDirectWheelbaseAvailability()) {
+        const rate = getWheelbaseRentalDailyRate(rental);
+        if (rate > 0) {
+          const price = card.querySelector(".rental-price");
+          if (price) price.dataset.dailyRate = String(rate);
+        }
+        return "";
+      }
+
+      if (isAvailable) {
+        markCardAvailable(card);
+      } else {
+        markCardUnavailable(card, "Unavailable");
+      }
+
+      const rate = getWheelbaseRentalDailyRate(rental);
+      if (rate > 0) {
+        const price = card.querySelector(".rental-price");
+        if (price) price.dataset.dailyRate = String(rate);
+      }
+
+      return "";
+    }
+
+    function updateCustomCardsFromWheelbase(rentals) {
+      if (hasDirectWheelbaseAvailability()) {
+        if (Array.isArray(rentals)) {
+          rentals.forEach((rental) => {
+            const id = getWheelbaseRentalId(rental);
+            if (!id) return;
+            wheelbaseRentalsById.set(id, rental);
+            const card = document.querySelector(`.car-item[data-wheelbase-rental-id="${id}"]`);
+            const rate = getWheelbaseRentalDailyRate(rental);
+            if (card && rate > 0) {
+              const price = card.querySelector(".rental-price");
+              if (price) price.dataset.dailyRate = String(rate);
+            }
+          });
+        }
+        if (typeof updateRentalPrices === "function") updateRentalPrices();
+        applyCustomFleetFilter(rentmectActiveCustomFilter);
+        return;
+      }
+
+      if (!Array.isArray(rentals) || rentals.length === 0) {
+        console.warn("Wheelbase returned no readable rentals; keeping custom cards selectable for Wheelbase checkout.");
+        document.querySelectorAll(".car-item").forEach((card) => {
+          if (!card.dataset.wheelbaseRentalId) {
+            markCardNeedsWheelbaseCheckout(card);
+            return;
+          }
+          markCardNeedsWheelbaseCheckout(card);
+        });
+        applyCustomFleetFilter(rentmectActiveCustomFilter);
+        return;
+      }
+
+      const connectedCards = [...document.querySelectorAll(".car-item[data-wheelbase-rental-id]")];
+      const connectedIds = new Set(connectedCards.map((card) => String(card.dataset.wheelbaseRentalId)));
+      let matchedCards = 0;
+
+      wheelbaseRentalsById.clear();
+
+      rentals.forEach((rental) => {
+        const id = getWheelbaseRentalId(rental);
+        if (id) {
+          wheelbaseRentalsById.set(id, rental);
+          if (connectedIds.has(id)) matchedCards += 1;
+        }
       });
+
+      if (connectedCards.length && matchedCards === 0) {
+        console.warn("Wheelbase returned rentals, but none matched the custom card rental IDs; keeping cards selectable for rental-specific Wheelbase checkout.", {
+          cardRentalIds: [...connectedIds],
+          returnedRentalIds: [...wheelbaseRentalsById.keys()]
+        });
+        document.querySelectorAll(".car-item").forEach((card) => {
+          if (!card.dataset.wheelbaseRentalId) {
+            markCardNeedsWheelbaseCheckout(card);
+            return;
+          }
+          markCardNeedsWheelbaseCheckout(card);
+        });
+        if (typeof updateRentalPrices === "function") updateRentalPrices();
+        applyCustomFleetFilter(rentmectActiveCustomFilter);
+        return;
+      }
+
+      document.querySelectorAll(".car-item").forEach((card) => {
+        const id = card.dataset.wheelbaseRentalId;
+        console.log("Wheelbase card match", { vehicle: getCarCardName(card), rentalId: id, matched: Boolean(id && wheelbaseRentalsById.has(String(id))) });
+
+        if (!id) {
+          markCardNeedsWheelbaseCheckout(card);
+          return;
+        }
+
+        const rental = wheelbaseRentalsById.get(String(id));
+        if (!rental) {
+          markCardNeedsWheelbaseCheckout(card);
+          return;
+        }
+
+        const status = String(rental.status || "").toLowerCase();
+        const available =
+          rental.available === true ||
+          rental.isAvailable === true ||
+          rental.available_for_period === true ||
+          rental.currently_available === true ||
+          status === "available";
+        const unavailable =
+          rental.available === false ||
+          rental.isAvailable === false ||
+          rental.available_for_period === false ||
+          rental.currently_available === false ||
+          ["unavailable", "reserved", "booked", "rented", "maintenance"].includes(status);
+
+        if (available) {
+          markCardAvailable(card);
+        } else if (unavailable) {
+          markCardUnavailable(card, "Unavailable");
+        } else {
+          markCardNeedsWheelbaseCheckout(card);
+        }
+
+        const rate = getWheelbaseRentalDailyRate(rental);
+        if (rate > 0) {
+          const price = card.querySelector(".rental-price");
+          if (price) price.dataset.dailyRate = String(rate);
+        }
+      });
+
+      if (typeof updateRentalPrices === "function") updateRentalPrices();
+      applyCustomFleetFilter(rentmectActiveCustomFilter);
     }
+
+    function normalizeDirectAvailability(payload) {
+      if (!payload || typeof payload !== "object") return null;
+      if (typeof payload.available === "boolean") return payload.available;
+      if (Array.isArray(payload.payload) && payload.payload.length === 0) return true;
+      if (Array.isArray(payload.payload) && payload.payload.length > 0) return false;
+
+      const candidates = [
+        payload?.data?.available,
+        payload?.data?.attributes?.available,
+        payload?.payload?.available,
+        payload?.payload?.data?.available,
+        payload?.payload?.data?.attributes?.available,
+        payload?.payload?.is_available,
+        payload?.payload?.isAvailable,
+        payload?.payload?.available_for_period,
+        payload?.payload?.currently_available
+      ];
+
+      for (const candidate of candidates) {
+        if (typeof candidate === "boolean") return candidate;
+      }
+
+      return null;
+    }
+
+    function scheduleDirectWheelbaseAvailabilityCheck() {
+      if (!hasDirectWheelbaseAvailability()) return;
+      clearTimeout(wheelbaseAvailabilityTimer);
+      wheelbaseAvailabilityTimer = setTimeout(checkDirectWheelbaseAvailability, 350);
+    }
+
+    async function checkDirectWheelbaseAvailability() {
+      const dates = getSelectedDates();
+      const times = getSelectedTimes();
+      const cards = [...document.querySelectorAll(".car-item")];
+
+      if (!dates.pickupDate || !dates.returnDate) {
+        cards.forEach((card) => {
+          if (!card.dataset.wheelbaseRentalId) {
+            markCardNeedsWheelbaseCheckout(card);
+            return;
+          }
+          markCardNeedsWheelbaseCheckout(card);
+        });
+        applyCustomFleetFilter(rentmectActiveCustomFilter);
+        return;
+      }
+
+      const requestId = ++wheelbaseAvailabilityRequestId;
+
+      await Promise.all(cards.map(async (card) => {
+        const rentalId = card.dataset.wheelbaseRentalId || "";
+        if (!rentalId) {
+          markCardNeedsWheelbaseCheckout(card);
+          return;
+        }
+
+        markCardChecking(card);
+
+        const url = new URL(WHEELBASE_AVAILABILITY_PROXY_URL);
+        url.searchParams.set("rental_id", rentalId);
+        url.searchParams.set("from", dates.pickupDate);
+        url.searchParams.set("to", dates.returnDate);
+        const pickupSeconds = getWheelbaseTimeInSeconds(times.pickupTime);
+        const returnSeconds = getWheelbaseTimeInSeconds(times.returnTime);
+        if (pickupSeconds) url.searchParams.set("from_time", pickupSeconds);
+        if (returnSeconds) url.searchParams.set("to_time", returnSeconds);
+
+        try {
+          const response = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+          const payload = await response.json().catch(() => ({}));
+          if (requestId !== wheelbaseAvailabilityRequestId) return;
+
+          if (!response.ok) {
+            console.warn("Wheelbase availability proxy failed", { rentalId, payload });
+            markCardNeedsWheelbaseCheckout(card);
+            return;
+          }
+
+          const available = normalizeDirectAvailability(payload);
+          if (available === true) {
+            markCardAvailable(card, "Available");
+          } else if (available === false) {
+            markCardUnavailable(card, "Unavailable");
+          } else {
+            console.warn("Wheelbase availability response did not include a clear boolean", { rentalId, payload });
+            markCardNeedsWheelbaseCheckout(card);
+          }
+        } catch (error) {
+          if (requestId !== wheelbaseAvailabilityRequestId) return;
+          console.warn("Wheelbase availability request failed", { rentalId, error });
+          markCardNeedsWheelbaseCheckout(card);
+        }
+      }));
+
+      if (requestId === wheelbaseAvailabilityRequestId) {
+        applyCustomFleetFilter(rentmectActiveCustomFilter);
+      }
+    }
+
+    function refreshWheelbaseDates() {
+      const dates = getSelectedDates();
+
+      document.querySelectorAll(".car-item").forEach((card) => {
+        if (!card.dataset.wheelbaseRentalId) {
+          markCardNeedsWheelbaseCheckout(card);
+          return;
+        }
+        markCardChecking(card);
+      });
+      scheduleDirectWheelbaseAvailabilityCheck();
+
+      if (wheelbaseApp?.updateFilters && dates.pickupDate && dates.returnDate) {
+        wheelbaseApp.updateFilters({ from: dates.pickupDate, to: dates.returnDate });
+      }
+
+      if (wheelbaseStore && dates.pickupDate && dates.returnDate) {
+        wheelbaseStore.dispatch({
+          type: "CHANGE_DATES",
+          startDate: dates.pickupDate,
+          endDate: dates.returnDate
+        });
+      }
+    }
+
+    window.syncVehicleAvailability = refreshWheelbaseDates;
 
     function initializeWheelbaseAvailabilityBridge() {
-      return;
+      if (typeof Wheelbase !== "function") {
+        document.querySelectorAll(".car-item").forEach((card) => markCardNeedsWheelbaseCheckout(card));
+        return;
+      }
 
-      rentmectWheelbaseApp = Wheelbase({
-        accountId: Number(RENTMECT_WHEELBASE_DEALER_ID),
+      wheelbaseApp = wheelbase = Wheelbase({
+        accountId: Number(WHEELBASE_ACCOUNT_ID),
         urlParams: true,
-        currency: 'USD'
+        currency: "USD"
       });
+      console.log("Wheelbase initialized", { accountId: WHEELBASE_ACCOUNT_ID, ownerId: WHEELBASE_OWNER_ID });
 
-      rentmectWheelbaseApp.addWidget(rentmectWheelbaseApp.widgets.RentalList, "wheelbaseAvailabilitySource", {
+      wheelbaseApp.addWidget(wheelbaseApp.widgets.RentalList, "wheelbase-rental-list", {
         templates: {
           available: function(rental) {
-            return updateWheelbaseRentalAvailability(rental, true);
+            return updateCardFromWheelbaseTemplate(rental, true);
           },
           unavailable: function(rental) {
-            return updateWheelbaseRentalAvailability(rental, false);
+            return updateCardFromWheelbaseTemplate(rental, false);
           }
         }
       });
 
-      rentmectWheelbaseApp.addWidget(function() {
+      const DateWidget = wheelbaseApp.widgets.DateRange || wheelbaseApp.widgets.DatePicker;
+      if (DateWidget) wheelbaseApp.addWidget(DateWidget, "wheelbase-date-range");
+      if (wheelbaseApp.widgets.PriceRange) wheelbaseApp.addWidget(wheelbaseApp.widgets.PriceRange, "price-filter");
+      if (wheelbaseApp.widgets.TypeList) wheelbaseApp.addWidget(wheelbaseApp.widgets.TypeList, "type-filter");
+
+      wheelbaseApp.addWidget(function() {
         return {
           start: function(store) {
-            rentmectWheelbaseStore = store;
-            updateWheelbaseDates();
+            wheelbaseStore = store;
+            const syncFromStore = function() {
+              const state = store.getState ? store.getState() : {};
+              console.log("WHEELBASE STATE", state);
+              const rentals = extractRentalsFromWheelbaseState(state);
+              console.log("WHEELBASE RENTALS", rentals);
+              updateCustomCardsFromWheelbase(rentals);
+            };
+            if (store.subscribe) store.subscribe(syncFromStore);
+            syncFromStore();
+            refreshWheelbaseDates();
           }
         };
-      }, "wheelbaseAvailabilitySource");
+      }, "wheelbase-metadata");
 
-      rentmectWheelbaseApp.start();
+      try {
+        wheelbaseApp.start();
+      } catch (e) {
+        console.error("Wheelbase start failed", e);
+        document.querySelectorAll(".car-item").forEach((card) => markCardNeedsWheelbaseCheckout(card));
+      }
     }
 
-    function buildWheelbaseCheckoutUrl(extraData = {}) {
-      const params = new URLSearchParams({
-        dealer_id: RENTMECT_WHEELBASE_DEALER_ID,
-        store_type: "auto"
+    function applyCustomFleetFilter(filter = "all") {
+      document.querySelectorAll(".car-item").forEach((car) => {
+        const brand = car.dataset.brand || "";
+        const type = car.dataset.type || "";
+        car.style.display = filter === "all" || brand.includes(filter) || type.includes(filter) ? "block" : "none";
       });
-
-      const bookingData = {
-        ...getBookingDatesFromUrlOrStorage(),
-        ...extraData
-      };
-
-      const pickupTimeSeconds = getWheelbaseTimeInSeconds(bookingData.pickupTime);
-      const returnTimeSeconds = getWheelbaseTimeInSeconds(bookingData.returnTime);
-
-      if (bookingData.pickupDate) {
-        params.set("from", bookingData.pickupDate);
-        params.set("wb-from", bookingData.pickupDate);
-      }
-      if (bookingData.returnDate) {
-        params.set("to", bookingData.returnDate);
-        params.set("wb-to", bookingData.returnDate);
-      }
-      setWheelbaseTimeParams(params, pickupTimeSeconds, returnTimeSeconds);
-      if (bookingData.wheelbaseRentalId) {
-        params.set("rental_id", bookingData.wheelbaseRentalId);
-
-        const routerState = getWheelbaseRouterState(
-          bookingData.wheelbaseRentalId,
-          bookingData.pickupDate,
-          bookingData.returnDate,
-          pickupTimeSeconds,
-          returnTimeSeconds
-        );
-        if (routerState) params.set("wb_state", routerState);
-      }
-
-      return `${RENTMECT_WHEELBASE_CHECKOUT_URL}?${params.toString()}`;
     }
 
-    window.syncVehicleAvailability = function syncVehicleAvailability() {
-      const hasDates = Boolean(document.getElementById('pickupDate')?.value && document.getElementById('returnDate')?.value);
-      document.querySelectorAll('.car-item').forEach((card) => {
-        const vehicleName = getCarCardName(card);
-        const vehicleId = card.dataset.wheelbaseRentalId || card.dataset.vehicleId || vehicleName;
-        const availability = {
-          available: true,
-          reason: hasDates ? 'Available' : 'Select dates first'
-        };
-        rentmectVehicleAvailability.set(vehicleId, availability);
-        rentmectVehicleAvailability.set(vehicleName, availability);
-        setCardAvailabilityPending(card, hasDates ? 'Available' : 'Select dates first');
-      });
-      updateWheelbaseDates();
-    };
+    function wheelbaseCustomFilter(filter, button) {
+      rentmectActiveCustomFilter = filter || "all";
+
+      document.querySelectorAll(".filter-btn").forEach((btn) => btn.classList.remove("active"));
+      if (button) button.classList.add("active");
+
+      if (filter === "all") {
+        wheelbase?.clearFilters?.();
+      } else {
+        wheelbase?.updateFilters?.({ type: filter, keyword: filter });
+        wheelbaseStore?.dispatch?.({
+          type: "FILTER_RENTALS",
+          filterId: "rentmect-custom-filter",
+          filter: function(rental) {
+            const text = [
+              getWheelbaseRentalName(rental),
+              rental?.type,
+              rental?.vehicle_type,
+              rental?.category,
+              rental?.make,
+              rental?.vehicle?.make
+            ].join(" ").toLowerCase();
+
+            return text.includes(filter);
+          }
+        });
+      }
+
+      applyCustomFleetFilter(rentmectActiveCustomFilter);
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
       applyBookingDatesToCarsPage();
-      window.syncVehicleAvailability();
+      document.querySelectorAll(".car-item").forEach((card) => {
+        if (!card.dataset.wheelbaseRentalId) {
+          markCardNeedsWheelbaseCheckout(card);
+          return;
+        }
+        markCardChecking(card);
+      });
       initializeWheelbaseAvailabilityBridge();
-      document.getElementById('pickupDate')?.addEventListener('change', syncVehicleAvailability);
-      document.getElementById('returnDate')?.addEventListener('change', syncVehicleAvailability);
-      document.getElementById('pickupTime')?.addEventListener('change', syncVehicleAvailability);
-      document.getElementById('returnTime')?.addEventListener('change', syncVehicleAvailability);
+      scheduleDirectWheelbaseAvailabilityCheck();
+      setTimeout(refreshWheelbaseDates, 0);
+      document.getElementById('pickupDate')?.addEventListener('change', refreshWheelbaseDates);
+      document.getElementById('returnDate')?.addEventListener('change', refreshWheelbaseDates);
+      document.getElementById('pickupTime')?.addEventListener('change', refreshWheelbaseDates);
+      document.getElementById('returnTime')?.addEventListener('change', refreshWheelbaseDates);
     });
   </script>
 
   <script src="script.js"></script>
 
   <script>
+    window.filterCars = wheelbaseCustomFilter;
+
     let pendingInsuranceVehicle = "";
     let pendingInsuranceVehicleId = "";
     let pendingWheelbaseRentalId = "";
 
     function getRentalPeriodData() {
-      const pickupDate = document.getElementById("pickupDate")?.value || "";
-      const returnDate = document.getElementById("returnDate")?.value || "";
-      const pickupTime = document.getElementById("pickupTime")?.value || "";
-      const returnTime = document.getElementById("returnTime")?.value || "";
+      const dates = getSelectedDates();
+      const times = typeof getSelectedTimes === "function" ? getSelectedTimes() : {};
+      const pickupTime = times.pickupTime || "";
+      const returnTime = times.returnTime || "";
 
-      return { pickupDate, returnDate, pickupTime, returnTime };
+      return { ...dates, pickupTime, returnTime };
     }
 
     function getRentalDateTimeForWheelbase(dateValue, timeLabel) {
@@ -1051,6 +1494,25 @@
     }
 
     function validateRentalPeriodForWheelbase({ pickupDate, returnDate, pickupTime, returnTime }) {
+      if (!pickupDate && !returnDate) return true;
+
+      if (!pickupDate || !returnDate) {
+        alert("Please choose both pickup and return dates, or leave both blank and choose them during checkout.");
+        return false;
+      }
+
+      if (!pickupTime && !returnTime) {
+        const pickupDay = new Date(`${pickupDate}T00:00:00`);
+        const dropoffDay = new Date(`${returnDate}T00:00:00`);
+
+        if (Number.isNaN(pickupDay.getTime()) || Number.isNaN(dropoffDay.getTime()) || dropoffDay <= pickupDay) {
+          alert("Please choose a return date after pickup.");
+          return false;
+        }
+
+        return true;
+      }
+
       const pickup = getRentalDateTimeForWheelbase(pickupDate, pickupTime);
       const dropoff = getRentalDateTimeForWheelbase(returnDate, returnTime);
 
@@ -1068,62 +1530,40 @@
       return true;
     }
 
-    function getWheelbaseTimeInSeconds(timeLabel) {
-      const match = String(timeLabel || "").trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
-      if (!match) return "";
-
-      let hours = Number(match[1]);
-      const minutes = Number(match[2] || 0);
-      const period = match[3].toUpperCase();
-
-      if (period === "AM" && hours === 12) hours = 0;
-      if (period === "PM" && hours !== 12) hours += 12;
-
-      return String((hours * 60 + minutes) * 60);
-    }
-
-    function setWheelbaseTimeParams(params, pickupTimeSeconds, returnTimeSeconds) {
-      if (pickupTimeSeconds) {
-        params.set("from_time", pickupTimeSeconds);
-        params.set("wb-from-time", pickupTimeSeconds);
-        params.set("pickup_time", pickupTimeSeconds);
-        params.set("pickupTime", pickupTimeSeconds);
-        params.set("startTime", pickupTimeSeconds);
+    function buildIndividualRentalCheckoutUrl(rentalId, dates) {
+      const params = new URLSearchParams();
+      params.set("color", WHEELBASE_BRAND_COLOR);
+      params.set("locale", "en-us");
+      if (dates.pickupDate) {
+        params.set("from", dates.pickupDate);
+        params.set("wb-from", dates.pickupDate);
       }
-      if (returnTimeSeconds) {
-        params.set("to_time", returnTimeSeconds);
-        params.set("wb-to-time", returnTimeSeconds);
-        params.set("return_time", returnTimeSeconds);
-        params.set("returnTime", returnTimeSeconds);
-        params.set("endTime", returnTimeSeconds);
+      if (dates.returnDate) {
+        params.set("to", dates.returnDate);
+        params.set("wb-to", dates.returnDate);
       }
-    }
-
-    function getWheelbaseRouterState(rentalId, pickupDate, returnDate, pickupTimeSeconds = "", returnTimeSeconds = "") {
-      if (!rentalId) return "";
-
-      try {
-        const searchParams = {
-          from: pickupDate,
-          to: returnDate
-        };
-
-        if (pickupTimeSeconds) searchParams.from_time = pickupTimeSeconds;
-        if (returnTimeSeconds) searchParams.to_time = returnTimeSeconds;
-        if (pickupTimeSeconds) searchParams.pickup_time = pickupTimeSeconds;
-        if (returnTimeSeconds) searchParams.return_time = returnTimeSeconds;
-        if (pickupTimeSeconds) searchParams.pickupTime = pickupTimeSeconds;
-        if (returnTimeSeconds) searchParams.returnTime = returnTimeSeconds;
-
-        return btoa(JSON.stringify({
-          page: "listing-details",
-          rentalId: Number(rentalId),
-          locale: "en-us",
-          searchParams
-        }));
-      } catch (e) {
-        return "";
+      if (dates.pickupDate && dates.pickupTime) {
+        const pickupSeconds = getWheelbaseTimeInSeconds(dates.pickupTime);
+        params.set("pickupTime", dates.pickupTime);
+        params.set("from_time_label", dates.pickupTime);
+        if (pickupSeconds) {
+          params.set("from_time", pickupSeconds);
+          params.set("wb-from-time", pickupSeconds);
+        }
       }
+      if (dates.returnDate && dates.returnTime) {
+        const returnSeconds = getWheelbaseTimeInSeconds(dates.returnTime);
+        params.set("returnTime", dates.returnTime);
+        params.set("to_time_label", dates.returnTime);
+        if (returnSeconds) {
+          params.set("to_time", returnSeconds);
+          params.set("wb-to-time", returnSeconds);
+        }
+      }
+
+      const url = `${WHEELBASE_RESERVE_URL}/${encodeURIComponent(rentalId)}?${params.toString()}`;
+      console.log("Wheelbase fallback checkout URL", url);
+      return url;
     }
 
     function goToWheelbaseCheckout(extraData = {}) {
@@ -1134,97 +1574,69 @@
 
       localStorage.setItem("rentmect_pending_booking", JSON.stringify(bookingData));
 
-      if (!bookingData.pickupDate || !bookingData.returnDate || !bookingData.pickupTime || !bookingData.returnTime) {
-        alert("Please choose your rental period first.");
+      if (!bookingData.wheelbaseRentalId) {
+        alert("Please choose an available vehicle before continuing to checkout.");
         return;
       }
 
       if (!validateRentalPeriodForWheelbase(bookingData)) return;
 
-      window.location.href = buildWheelbaseCheckoutUrl(bookingData);
-    }
+      console.log("BOOKING SELECTED VEHICLE", {
+        vehicleName: bookingData.selectedVehicle || "",
+        rentalId: bookingData.wheelbaseRentalId,
+        pickupDate: bookingData.pickupDate,
+        returnDate: bookingData.returnDate
+      });
 
-    function goToWheelbaseListingWithDates(event, baseUrl) {
-      event.preventDefault();
-
-      if (event.currentTarget?.getAttribute("aria-disabled") === "true") return;
-
-      const { pickupDate, returnDate, pickupTime, returnTime } = getRentalPeriodData();
-
-      if (!pickupDate || !returnDate || !pickupTime || !returnTime) {
-        alert("Please choose your rental period first.");
-        return;
-      }
-
-      if (!validateRentalPeriodForWheelbase({ pickupDate, returnDate, pickupTime, returnTime })) return;
-
-      const url = new URL(baseUrl);
-      const rentalId = url.searchParams.get("rental_id") || "";
-      const pickupTimeSeconds = getWheelbaseTimeInSeconds(pickupTime);
-      const returnTimeSeconds = getWheelbaseTimeInSeconds(returnTime);
-      const routerState = getWheelbaseRouterState(
-        rentalId,
-        pickupDate,
-        returnDate,
-        pickupTimeSeconds,
-        returnTimeSeconds
-      );
-
-      url.searchParams.set("page", "listing-details");
-      if (rentalId) url.searchParams.set("rental_id", rentalId);
-      url.searchParams.set("from", pickupDate);
-      url.searchParams.set("to", returnDate);
-      url.searchParams.set("wb-from", pickupDate);
-      url.searchParams.set("wb-to", returnDate);
-      url.searchParams.set("startDate", pickupDate);
-      url.searchParams.set("endDate", returnDate);
-      setWheelbaseTimeParams(url.searchParams, pickupTimeSeconds, returnTimeSeconds);
-      if (routerState) url.searchParams.set("wb_state", routerState);
-
-      localStorage.setItem("rentmect_pending_booking", JSON.stringify({
-        pickupDate,
-        returnDate,
-        pickupTime,
-        returnTime,
-        pickup_date: pickupDate,
-        return_date: returnDate,
-        pickup_time: pickupTime,
-        return_time: returnTime,
-        wheelbaseRentalId: rentalId
-      }));
-
-      window.location.href = url.toString();
+      window.location.href = buildIndividualRentalCheckoutUrl(bookingData.wheelbaseRentalId, bookingData);
     }
 
     function startBooking(event) {
       event.preventDefault();
 
-      const { pickupDate, returnDate, pickupTime, returnTime } = getRentalPeriodData();
+      goToWheelbaseCheckout();
+    }
 
-      if (!pickupDate || !returnDate || !pickupTime || !returnTime) {
-        alert("Please choose your pickup date, return date, pickup time, and return time.");
+    function reserveCustomCar(event) {
+      event.preventDefault();
+
+      if (event.currentTarget?.getAttribute("aria-disabled") === "true") return;
+
+      const card = event.currentTarget?.closest(".car-item");
+      const vehicleName = card ? getCarCardName(card) : "";
+      const wheelbaseRentalId = card?.dataset.wheelbaseRentalId || "";
+
+      if (!card || !vehicleName) return;
+      if (!wheelbaseRentalId) {
+        alert("This vehicle needs its Wheelbase rental ID before online checkout can open.");
         return;
       }
 
-      if (!validateRentalPeriodForWheelbase({ pickupDate, returnDate, pickupTime, returnTime })) return;
+      const selectedVehicle = document.getElementById("selectedVehicle");
+      if (selectedVehicle) selectedVehicle.textContent = vehicleName;
+      updateQuotePanel(vehicleName);
 
-      goToWheelbaseCheckout();
+      goToWheelbaseCheckout({
+        selectedVehicle: vehicleName,
+        selectedVehicleId: card.dataset.vehicleId || "",
+        wheelbaseRentalId
+      });
     }
 
     function selectCar(vehicleName) {
       const card = [...document.querySelectorAll('.car-item')].find((item) => getCarCardName(item) === vehicleName);
       const vehicleId = card?.dataset.vehicleId || "";
       const wheelbaseRentalId = card?.dataset.wheelbaseRentalId || "";
-      const availability = rentmectVehicleAvailability.get(vehicleId) || rentmectVehicleAvailability.get(vehicleName);
-      if (availability && !availability.available) {
-        alert(`Sorry, ${vehicleName} is currently ${availability.reason.toLowerCase()}. Please choose another vehicle or call us to confirm.`);
+      if (card?.dataset.available === "false") {
+        alert(`Sorry, ${vehicleName} is currently unavailable. Please choose another vehicle or call us to confirm.`);
         return;
       }
 
       const selectedVehicle = document.getElementById("selectedVehicle");
       if (selectedVehicle) selectedVehicle.textContent = vehicleName;
+      updateQuotePanel(vehicleName);
 
-      openInsuranceReminder(vehicleName, availability?.vehicleId || vehicleId, wheelbaseRentalId);
+      openInsuranceReminder(vehicleName, vehicleId, wheelbaseRentalId);
     }
 
     function openInsuranceReminder(vehicleName, vehicleId = "", wheelbaseRentalId = "") {
@@ -1265,7 +1677,7 @@
       document.getElementById("insuranceOptions")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
-    function mockCheckout() {
+    function continueCustomCheckout() {
       const selectedVehicle = document.getElementById("selectedVehicle")?.textContent || "";
       const vehicle = selectedVehicle && selectedVehicle !== "None selected yet" ? selectedVehicle : "";
       const vehicleId = pendingInsuranceVehicleId || "";
@@ -1277,6 +1689,44 @@
     });
   </script>
 <script>
+    function getEstimatedQuoteDays() {
+      const pickupDate = document.getElementById("pickupDate")?.value || "";
+      const returnDate = document.getElementById("returnDate")?.value || "";
+
+      if (pickupDate && returnDate) {
+        const pickup = new Date(`${pickupDate}T00:00:00`);
+        const dropoff = new Date(`${returnDate}T00:00:00`);
+        const days = Math.ceil((dropoff - pickup) / 86400000);
+        if (days > 0) return days;
+      }
+
+      return Number(document.getElementById("rentalLength")?.value || 1);
+    }
+
+    function updateQuotePanel(vehicleName = "") {
+      const selectedVehicle = vehicleName || document.getElementById("selectedVehicle")?.textContent || "";
+      const quoteTotal = document.getElementById("quoteTotal");
+      const selectedPeriod = document.getElementById("selectedPeriod");
+      const pickupDate = document.getElementById("pickupDate")?.value || "";
+      const returnDate = document.getElementById("returnDate")?.value || "";
+
+      if (selectedPeriod) {
+        selectedPeriod.textContent = pickupDate && returnDate
+          ? `${pickupDate} to ${returnDate}`
+          : "Optional dates; Wheelbase confirms final times";
+      }
+
+      if (!quoteTotal || !selectedVehicle || selectedVehicle === "None selected yet") return;
+
+      const card = [...document.querySelectorAll(".car-item")].find((item) => getCarCardName(item) === selectedVehicle);
+      const dailyRate = Number(card?.querySelector(".rental-price")?.dataset.dailyRate || 0);
+      const days = getEstimatedQuoteDays();
+
+      quoteTotal.textContent = dailyRate > 0
+        ? `$${(dailyRate * days).toFixed(2)} estimated for ${days} ${days === 1 ? "day" : "days"}`
+        : "Wheelbase will calculate the final quote";
+    }
+
     function updateRentalPrices() {
       const days = Number(document.getElementById("rentalLength").value);
       const prices = document.querySelectorAll(".rental-price");
@@ -1287,10 +1737,14 @@
 
         price.textContent = `$${total.toFixed(2)} / ${days} ${days === 1 ? "day" : "days"}`;
       });
+
+      updateQuotePanel();
     }
 
     document.addEventListener("DOMContentLoaded", () => {
       updateRentalPrices();
+      document.getElementById("pickupDate")?.addEventListener("change", () => updateQuotePanel());
+      document.getElementById("returnDate")?.addEventListener("change", () => updateQuotePanel());
     });
 </script>
 </body>

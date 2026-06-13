@@ -184,9 +184,22 @@ function normalizeRentalDateInputs() {
   if (!pickup || !dropoff) return;
 
   const today = getLocalDateInputValue();
-  const defaultReturn = getNextDateInputValue(today);
+  const datesAreOptional = document.getElementById("bookingPanel")?.dataset.optionalDates === "true";
 
   pickup.min = today;
+  if (datesAreOptional) {
+    if (pickup.value) {
+      dropoff.min = getNextDateInputValue(pickup.value);
+      if (dropoff.value && dropoff.value < dropoff.min) dropoff.value = "";
+    } else {
+      dropoff.min = getNextDateInputValue(today);
+    }
+    normalizeRentalTimeInputs();
+    return;
+  }
+
+  const defaultReturn = getNextDateInputValue(today);
+
   if (!pickup.value || pickup.value < today) pickup.value = today;
 
   const minReturn = getNextDateInputValue(pickup.value);
