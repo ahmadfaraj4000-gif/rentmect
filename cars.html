@@ -798,8 +798,12 @@
         Before Wheelbase checkout, have your driver's license number ready. If you opt out of Wheelbase insurance, you will need your insurance declaration page available for review before pickup.
       </p>
       <p class="insurance-modal-note">Rent Me CT requires every renter to have valid coverage before pickup.</p>
+      <label class="insurance-confirm-check">
+        <input id="insuranceReminderConfirm" type="checkbox" onchange="syncInsuranceReminderButton()" />
+        <span>I confirm I have read this and will have my driver's license number and insurance declaration page ready if I opt out of Wheelbase insurance.</span>
+      </label>
       <div class="insurance-modal-actions">
-        <button class="btn-primary" type="button" onclick="continueSelectedCarBooking()">Continue to Wheelbase Checkout</button>
+        <button class="btn-primary" id="insuranceReminderContinue" type="button" onclick="continueSelectedCarBooking()" disabled>Continue to Wheelbase Checkout</button>
         <button class="btn-secondary" type="button" onclick="viewInsuranceOptions()">View My Options</button>
       </div>
     </div>
@@ -1627,8 +1631,11 @@
       pendingWheelbaseRentalId = wheelbaseRentalId;
       const modal = document.getElementById("insuranceReminderModal");
       const vehicleLabel = document.getElementById("insuranceReminderVehicle");
+      const confirmCheck = document.getElementById("insuranceReminderConfirm");
 
       if (vehicleLabel) vehicleLabel.textContent = vehicleName;
+      if (confirmCheck) confirmCheck.checked = false;
+      syncInsuranceReminderButton();
       if (!modal) {
         goToWheelbaseCheckout({ selectedVehicle: vehicleName, selectedVehicleId: vehicleId, wheelbaseRentalId });
         return;
@@ -1648,7 +1655,19 @@
       document.body.classList.remove("modal-open");
     }
 
+    function syncInsuranceReminderButton() {
+      const confirmCheck = document.getElementById("insuranceReminderConfirm");
+      const continueButton = document.getElementById("insuranceReminderContinue");
+      if (continueButton) continueButton.disabled = !confirmCheck?.checked;
+    }
+
     function continueSelectedCarBooking() {
+      const confirmCheck = document.getElementById("insuranceReminderConfirm");
+      if (!confirmCheck?.checked) {
+        alert("Please check the confirmation box before continuing to Wheelbase checkout.");
+        return;
+      }
+
       const vehicle = pendingInsuranceVehicle || document.getElementById("selectedVehicle")?.textContent || "";
       closeInsuranceReminder();
       goToWheelbaseCheckout(vehicle && vehicle !== "None selected yet" ? { selectedVehicle: vehicle, selectedVehicleId: pendingInsuranceVehicleId, wheelbaseRentalId: pendingWheelbaseRentalId } : {});
