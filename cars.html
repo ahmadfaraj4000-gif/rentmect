@@ -795,9 +795,9 @@
         Selected vehicle: <strong id="insuranceReminderVehicle">None selected yet</strong>
       </p>
       <p>
-        Valid insurance is required before pickup. You can bring your own active auto insurance, review third-party coverage options, or choose available Wheelbase insurance during checkout.
+        Before Wheelbase checkout, have your driver's license number ready. If you opt out of Wheelbase insurance, you will need your insurance declaration page available for review before pickup.
       </p>
-      <p class="insurance-modal-note">Rent Me CT requires every renter to be insured before pickup.</p>
+      <p class="insurance-modal-note">Rent Me CT requires every renter to have valid coverage before pickup.</p>
       <div class="insurance-modal-actions">
         <button class="btn-primary" type="button" onclick="continueSelectedCarBooking()">Continue to Wheelbase Checkout</button>
         <button class="btn-secondary" type="button" onclick="viewInsuranceOptions()">View My Options</button>
@@ -1602,11 +1602,7 @@
       if (selectedVehicle) selectedVehicle.textContent = vehicleName;
       updateQuotePanel(vehicleName);
 
-      goToWheelbaseCheckout({
-        selectedVehicle: vehicleName,
-        selectedVehicleId: card.dataset.vehicleId || "",
-        wheelbaseRentalId
-      });
+      openInsuranceReminder(vehicleName, card.dataset.vehicleId || "", wheelbaseRentalId);
     }
 
     function selectCar(vehicleName) {
