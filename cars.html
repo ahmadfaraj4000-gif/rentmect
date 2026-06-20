@@ -8,61 +8,226 @@
   <meta name="description" content="Browse available rental cars from Rent Me CT in Farmington, Connecticut. Reserve sedans, SUVs, luxury vehicles, trucks, and passenger vans near Hartford and Bradley International Airport." />
   <meta name="keywords" content="available rental cars Farmington CT, Rent Me CT fleet, SUV rental CT, luxury car rental Connecticut, truck rental CT, Audi rental CT, Mercedes rental CT, BMW rental CT" />
   <meta name="robots" content="index, follow" />
+  <meta name="geo.region" content="US-CT" />
+  <meta name="geo.placename" content="Farmington" />
+  <meta name="geo.position" content="41.7202127;-72.7843670" />
+  <meta name="ICBM" content="41.7202127, -72.7843670" />
   <link rel="canonical" href="https://rentmect.com/cars.html" />
   <meta property="og:title" content="Available Rental Cars | Rent Me CT Farmington CT" />
   <meta property="og:description" content="Browse sedans, SUVs, luxury vehicles, trucks, and vans from Rent Me CT." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://rentmect.com/cars.html" />
   <meta property="og:image" content="https://rentmect.com/assets/logo.png" />
+  <meta property="og:site_name" content="Rent Me CT" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Available Rental Cars | Rent Me CT Farmington CT" />
+  <meta name="twitter:description" content="Browse rental cars, SUVs, luxury vehicles, trucks, and passenger vans near Hartford and Bradley International Airport." />
+  <meta name="twitter:image" content="https://rentmect.com/assets/logo.png" />
   <link rel="stylesheet" href="https://d3cuf6g1arkgx6.cloudfront.net/sdk/1-5/wheelbase-widget.css" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" href="assets/logo.png" />
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "CollectionPage",
-  "name": "Available Rental Cars | Rent Me CT",
-  "url": "https://rentmect.com/cars.html",
-  "about": {
-    "@id": "https://rentmect.com/#autorental"
-  },
-  "description": "Browse available sedans, SUVs, luxury vehicles, vans, and trucks for rent from Rent Me CT in Farmington, Connecticut.",
-  "mainEntity": {
-    "@type": "ItemList",
-    "name": "Rent Me CT Vehicle Fleet",
-    "itemListElement": [
-      {
-        "@type": "ListItem",
-        "position": 1,
-        "name": "Audi rental cars"
+  "@graph": [
+    {
+      "@type": "AutoRental",
+      "@id": "https://rentmect.com/#autorental",
+      "name": "Rent Me CT",
+      "url": "https://rentmect.com/",
+      "logo": "https://rentmect.com/assets/logo.png",
+      "image": "https://rentmect.com/assets/logo.png",
+      "telephone": "+18605586031",
+      "priceRange": "$$",
+      "description": "Rent Me CT provides clean, reliable car rentals in Farmington, Connecticut near Hartford and Bradley International Airport, including sedans, SUVs, luxury vehicles, trucks, and passenger vans.",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "12 Holmes Circle",
+        "addressLocality": "Farmington",
+        "addressRegion": "CT",
+        "postalCode": "06032",
+        "addressCountry": "US"
       },
-      {
-        "@type": "ListItem",
-        "position": 2,
-        "name": "Mercedes rental cars"
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 41.7202127,
+        "longitude": -72.7843670
       },
-      {
-        "@type": "ListItem",
-        "position": 3,
-        "name": "BMW rental cars"
+      "hasMap": "https://www.google.com/maps/search/?api=1&query=12+Holmes+Circle+Farmington+CT",
+      "areaServed": [
+        "Farmington CT",
+        "Hartford CT",
+        "West Hartford CT",
+        "New Britain CT",
+        "Bristol CT",
+        "Plainville CT",
+        "Southington CT",
+        "Windsor Locks CT",
+        "Bradley International Airport",
+        "Connecticut"
+      ],
+      "openingHours": "Mo-Su 09:00-21:00"
+    },
+    {
+      "@type": "CollectionPage",
+      "@id": "https://rentmect.com/cars.html#fleet",
+      "name": "Available Rental Cars | Rent Me CT",
+      "url": "https://rentmect.com/cars.html",
+      "about": {
+        "@id": "https://rentmect.com/#autorental"
       },
-      {
-        "@type": "ListItem",
-        "position": 4,
-        "name": "SUV rentals"
-      },
-      {
-        "@type": "ListItem",
-        "position": 5,
-        "name": "Truck rentals"
-      },
-      {
-        "@type": "ListItem",
-        "position": 6,
-        "name": "Passenger van rentals"
+      "description": "Browse available sedans, SUVs, luxury vehicles, vans, and trucks for rent from Rent Me CT in Farmington, Connecticut.",
+      "mainEntity": {
+        "@type": "ItemList",
+        "name": "Rent Me CT Vehicle Fleet",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "item": {
+              "@type": "Vehicle",
+              "name": "Buick Encore rental",
+              "brand": "Buick",
+              "bodyType": "SUV",
+              "image": "https://rentmect.com/assets/Buick-Encore-649.png",
+              "offers": {
+                "@type": "Offer",
+                "price": "60",
+                "priceCurrency": "USD",
+                "availability": "https://schema.org/LimitedAvailability",
+                "url": "https://rentmect.com/cars.html"
+              }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "item": {
+              "@type": "Vehicle",
+              "name": "Ford Escape rental",
+              "brand": "Ford",
+              "bodyType": "SUV",
+              "image": "https://rentmect.com/assets/Ford-Escape-650.png",
+              "offers": {
+                "@type": "Offer",
+                "price": "49",
+                "priceCurrency": "USD",
+                "availability": "https://schema.org/LimitedAvailability",
+                "url": "https://rentmect.com/cars.html"
+              }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "item": {
+              "@type": "Vehicle",
+              "name": "Kia Soul rental",
+              "brand": "Kia",
+              "bodyType": "Compact hatchback",
+              "image": "https://rentmect.com/assets/Kia-Soul-656.png",
+              "offers": {
+                "@type": "Offer",
+                "price": "49",
+                "priceCurrency": "USD",
+                "availability": "https://schema.org/LimitedAvailability",
+                "url": "https://rentmect.com/cars.html"
+              }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 4,
+            "item": {
+              "@type": "Vehicle",
+              "name": "Audi A6 rental",
+              "brand": "Audi",
+              "bodyType": "Luxury sedan",
+              "image": "https://rentmect.com/assets/Audi-A6-473.png",
+              "offers": {
+                "@type": "Offer",
+                "priceCurrency": "USD",
+                "availability": "https://schema.org/LimitedAvailability",
+                "url": "https://rentmect.com/cars.html"
+              }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 5,
+            "item": {
+              "@type": "Vehicle",
+              "name": "Mercedes-Benz C300 rental",
+              "brand": "Mercedes-Benz",
+              "bodyType": "Luxury sedan",
+              "image": "https://rentmect.com/assets/Mercedes-Benz-C300-677.png",
+              "offers": {
+                "@type": "Offer",
+                "priceCurrency": "USD",
+                "availability": "https://schema.org/LimitedAvailability",
+                "url": "https://rentmect.com/cars.html"
+              }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 6,
+            "item": {
+              "@type": "Vehicle",
+              "name": "Dodge passenger van rental",
+              "brand": "Dodge",
+              "bodyType": "Passenger van",
+              "image": "https://rentmect.com/assets/Dodge-Van-451.png",
+              "offers": {
+                "@type": "Offer",
+                "priceCurrency": "USD",
+                "availability": "https://schema.org/LimitedAvailability",
+                "url": "https://rentmect.com/cars.html"
+              }
+            }
+          }
+        ]
       }
-    ]
-  }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://rentmect.com/cars.html#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Where can I rent a car from Rent Me CT?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Rent Me CT is based at 12 Holmes Circle in Farmington, Connecticut and serves Farmington, Hartford, West Hartford, New Britain, Bradley International Airport travelers, and nearby Connecticut areas."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What types of rental vehicles are available?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Vehicle categories may include sedans, SUVs, luxury vehicles, trucks, compact vehicles, and passenger vans depending on live fleet availability."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Are the vehicles on the fleet page guaranteed available?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Vehicle availability changes. Customers should select rental dates on the fleet page or continue to checkout to confirm availability for a specific rental period."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do I need insurance to book a rental?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Every rental requires valid insurance, either through active personal auto insurance, approved third-party coverage, or available Wheelbase insurance options at checkout."
+          }
+        }
+      ]
+    }
+  ]
 }
 </script>
 

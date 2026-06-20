@@ -336,6 +336,116 @@ function toggleChatbot() {
   if (chatbot) chatbot.classList.toggle("open");
 }
 
+const RENT_ME_CT_CHATBOT_TOPICS = [
+  {
+    keywords: ["insurance", "insured", "coverage", "declaration", "policy", "own insurance", "wheelbase insurance"],
+    response: "Yes, every renter must have valid insurance before pickup. You can bring your own active auto insurance, review the third-party coverage options on our site, or choose available Wheelbase insurance during checkout. If you opt out of Wheelbase insurance, have your insurance declaration page ready for review."
+  },
+  {
+    keywords: ["deposit", "security deposit", "hold", "refundable", "200", "2000"],
+    response: "A security deposit is required and varies by vehicle class, rental risk, damage, cleaning needs, policy violations, and other contract issues. Deposits and post-rental charges may range from $200 to $2,000 depending on the rental."
+  },
+  {
+    keywords: ["drop off", "drop-off", "dropoff", "delivery", "deliver", "pickup service", "pick up service", "transportation", "bring the car", "come to me"],
+    response: "Pickup and drop-off services may be offered only when Rent Me CT approves them. Local pickup or return transportation within 15 miles may carry a $30 fee each way. Call or text 860-558-6031 to confirm whether it is available for your rental."
+  },
+  {
+    keywords: ["pickup", "pick up", "return", "address", "location", "where are you", "where located", "hours", "open", "time window"],
+    response: "Rent Me CT pickup and return are based at 12 Holmes Circle, Farmington, CT. Pickup and return times are available from 9 AM to 9 PM unless another arrangement is approved."
+  },
+  {
+    keywords: ["license", "driver license", "driver's license", "drivers license", "documents", "paperwork", "what do i need", "requirements", "required"],
+    response: "To rent, you need to be at least 21, have a valid unexpired driver's license, provide proof of active auto insurance, provide billing/contact information, and sign the rental agreement and addendum. A driver's license photo upload may be required."
+  },
+  {
+    keywords: ["age", "old", "21", "under 25", "young driver", "younger"],
+    response: "Renters must be at least 21 years old. Renters under 25 may be subject to a young driver fee. Only approved drivers listed on the rental may operate the vehicle."
+  },
+  {
+    keywords: ["miles", "mileage", "extra miles", "unlimited", "per mile", "200 miles"],
+    response: "Rentals include 200 miles per day. Extra mileage is billed at $0.35 per mile unless another mileage option is purchased or agreed to."
+  },
+  {
+    keywords: ["late", "late return", "return late", "after return", "4 hours", "miss return"],
+    response: "Vehicles must be returned by the scheduled date and time. If a vehicle is not returned within 4 hours of the scheduled return time without approval, the renter may be charged one additional rental day plus a $25 late fee. Recovery, towing, storage, transportation, and administrative fees may also apply."
+  },
+  {
+    keywords: ["damage", "accident", "crash", "collision", "scratch", "dent", "theft", "stolen", "police"],
+    response: "Renters are responsible for vehicle damage during the rental period, regardless of fault, including damage, theft, vandalism, loss of use, towing, storage, and administrative fees. Any accident, collision, theft, or damage must be reported to Rent Me CT immediately, and a police report may be required."
+  },
+  {
+    keywords: ["smoke", "smoking", "weed", "cigarette", "vape", "odor", "cleaning", "pet hair", "dirty", "trash"],
+    response: "Smoking is not allowed in any vehicle. Vehicles must be returned reasonably clean. Smoke residue, strong odors, stains, trash, pet hair, sand, bodily fluids, or abnormal cleaning needs may lead to cleaning or remediation fees. Smoking remediation may range from $200 to $2,000."
+  },
+  {
+    keywords: ["toll", "tolls", "ticket", "tickets", "parking", "violation", "citation", "ez pass", "e-zpass"],
+    response: "Renters are responsible for tolls, parking tickets, traffic violations, and related administrative fees during the rental period. Rent Me CT may transfer liability or charge the renter directly."
+  },
+  {
+    keywords: ["gps", "tracker", "tracking", "telematics", "speed", "90", "disable", "disabled"],
+    response: "Vehicles may include GPS and telematics for theft prevention, recovery, speed monitoring, diagnostics, and driving behavior. Speeds over 90 mph are not permitted, and reckless driving may lead to warnings, remote disabling where legally permitted and safe, and reactivation fees."
+  },
+  {
+    keywords: ["fuel", "gas", "refuel", "gas level", "premium", "tank"],
+    response: "Vehicles must be returned with the same fuel level and the manufacturer-recommended fuel type. Refueling charges may include the actual fuel cost plus a $20 service fee."
+  },
+  {
+    keywords: ["rideshare", "uber", "lyft", "doordash", "delivery", "tow", "towing", "race", "racing", "illegal", "unauthorized driver"],
+    response: "Vehicles may not be used by unauthorized drivers, under the influence of alcohol or drugs, for racing, towing, pushing, unauthorized rideshare or delivery work, illegal activity, or travel outside permitted geographic areas."
+  },
+  {
+    keywords: ["payment", "pay", "card", "checkout", "tax", "fees", "when do i pay"],
+    response: "Rental payment is due before pickup. Sales tax and applicable fees are collected at checkout. Renters also authorize rental-related charges such as excess mileage, tolls, tickets, cleaning, smoking, damage, fuel, late return, and administrative fees when applicable."
+  },
+  {
+    keywords: ["bradley", "airport", "bdl", "hartford", "windsor locks", "west hartford", "new britain", "plainville", "bristol", "southington", "service area"],
+    response: "Rent Me CT is based in Farmington, CT and serves Farmington, Hartford, West Hartford, New Britain, Bristol, Plainville, Southington, Windsor Locks, Bradley International Airport travelers, and nearby Connecticut areas. We are not located inside Bradley Airport."
+  },
+  {
+    keywords: ["available", "availability", "reserve", "reservation", "book", "booking", "car available", "choose a car"],
+    response: "To check availability, choose your pickup and return dates on the fleet page, then select a vehicle. Final availability, renter details, documents, insurance, and payment are confirmed through Wheelbase checkout."
+  },
+  {
+    keywords: ["cars", "vehicles", "fleet", "suv", "sedan", "luxury", "truck", "van", "audi", "bmw", "mercedes", "cadillac", "ford", "dodge", "kia", "buick"],
+    response: "Vehicle categories may include sedans, SUVs, luxury vehicles, trucks, compact vehicles, and passenger vans depending on current fleet availability. The fleet can include brands such as Audi, BMW, Mercedes-Benz, Cadillac, Ford, Dodge, Kia, and Buick."
+  },
+  {
+    keywords: ["phone", "call", "text", "contact", "number", "help", "human", "person"],
+    response: "For the fastest help, call or text Rent Me CT at 860-558-6031."
+  }
+];
+
+function normalizeChatText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^\w\s$.-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getChatbotReply(message) {
+  const text = normalizeChatText(message);
+  if (!text) return "Ask me about insurance, deposits, mileage, documents, pickup, drop-off, late returns, damage, tolls, vehicle rules, or availability.";
+
+  const scored = RENT_ME_CT_CHATBOT_TOPICS
+    .map((topic, index) => {
+      const score = topic.keywords.reduce((total, keyword) => (
+        text.includes(normalizeChatText(keyword)) ? total + normalizeChatText(keyword).split(" ").length : total
+      ), 0);
+      return { topic, index, score };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+
+  if (scored.length) return scored[0].topic.response;
+
+  if (["hi", "hello", "hey"].some((greeting) => text === greeting || text.startsWith(`${greeting} `))) {
+    return "Hey! I can help with rental requirements, insurance, deposits, mileage, pickup and return, documents, agreement rules, and availability. What would you like to know?";
+  }
+
+  return "I may not have the exact answer to that yet. You can ask me about requirements, insurance, deposits, mileage, pickup/drop-off, late returns, damage, tolls, smoking, vehicle rules, availability, or call/text 860-558-6031 for help.";
+}
+
 function sendChatMessage(event) {
   event.preventDefault();
 
@@ -351,7 +461,7 @@ function sendChatMessage(event) {
 
   const botMessage = document.createElement("div");
   botMessage.className = "bot-message";
-  botMessage.textContent = "Thanks for reaching out. For the fastest help, call or text Rent Me CT at 860-558-6031.";
+  botMessage.textContent = getChatbotReply(userMessage.textContent);
   messages.appendChild(botMessage);
 
   input.value = "";
