@@ -1011,7 +1011,6 @@
     let wheelbaseAvailabilitySyncedKeys = new Set();
     let wheelbaseLazyObserver = null;
     let rentmectActiveCustomFilter = "all";
-    let wheelbaseAvailabilityRequestId = 0;
 
     function hasDirectWheelbaseAvailability() {
       return Boolean(WHEELBASE_AVAILABILITY_PROXY_URL);
@@ -1496,7 +1495,7 @@
       return null;
     }
 
-    async function checkDirectWheelbaseAvailabilityForCard(card, requestId = wheelbaseAvailabilityRequestId) {
+    async function checkDirectWheelbaseAvailabilityForCard(card) {
       const dates = getSelectedDates();
       const times = getSelectedTimes();
       const rentalId = card?.dataset?.wheelbaseRentalId || "";
@@ -1530,7 +1529,7 @@
         try {
           const response = await fetch(url.toString(), { headers: { Accept: "application/json" } });
           const payload = await response.json().catch(() => ({}));
-          if (requestId !== wheelbaseAvailabilityRequestId) return;
+          if (cacheKey !== getAvailabilityCacheKey(card)) return;
 
           if (!response.ok) {
             console.warn("Wheelbase availability proxy failed", { rentalId, payload });
@@ -1550,7 +1549,7 @@
             markCardNeedsWheelbaseCheckout(card);
           }
         } catch (error) {
-          if (requestId !== wheelbaseAvailabilityRequestId) return;
+          if (cacheKey !== getAvailabilityCacheKey(card)) return;
           console.warn("Wheelbase availability request failed", { rentalId, error });
           markCardNeedsWheelbaseCheckout(card);
         }
@@ -1564,7 +1563,6 @@
 
     async function checkDirectWheelbaseAvailability(cards = getPriorityWheelbaseCards()) {
       const dates = getSelectedDates();
-      const requestId = ++wheelbaseAvailabilityRequestId;
 
       if (!dates.pickupDate || !dates.returnDate) {
         getWheelbaseCards().forEach((card) => {
@@ -1578,11 +1576,8 @@
         return;
       }
 
-      await Promise.all(cards.map((card) => checkDirectWheelbaseAvailabilityForCard(card, requestId)));
-
-      if (requestId === wheelbaseAvailabilityRequestId) {
-        applyCustomFleetFilter(rentmectActiveCustomFilter);
-      }
+      await Promise.all(cards.map((card) => checkDirectWheelbaseAvailabilityForCard(card)));
+      applyCustomFleetFilter(rentmectActiveCustomFilter);
     }
 
     async function syncLazyWheelbaseCard(card) {
