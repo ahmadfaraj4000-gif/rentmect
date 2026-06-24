@@ -999,10 +999,12 @@
     const WHEELBASE_BRAND_COLOR = "9b0008";
     const WHEELBASE_RESERVE_URL = "https://checkout.wheelbasepro.com/reserve";
     const WHEELBASE_AVAILABILITY_PROXY_URL = "https://gqmiktepthaafupwdmcl.supabase.co/functions/v1/wheelbase-availability";
+    const WHEELBASE_RENTAL_API_URL = "https://api.outdoorsy.co/v0/rentals";
     var wheelbaseApp = null;
     var wheelbase = null;
     let wheelbaseStore = null;
     let wheelbaseRentalsById = new Map();
+    let wheelbaseRentalPriceRequests = new Map();
     let rentmectActiveCustomFilter = "all";
     let wheelbaseAvailabilityTimer = null;
     let wheelbaseAvailabilityRequestId = 0;
@@ -1090,11 +1092,75 @@
     }
 
     function getWheelbaseRentalDailyRate(rental) {
-      const cents = rental?.price?.day || rental?.price_per_day || rental?.daily_rate_cents;
+      const cents = [
+        rental?.active_price?.day,
+        rental?.price?.day,
+        rental?.price_per_day,
+        rental?.daily_rate_cents,
+        rental?.day_price,
+        rental?.original_day_price,
+        rental?.calculated_day_price
+      ].find((value) => Number(value) > 1000);
       if (Number(cents) > 1000) return Number(cents) / 100;
 
-      const dollars = rental?.daily_rate || rental?.base_price || rental?.rate;
+      const dollars = [
+        rental?.daily_rate,
+        rental?.base_price,
+        rental?.rate,
+        rental?.price?.daily,
+        rental?.active_price?.daily
+      ].find((value) => Number(value) > 0);
       return Number(dollars) || 0;
+    }
+
+    function setCardDailyRateFromWheelbase(card, rental) {
+      const rate = getWheelbaseRentalDailyRate(rental);
+      if (!card || rate <= 0) return false;
+
+      const price = card.querySelector(".rental-price");
+      if (!price) return false;
+
+      price.dataset.dailyRate = String(rate);
+      if (typeof updateRentalPrices === "function") updateRentalPrices();
+      return true;
+    }
+
+    async function fetchWheelbaseRental(rentalId) {
+      const id = String(rentalId || "");
+      if (!/^\d+$/.test(id)) return null;
+      if (wheelbaseRentalsById.has(id)) return wheelbaseRentalsById.get(id);
+      if (wheelbaseRentalPriceRequests.has(id)) return wheelbaseRentalPriceRequests.get(id);
+
+      const request = fetch(`${WHEELBASE_RENTAL_API_URL}/${encodeURIComponent(id)}`, {
+        cache: "no-store",
+        headers: { Accept: "application/json" }
+      })
+        .then((response) => response.ok ? response.json() : null)
+        .then((rental) => {
+          if (rental && typeof rental === "object") wheelbaseRentalsById.set(id, rental);
+          return rental;
+        })
+        .catch((error) => {
+          console.warn("Wheelbase price request failed", { rentalId: id, error });
+          return null;
+        })
+        .finally(() => {
+          wheelbaseRentalPriceRequests.delete(id);
+        });
+
+      wheelbaseRentalPriceRequests.set(id, request);
+      return request;
+    }
+
+    async function syncWheelbaseRentalPrices() {
+      const cards = [...document.querySelectorAll(".car-item[data-wheelbase-rental-id]")];
+      await Promise.all(cards.map(async (card) => {
+        const rentalId = card.dataset.wheelbaseRentalId || "";
+        const rental = await fetchWheelbaseRental(rentalId);
+        if (rental) setCardDailyRateFromWheelbase(card, rental);
+      }));
+
+      if (typeof updateRentalPrices === "function") updateRentalPrices();
     }
 
     function extractRentalsFromWheelbaseState(state) {
@@ -1242,11 +1308,7 @@
       if (!card) return "";
 
       if (hasDirectWheelbaseAvailability()) {
-        const rate = getWheelbaseRentalDailyRate(rental);
-        if (rate > 0) {
-          const price = card.querySelector(".rental-price");
-          if (price) price.dataset.dailyRate = String(rate);
-        }
+        setCardDailyRateFromWheelbase(card, rental);
         return "";
       }
 
@@ -1256,11 +1318,7 @@
         markCardUnavailable(card, "Unavailable");
       }
 
-      const rate = getWheelbaseRentalDailyRate(rental);
-      if (rate > 0) {
-        const price = card.querySelector(".rental-price");
-        if (price) price.dataset.dailyRate = String(rate);
-      }
+      setCardDailyRateFromWheelbase(card, rental);
 
       return "";
     }
@@ -1273,11 +1331,7 @@
             if (!id) return;
             wheelbaseRentalsById.set(id, rental);
             const card = document.querySelector(`.car-item[data-wheelbase-rental-id="${id}"]`);
-            const rate = getWheelbaseRentalDailyRate(rental);
-            if (card && rate > 0) {
-              const price = card.querySelector(".rental-price");
-              if (price) price.dataset.dailyRate = String(rate);
-            }
+            setCardDailyRateFromWheelbase(card, rental);
           });
         }
         if (typeof updateRentalPrices === "function") updateRentalPrices();
@@ -1366,11 +1420,7 @@
           markCardNeedsWheelbaseCheckout(card);
         }
 
-        const rate = getWheelbaseRentalDailyRate(rental);
-        if (rate > 0) {
-          const price = card.querySelector(".rental-price");
-          if (price) price.dataset.dailyRate = String(rate);
-        }
+        setCardDailyRateFromWheelbase(card, rental);
       });
 
       if (typeof updateRentalPrices === "function") updateRentalPrices();
@@ -1608,6 +1658,7 @@
         markCardChecking(card);
       });
       initializeWheelbaseAvailabilityBridge();
+      syncWheelbaseRentalPrices();
       scheduleDirectWheelbaseAvailabilityCheck();
       setTimeout(refreshWheelbaseDates, 0);
       document.getElementById('pickupDate')?.addEventListener('change', refreshWheelbaseDates);

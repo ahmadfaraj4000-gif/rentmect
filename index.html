@@ -316,39 +316,39 @@
       </div>
 
 <div class="vehicle-grid">
-  <article class="vehicle-card">
+  <article class="vehicle-card featured-price-card" data-wheelbase-rental-id="517442">
     <div class="vehicle-image placeholder suv"></div>
       <div class="vehicle-body">
         <h3>Audi A8L</h3>
         <p>Luxury Sedan • Executive Comfort</p>
-        <strong>From $476 / 4 days</strong>
+        <strong class="featured-rental-price" data-days="4" data-daily-rate="119">From $476 / 4 days</strong>
       </div>
     </article>
 
-    <article class="vehicle-card">
+    <article class="vehicle-card featured-price-card" data-wheelbase-rental-id="517457">
       <div class="vehicle-image placeholder luxury"></div>
       <div class="vehicle-body">
         <h3>Benz CLS AMG 550</h3>
         <p>Performance Luxury • Sport Executive</p>
-        <strong>From $356 / 4 days</strong>
+        <strong class="featured-rental-price" data-days="4" data-daily-rate="89">From $356 / 4 days</strong>
       </div>
     </article>
 
-    <article class="vehicle-card">
+    <article class="vehicle-card featured-price-card" data-wheelbase-rental-id="517462">
       <div class="vehicle-image placeholder sedan"></div>
       <div class="vehicle-body">
         <h3>BMW 330I</h3>
         <p>Luxury Sedan • Clean and Modern</p>
-        <strong>From $276 / 4 days</strong>
+        <strong class="featured-rental-price" data-days="4" data-daily-rate="69">From $276 / 4 days</strong>
       </div>
     </article>
 
-    <article class="vehicle-card">
+    <article class="vehicle-card featured-price-card" data-wheelbase-rental-id="517467">
       <div class="vehicle-image placeholder truck"></div>
       <div class="vehicle-body">
         <h3>Ford F350 4X4</h3>
         <p>Heavy Duty Truck • Work Ready</p>
-        <strong>From $516 / 4 days</strong>
+        <strong class="featured-rental-price" data-days="4" data-daily-rate="129">From $516 / 4 days</strong>
       </div>
     </article>
   </div>
@@ -486,6 +486,60 @@
   <script src="script.js"></script>
 
   <script>
+    const WHEELBASE_RENTAL_API_URL = "https://api.outdoorsy.co/v0/rentals";
+
+    function getWheelbaseRentalDailyRate(rental) {
+      const cents = [
+        rental?.active_price?.day,
+        rental?.price?.day,
+        rental?.price_per_day,
+        rental?.daily_rate_cents,
+        rental?.day_price,
+        rental?.original_day_price,
+        rental?.calculated_day_price
+      ].find((value) => Number(value) > 1000);
+      if (Number(cents) > 1000) return Number(cents) / 100;
+
+      const dollars = [
+        rental?.daily_rate,
+        rental?.base_price,
+        rental?.rate,
+        rental?.price?.daily,
+        rental?.active_price?.daily
+      ].find((value) => Number(value) > 0);
+      return Number(dollars) || 0;
+    }
+
+    async function syncFeaturedWheelbasePrices() {
+      const cards = [...document.querySelectorAll(".featured-price-card[data-wheelbase-rental-id]")];
+
+      await Promise.all(cards.map(async (card) => {
+        const rentalId = card.dataset.wheelbaseRentalId || "";
+        if (!/^\d+$/.test(rentalId)) return;
+
+        try {
+          const response = await fetch(`${WHEELBASE_RENTAL_API_URL}/${encodeURIComponent(rentalId)}`, {
+            cache: "no-store",
+            headers: { Accept: "application/json" }
+          });
+          if (!response.ok) return;
+
+          const rental = await response.json();
+          const dailyRate = getWheelbaseRentalDailyRate(rental);
+          const price = card.querySelector(".featured-rental-price");
+          const days = Number(price?.dataset.days || 4);
+          if (!price || dailyRate <= 0 || days <= 0) return;
+
+          price.dataset.dailyRate = String(dailyRate);
+          price.textContent = `From $${(dailyRate * days).toFixed(0)} / ${days} days`;
+        } catch (error) {
+          console.warn("Wheelbase featured price request failed", { rentalId, error });
+        }
+      }));
+    }
+
+    document.addEventListener("DOMContentLoaded", syncFeaturedWheelbasePrices);
+
     function startBooking(event) {
       event.preventDefault();
 
