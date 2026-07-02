@@ -751,6 +751,71 @@ img {
   margin: 8px 0;
 }
 
+.site-footer h3 {
+  margin-bottom: 14px;
+}
+
+.contact-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+}
+
+.contact-modal.open {
+  display: flex;
+}
+
+.contact-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3,4,9,0.72);
+  backdrop-filter: blur(10px);
+}
+
+.contact-modal-panel {
+  position: relative;
+  width: min(430px, 100%);
+  padding: 34px;
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at top right, rgba(229,9,20,0.16), transparent 34%),
+    linear-gradient(145deg, #ffffff, #f4f5f8);
+  border: 1px solid rgba(255,255,255,0.55);
+  box-shadow: 0 34px 90px rgba(0,0,0,0.35);
+}
+
+.contact-modal-panel h2 {
+  margin: 6px 0 10px;
+  font-size: 32px;
+  color: #050812;
+}
+
+.contact-modal-phone {
+  margin: 0 0 24px;
+  font-size: 24px;
+  font-weight: 950;
+  color: var(--red);
+}
+
+.contact-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: #11141c;
+  color: #ffffff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 /* INNER PAGES */
 
 .page-hero {
@@ -765,6 +830,46 @@ img {
   max-width: 900px;
   margin-left: auto;
   margin-right: auto;
+}
+
+.legal-page {
+  display: grid;
+  gap: 18px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.legal-card {
+  padding: 30px;
+  border-radius: var(--radius);
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 16px 45px rgba(8,11,18,0.08);
+}
+
+.legal-card h2 {
+  margin: 0 0 12px;
+  color: #050812;
+  font-size: 26px;
+}
+
+.legal-card p {
+  margin: 0;
+  color: #5f6878;
+  font-weight: 650;
+  line-height: 1.75;
+}
+
+.legal-card a {
+  color: var(--red);
+  font-weight: 900;
+}
+
+.legal-card code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #f0f1f4;
+  color: #11141c;
 }
 
 .booking-panel {
@@ -1814,7 +1919,7 @@ body.modal-open {
 
 .insurance-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 24px;
   max-width: 1180px;
   margin: 0 auto;
@@ -1940,7 +2045,7 @@ body.modal-open {
 
 .insurance-option-list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
   margin-top: 22px;
 }
