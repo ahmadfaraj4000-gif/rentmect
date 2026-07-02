@@ -34,9 +34,23 @@ function setupContactModal() {
       <div class="contact-modal-panel">
         <button class="contact-modal-close" type="button" data-contact-close aria-label="Close contact popup">×</button>
         <p class="eyebrow">Contact</p>
-        <h2 id="contactModalTitle">RentMeCt - Phone</h2>
-        <p class="contact-modal-phone">(959) 261-0721</p>
-        <a class="btn-primary" href="tel:+19592610721">Call Now</a>
+        <h2 id="contactModalTitle">Call Rent Me CT</h2>
+        <div class="contact-number-list">
+          <div class="contact-number-row">
+            <div>
+              <span>Office Cell</span>
+              <strong>959-261-0721</strong>
+            </div>
+            <a class="btn-primary" href="tel:+19592610721">Call Office</a>
+          </div>
+          <div class="contact-number-row">
+            <div>
+              <span>Services Cell</span>
+              <strong>860-558-6031</strong>
+            </div>
+            <a class="btn-primary" href="tel:+18605586031">Call Services</a>
+          </div>
+        </div>
       </div>
     `;
     document.body.appendChild(modal);

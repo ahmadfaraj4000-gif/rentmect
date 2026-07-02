@@ -733,6 +733,7 @@ img {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;
   gap: 36px;
+  align-items: start;
 }
 
 .site-footer img {
@@ -753,6 +754,41 @@ img {
 
 .site-footer h3 {
   margin-bottom: 14px;
+}
+
+.footer-bottom {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-top: 26px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+}
+
+.footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+}
+
+.footer-legal a,
+.powered-credit,
+.powered-credit a {
+  margin: 0;
+}
+
+.powered-credit {
+  text-align: left;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.powered-credit a {
+  display: inline;
+  color: #ffffff;
+  font-weight: 950;
 }
 
 .contact-modal {
@@ -778,7 +814,7 @@ img {
 
 .contact-modal-panel {
   position: relative;
-  width: min(430px, 100%);
+  width: min(520px, 100%);
   padding: 34px;
   border-radius: var(--radius);
   background:
@@ -799,6 +835,45 @@ img {
   font-size: 24px;
   font-weight: 950;
   color: var(--red);
+}
+
+.contact-number-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.contact-number-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgba(15,20,32,0.1);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.72);
+}
+
+.contact-number-row span {
+  display: block;
+  margin-bottom: 4px;
+  color: #667085;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.contact-number-row strong {
+  display: block;
+  color: #050812;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.contact-number-row .btn-primary {
+  min-width: 92px;
+  text-align: center;
 }
 
 .contact-modal-close {
@@ -1368,8 +1443,29 @@ body.modal-open {
     grid-column: auto;
   }
 
+  .footer-bottom {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .powered-credit {
+    text-align: left;
+  }
+
   .section {
     padding: 70px 5%;
+  }
+
+  .contact-modal-panel {
+    padding: 28px 20px;
+  }
+
+  .contact-number-row {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-number-row .btn-primary {
+    width: 100%;
   }
 
   .booking-panel {
