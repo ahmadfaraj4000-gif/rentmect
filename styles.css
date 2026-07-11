@@ -2032,6 +2032,31 @@ body.modal-open {
     inset 0 1px 0 rgba(255,255,255,0.9);
 }
 
+.recommended-insurance {
+  position: relative;
+  border: 2px solid var(--red) !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.insurance-recommended-badge,
+.insurance-card .insurance-recommended-badge,
+.insurance-option-list .insurance-recommended-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 7px 11px;
+  margin: 0 0 4px;
+  border-radius: 999px;
+  background: var(--red);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .insurance-card span {
   display: inline-block;
   color: var(--red);
