@@ -251,6 +251,48 @@
       color: #ffffff;
       border: 1px solid rgba(184,0,11,.5);
     }
+    .availability-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 0 0 16px;
+    }
+    .availability-filter-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid #159c12;
+      background: #ffffff;
+      color: #126b18;
+      border-radius: 999px;
+      padding: 13px 20px;
+      font-weight: 950;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(13,165,22,.12);
+      transition: .2s ease;
+    }
+    .availability-filter-btn::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #20ba2b;
+      box-shadow: 0 0 0 4px rgba(32,186,43,.14);
+    }
+    .availability-filter-btn.active,
+    .availability-filter-btn:hover {
+      background: linear-gradient(135deg, #249f31, #0f6818);
+      border-color: transparent;
+      color: #ffffff;
+    }
+    .availability-filter-status {
+      margin: 0;
+      color: #52606d;
+      font-size: 14px;
+      font-weight: 750;
+    }
+    .availability-filter-status:empty { display: none; }
     .btn-primary.disabled, .btn-primary:disabled { opacity: .55; cursor: not-allowed; filter: grayscale(.4); }
     .wheelbase-data-layer {
       position: absolute !important;
@@ -335,6 +377,10 @@
 
 
     <section class="section">
+      <div class="availability-filter-bar">
+        <button class="availability-filter-btn" id="availableOnlyFilter" type="button" aria-pressed="false" onclick="filterAvailableCars(this)">Available cars only</button>
+        <p class="availability-filter-status" id="availabilityFilterStatus" aria-live="polite"></p>
+      </div>
       <div class="filters" id="filters-sidebar">
         <button class="filter-btn active" onclick="filterCars('all', this)">All Cars</button>
         <button class="filter-btn" onclick="filterCars('audi', this)">Audi</button>
@@ -1028,6 +1074,7 @@
     let wheelbaseAvailabilitySyncedKeys = new Set();
     let wheelbaseLazyObserver = null;
     let rentmectActiveCustomFilter = "all";
+    let rentmectAvailabilityOnly = false;
 
     function hasDirectWheelbaseAvailability() {
       return Boolean(WHEELBASE_AVAILABILITY_PROXY_URL);
@@ -1722,11 +1769,50 @@
     }
 
     function applyCustomFleetFilter(filter = "all") {
+      let visibleAvailable = 0;
+      let pendingAvailability = 0;
       document.querySelectorAll(".car-item").forEach((car) => {
         const brand = car.dataset.brand || "";
         const type = car.dataset.type || "";
-        car.style.display = filter === "all" || brand.includes(filter) || type.includes(filter) ? "block" : "none";
+        const matchesCategory = filter === "all" || brand.includes(filter) || type.includes(filter);
+        const availabilityState = car.dataset.available || "unknown";
+        const isAvailable = availabilityState === "true";
+        const isPending = availabilityState === "checking" || availabilityState === "unknown";
+        const matchesAvailability = !rentmectAvailabilityOnly || isAvailable || isPending;
+        const visible = matchesCategory && matchesAvailability;
+
+        car.style.display = visible ? "block" : "none";
+        if (matchesCategory && isAvailable) visibleAvailable += 1;
+        if (matchesCategory && isPending) pendingAvailability += 1;
       });
+
+      const status = document.getElementById("availabilityFilterStatus");
+      if (!status) return;
+      if (!rentmectAvailabilityOnly) {
+        status.textContent = "";
+      } else if (pendingAvailability > 0) {
+        status.textContent = `${visibleAvailable} available • checking ${pendingAvailability} more`;
+      } else if (visibleAvailable > 0) {
+        status.textContent = `Showing ${visibleAvailable} available car${visibleAvailable === 1 ? "" : "s"}`;
+      } else {
+        status.textContent = "No available cars match these dates and filters.";
+      }
+    }
+
+    function filterAvailableCars(button) {
+      rentmectAvailabilityOnly = !rentmectAvailabilityOnly;
+      button?.classList.toggle("active", rentmectAvailabilityOnly);
+      button?.setAttribute("aria-pressed", String(rentmectAvailabilityOnly));
+      applyCustomFleetFilter(rentmectActiveCustomFilter);
+    }
+
+    function setupAvailabilityFilterSync() {
+      const cards = [...document.querySelectorAll(".car-item")];
+      if (!("MutationObserver" in window) || !cards.length) return;
+      const observer = new MutationObserver(() => {
+        if (rentmectAvailabilityOnly) applyCustomFleetFilter(rentmectActiveCustomFilter);
+      });
+      cards.forEach((card) => observer.observe(card, { attributes: true, attributeFilter: ["data-available"] }));
     }
 
     function wheelbaseCustomFilter(filter, button) {
@@ -1763,6 +1849,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       applyBookingDatesToCarsPage();
+      setupAvailabilityFilterSync();
       document.querySelectorAll(".car-item").forEach((card) => {
         if (!card.dataset.wheelbaseRentalId) {
           markCardNeedsWheelbaseCheckout(card);
