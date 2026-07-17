@@ -5,6 +5,7 @@ let selectedRentalPeriod = "";
 let lastRentalTimeNotice = "";
 
 document.addEventListener("DOMContentLoaded", function () {
+  setupWeekendPromotion();
   populateTimeSelects();
   setMinDates();
   loadBookingDatesIntoForm();
@@ -14,6 +15,160 @@ document.addEventListener("DOMContentLoaded", function () {
   setupContactModal();
   window.syncVehicleAvailability?.();
 });
+
+const WEEKEND_PROMO_END = new Date("2026-07-20T00:00:00-04:00");
+const WEEKEND_PROMO_SEEN_KEY = "rentmect_weekend071726_seen";
+let weekendPromoTimer = null;
+let weekendPromoBannerObserver = null;
+let weekendPromoBannerResizeHandler = null;
+
+function setupWeekendPromotion() {
+  const promoModal = document.getElementById("weekendPromoModal");
+  const countdowns = [...document.querySelectorAll("[data-promo-countdown]")];
+  const promoSurfaces = [...document.querySelectorAll("[data-promo-surface]")];
+  const promotionIsActive = Date.now() < WEEKEND_PROMO_END.getTime();
+
+  if (!promotionIsActive) {
+    promoSurfaces.forEach((surface) => surface.hidden = true);
+    if (promoModal) promoModal.remove();
+    return;
+  }
+
+  if (countdowns.length) {
+    updateWeekendPromoCountdown();
+    weekendPromoTimer = window.setInterval(updateWeekendPromoCountdown, 1000);
+  }
+
+  setupWeekendPromoBannerLayout();
+
+  document.querySelectorAll("[data-promo-copy]").forEach((button) => {
+    button.addEventListener("click", () => copyWeekendPromoCode(button));
+  });
+
+  if (!promoModal || hasSeenWeekendPromotion()) return;
+
+  markWeekendPromotionSeen();
+  window.setTimeout(() => openWeekendPromoModal(), 350);
+
+  promoModal.querySelectorAll("[data-promo-close]").forEach((trigger) => {
+    trigger.addEventListener("click", closeWeekendPromoModal);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && promoModal.classList.contains("open")) {
+      closeWeekendPromoModal();
+    }
+  });
+}
+
+function hasSeenWeekendPromotion() {
+  try {
+    return localStorage.getItem(WEEKEND_PROMO_SEEN_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function markWeekendPromotionSeen() {
+  try {
+    localStorage.setItem(WEEKEND_PROMO_SEEN_KEY, "true");
+  } catch {
+    // The promotion still works when storage is unavailable.
+  }
+}
+
+function openWeekendPromoModal() {
+  const modal = document.getElementById("weekendPromoModal");
+  if (!modal || Date.now() >= WEEKEND_PROMO_END.getTime()) return;
+
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("promo-modal-open");
+  modal.querySelector(".promo-modal-close")?.focus();
+}
+
+function closeWeekendPromoModal() {
+  const modal = document.getElementById("weekendPromoModal");
+  if (!modal) return;
+
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("promo-modal-open");
+}
+
+function updateWeekendPromoCountdown() {
+  const remaining = WEEKEND_PROMO_END.getTime() - Date.now();
+
+  if (remaining <= 0) {
+    window.clearInterval(weekendPromoTimer);
+    document.querySelectorAll("[data-promo-surface]").forEach((surface) => surface.hidden = true);
+    teardownWeekendPromoBannerLayout();
+    closeWeekendPromoModal();
+    document.getElementById("weekendPromoModal")?.remove();
+    return;
+  }
+
+  const totalSeconds = Math.floor(remaining / 1000);
+  const values = [
+    [Math.floor(totalSeconds / 86400), "Days"],
+    [Math.floor((totalSeconds % 86400) / 3600), "Hrs"],
+    [Math.floor((totalSeconds % 3600) / 60), "Min"],
+    [totalSeconds % 60, "Sec"]
+  ];
+
+  document.querySelectorAll("[data-promo-countdown]").forEach((countdown) => {
+    countdown.innerHTML = values.map(([value, label]) => `
+      <span class="promo-time-unit"><strong>${String(value).padStart(2, "0")}</strong><small>${label}</small></span>
+    `).join("");
+  });
+}
+
+function setupWeekendPromoBannerLayout() {
+  const banner = document.querySelector(".promo-banner:not([hidden])");
+  if (!banner) return;
+
+  const syncBannerHeight = () => {
+    document.body.style.setProperty("--promo-banner-height", `${Math.ceil(banner.getBoundingClientRect().height)}px`);
+  };
+
+  document.body.classList.add("promo-banner-active");
+  syncBannerHeight();
+
+  if ("ResizeObserver" in window) {
+    weekendPromoBannerObserver = new ResizeObserver(syncBannerHeight);
+    weekendPromoBannerObserver.observe(banner);
+  } else {
+    weekendPromoBannerResizeHandler = syncBannerHeight;
+    window.addEventListener("resize", weekendPromoBannerResizeHandler);
+  }
+}
+
+function teardownWeekendPromoBannerLayout() {
+  weekendPromoBannerObserver?.disconnect();
+  weekendPromoBannerObserver = null;
+  if (weekendPromoBannerResizeHandler) {
+    window.removeEventListener("resize", weekendPromoBannerResizeHandler);
+    weekendPromoBannerResizeHandler = null;
+  }
+  document.body.classList.remove("promo-banner-active");
+  document.body.style.removeProperty("--promo-banner-height");
+}
+
+async function copyWeekendPromoCode(button) {
+  const code = button.dataset.promoCopy || "WEEKEND071726";
+  const label = button.querySelector("[data-promo-copy-label]");
+
+  try {
+    await navigator.clipboard.writeText(code);
+    if (label) label.textContent = "Copied!";
+  } catch {
+    if (label) label.textContent = code;
+  }
+
+  window.setTimeout(() => {
+    if (label) label.textContent = button.classList.contains("promo-banner-code") ? "Copy" : "Tap to copy";
+  }, 1800);
+}
 
 function toggleMenu() {
   const nav = document.getElementById("mainNav");
