@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", function () {
   window.syncVehicleAvailability?.();
 });
 
-const WEEKEND_PROMO_END = new Date("2026-07-20T00:00:00-04:00");
+const WEEKEND_PROMO_END = new Date("2026-07-21T00:00:00-04:00");
 const WEEKEND_PROMO_SEEN_KEY = "rentmect_weekend071726_seen";
 let weekendPromoTimer = null;
 let weekendPromoBannerObserver = null;
