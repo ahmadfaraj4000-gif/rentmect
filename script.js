@@ -6,6 +6,7 @@ let lastRentalTimeNotice = "";
 
 document.addEventListener("DOMContentLoaded", function () {
   setupSitePromotion();
+  loadAdminVehicleImages();
   populateTimeSelects();
   setMinDates();
   loadBookingDatesIntoForm();
@@ -18,6 +19,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 const SITE_PROMOTIONS_API_URL = "https://gqmiktepthaafupwdmcl.supabase.co/rest/v1/site_promotions";
 const SITE_PROMOTIONS_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxbWlrdGVwdGhhYWZ1cHdkbWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1ODgxNzgsImV4cCI6MjA5MzE2NDE3OH0.dDM6SSAwd03FLWcdOc8OemcFmZ7yOxKsuPq3qpmqoWI";
+const SITE_VEHICLES_API_URL = SITE_PROMOTIONS_API_URL.replace(/site_promotions$/, "vehicles");
 const DEFAULT_SITE_PROMOTION = {
   id: "weekend071726",
   updated_at: "2026-07-19T00:00:00-04:00",
@@ -121,6 +123,37 @@ async function fetchSitePromotions() {
   } catch (error) {
     console.warn("Using the built-in promotion because Promotion Manager is unavailable.", error);
     return { ok: false, promotions: [] };
+  }
+}
+
+async function loadAdminVehicleImages() {
+  const vehicleCards = [...document.querySelectorAll(".car-item[data-vehicle-id]")];
+  if (!vehicleCards.length) return;
+
+  try {
+    const query = new URLSearchParams({ select: "id,image_urls" });
+    const response = await fetch(`${SITE_VEHICLES_API_URL}?${query}`, {
+      headers: {
+        apikey: SITE_PROMOTIONS_ANON_KEY,
+        Authorization: `Bearer ${SITE_PROMOTIONS_ANON_KEY}`,
+      },
+    });
+    if (!response.ok) throw new Error(`Vehicle image request failed (${response.status})`);
+
+    const vehicles = await response.json();
+    const imageByVehicleId = new Map(
+      (Array.isArray(vehicles) ? vehicles : [])
+        .filter((vehicle) => vehicle?.id && Array.isArray(vehicle.image_urls) && vehicle.image_urls[0])
+        .map((vehicle) => [vehicle.id, vehicle.image_urls[0]])
+    );
+
+    vehicleCards.forEach((card) => {
+      const customImageUrl = imageByVehicleId.get(card.dataset.vehicleId);
+      const image = card.querySelector(".vehicle-image img");
+      if (customImageUrl && image && image.src !== customImageUrl) image.src = customImageUrl;
+    });
+  } catch (error) {
+    console.warn("Using built-in optimized vehicle pictures because admin pictures are unavailable.", error);
   }
 }
 

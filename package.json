@@ -1,0 +1,10 @@
+{
+  "name": "rent-me-ct-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "portals:build": "npm --prefix rentmect-client-portal run build && npm --prefix rentmect-admin-portal run build",
+    "perf:check": "npm run portals:build && node tools/check-performance.mjs"
+  }
+}

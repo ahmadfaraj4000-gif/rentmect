@@ -220,7 +220,7 @@ img {
     radial-gradient(circle at 60% 40%, rgba(229, 9, 20, 0.22), transparent 36%),
     radial-gradient(circle at 28% 22%, rgba(214, 180, 106, 0.11), transparent 22%),
     linear-gradient(120deg, rgba(0,0,0,0.96), rgba(0,0,0,0.63) 48%, rgba(0,0,0,0.94)),
-    url("assets/background.png");
+    url("assets/background.webp");
   background-size: cover;
   background-position: center;
   color: var(--white);
@@ -612,28 +612,28 @@ img {
 
 .placeholder.suv {
   background:
-    url("assets/Audi-A8L-YPS.png");
+    url("assets/Audi-A8L-YPS.webp");
   background-size: cover;
   background-position: center;
 }
 
 .placeholder.luxury {
   background:
-    url("assets/Benz-CLS-AMG-550-224.png");
+    url("assets/Benz-CLS-AMG-550-224.webp");
   background-size: cover;
   background-position: center;
 }
 
 .placeholder.sedan {
   background:
-    url("assets/BMW-330I-157.png");
+    url("assets/BMW-330I-157.webp");
   background-size: cover;
   background-position: center;
 }
 
 .placeholder.truck {
   background:
-    url("assets/Ford-F350-4X4-191.png");
+    url("assets/Ford-F350-4X4-191.webp");
   background-size: cover;
   background-position: center;
 }
@@ -1822,7 +1822,7 @@ body.modal-open {
         rgba(45,10,14,0.68) 45%,
         rgba(0,0,0,0.82) 100%
       ),
-      url("assets/background.png");
+      url("assets/background.webp");
 
     background-size: cover;
     background-position: center 42%;
