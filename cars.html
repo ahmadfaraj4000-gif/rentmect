@@ -2078,7 +2078,7 @@
         const bookingId = typeof responseBody === "string" ? responseBody : responseBody?.id;
         if (!bookingId) throw new Error("The booking preview did not return a booking ID.");
 
-        const portalUrl = new URL("rentmect-client-portal/", document.baseURI);
+        const portalUrl = new URL("https://login.rentmect.com/");
         portalUrl.searchParams.set("booking", bookingId);
         portalUrl.searchParams.set("preview", "1");
         window.location.href = portalUrl.toString();
