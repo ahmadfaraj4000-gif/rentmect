@@ -1893,6 +1893,8 @@
     let pendingInsuranceVehicle = "";
     let pendingInsuranceVehicleId = "";
     let pendingWheelbaseRentalId = "";
+    const BOOKING_FLOW_TEST_VEHICLE_ID = "00000000-0000-4000-8000-000000000015";
+    const BOOKING_FLOW_TEST_VEHICLE_NAME = "Booking Flow Test Vehicle";
 
     function getRentalPeriodData() {
       const dates = getSelectedDates();
@@ -2021,20 +2023,15 @@
       event?.preventDefault();
 
       const previewLink = event?.currentTarget || document.getElementById("bookingPreviewLink");
-      const selectedVehicleLabel = document.getElementById("selectedVehicle")?.textContent?.trim() || "";
-      const selectedVehicle = pendingInsuranceVehicle || (selectedVehicleLabel !== "None selected yet" ? selectedVehicleLabel : "");
-      const selectedCard = selectedVehicle
-        ? [...document.querySelectorAll(".car-item")].find((card) => getCarCardName(card) === selectedVehicle)
-        : null;
-      const selectedVehicleId = pendingInsuranceVehicleId || selectedCard?.dataset.vehicleId || "";
       const bookingData = {
         ...getRentalPeriodData(),
-        selectedVehicle,
-        selectedVehicleId
+        selectedVehicle: BOOKING_FLOW_TEST_VEHICLE_NAME,
+        selectedVehicleId: BOOKING_FLOW_TEST_VEHICLE_ID,
+        bookingFlowTest: true
       };
 
-      if (!bookingData.pickupDate || !bookingData.returnDate || !bookingData.selectedVehicle || !bookingData.selectedVehicleId) {
-        alert("Choose pickup and return dates and select a vehicle before opening Booking Preview.");
+      if (!bookingData.pickupDate || !bookingData.returnDate) {
+        alert("Choose pickup and return dates before opening Booking Preview.");
         return;
       }
 
