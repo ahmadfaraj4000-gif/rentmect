@@ -5,7 +5,7 @@ let selectedRentalPeriod = "";
 let lastRentalTimeNotice = "";
 
 document.addEventListener("DOMContentLoaded", function () {
-  setupWeekendPromotion();
+  setupSitePromotion();
   populateTimeSelects();
   setMinDates();
   loadBookingDatesIntoForm();
@@ -16,17 +16,57 @@ document.addEventListener("DOMContentLoaded", function () {
   window.syncVehicleAvailability?.();
 });
 
-const WEEKEND_PROMO_END = new Date("2026-07-21T00:00:00-04:00");
-const WEEKEND_PROMO_SEEN_KEY = "rentmect_weekend071726_seen";
+const SITE_PROMOTIONS_API_URL = "https://gqmiktepthaafupwdmcl.supabase.co/rest/v1/site_promotions";
+const SITE_PROMOTIONS_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxbWlrdGVwdGhhYWZ1cHdkbWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1ODgxNzgsImV4cCI6MjA5MzE2NDE3OH0.dDM6SSAwd03FLWcdOc8OemcFmZ7yOxKsuPq3qpmqoWI";
+const DEFAULT_SITE_PROMOTION = {
+  id: "weekend071726",
+  updated_at: "2026-07-19T00:00:00-04:00",
+  coupon_code: "WEEKEND071726",
+  badge_text: "15% OFF",
+  offer_value: "15%",
+  offer_suffix: "off",
+  popup_kicker: "Weekend Special",
+  popup_title: "Your weekend ride just got better.",
+  popup_body: "Book before midnight Monday and use this discount code at checkout.",
+  banner_title: "Weekend special ends Monday at midnight",
+  banner_body: "Use code",
+  cta_label: "Choose Your Car",
+  cta_url: "cars.html",
+  fine_print: "Ends at 12:00 AM Tuesday, July 21, 2026 (Eastern)—the end of Monday night. Terms may apply.",
+  starts_at: "2026-07-17T00:00:00-04:00",
+  ends_at: "2026-07-21T00:00:00-04:00",
+  popup_enabled: true,
+  banner_enabled: true,
+  popup_pages: ["index.html"],
+  banner_pages: ["cars.html"],
+  active: true,
+};
+let activeSitePromotion = null;
+let activeSitePromotionEnd = null;
 let weekendPromoTimer = null;
 let weekendPromoBannerObserver = null;
 let weekendPromoBannerResizeHandler = null;
 
-function setupWeekendPromotion() {
+async function setupSitePromotion() {
+  const currentPage = getCurrentPromotionPage();
+  const result = await fetchSitePromotions();
+  const candidates = result.ok ? result.promotions : [DEFAULT_SITE_PROMOTION];
+  const now = Date.now();
+  const promotion = candidates.find((candidate) => promotionTargetsPage(candidate, currentPage, now));
+
+  if (!promotion) {
+    removePromotionSurfaces();
+    return;
+  }
+
+  activeSitePromotion = promotion;
+  activeSitePromotionEnd = new Date(promotion.ends_at);
+  renderPromotionSurfaces(promotion, currentPage);
+
   const promoModal = document.getElementById("weekendPromoModal");
   const countdowns = [...document.querySelectorAll("[data-promo-countdown]")];
   const promoSurfaces = [...document.querySelectorAll("[data-promo-surface]")];
-  const promotionIsActive = Date.now() < WEEKEND_PROMO_END.getTime();
+  const promotionIsActive = Date.now() < activeSitePromotionEnd.getTime();
 
   if (!promotionIsActive) {
     promoSurfaces.forEach((surface) => surface.hidden = true);
@@ -45,9 +85,9 @@ function setupWeekendPromotion() {
     button.addEventListener("click", () => copyWeekendPromoCode(button));
   });
 
-  if (!promoModal || hasSeenWeekendPromotion()) return;
+  if (!promoModal || hasSeenSitePromotion(promotion)) return;
 
-  markWeekendPromotionSeen();
+  markSitePromotionSeen(promotion);
   window.setTimeout(() => openWeekendPromoModal(), 350);
 
   promoModal.querySelectorAll("[data-promo-close]").forEach((trigger) => {
@@ -61,17 +101,172 @@ function setupWeekendPromotion() {
   });
 }
 
-function hasSeenWeekendPromotion() {
+async function fetchSitePromotions() {
   try {
-    return localStorage.getItem(WEEKEND_PROMO_SEEN_KEY) === "true";
+    const query = new URLSearchParams({
+      select: "*",
+      active: "eq.true",
+      order: "updated_at.desc",
+    });
+    const response = await fetch(`${SITE_PROMOTIONS_API_URL}?${query}`, {
+      cache: "no-store",
+      headers: {
+        apikey: SITE_PROMOTIONS_ANON_KEY,
+        Authorization: `Bearer ${SITE_PROMOTIONS_ANON_KEY}`,
+      },
+    });
+    if (!response.ok) throw new Error(`Promotion request failed (${response.status})`);
+    const promotions = await response.json();
+    return { ok: true, promotions: Array.isArray(promotions) ? promotions : [] };
+  } catch (error) {
+    console.warn("Using the built-in promotion because Promotion Manager is unavailable.", error);
+    return { ok: false, promotions: [] };
+  }
+}
+
+function getCurrentPromotionPage() {
+  const fileName = window.location.pathname.split("/").pop();
+  return fileName || "index.html";
+}
+
+function promotionTargetsPage(promotion, page, now = Date.now()) {
+  if (!promotion?.active) return false;
+  const startsAt = promotion.starts_at ? new Date(promotion.starts_at).getTime() : Number.NEGATIVE_INFINITY;
+  const endsAt = new Date(promotion.ends_at).getTime();
+  if (!Number.isFinite(endsAt) || now < startsAt || now >= endsAt) return false;
+  const popupMatches = promotion.popup_enabled && promotion.popup_pages?.includes(page);
+  const bannerMatches = promotion.banner_enabled && promotion.banner_pages?.includes(page);
+  return Boolean(popupMatches || bannerMatches);
+}
+
+function renderPromotionSurfaces(promotion, page) {
+  const showPopup = Boolean(promotion.popup_enabled && promotion.popup_pages?.includes(page));
+  const showBanner = Boolean(promotion.banner_enabled && promotion.banner_pages?.includes(page));
+  const existingPopup = document.getElementById("weekendPromoModal");
+  const existingBanner = document.querySelector(".promo-banner");
+
+  if (showPopup) hydratePromotionPopup(existingPopup || createPromotionPopup(), promotion);
+  else existingPopup?.remove();
+
+  if (showBanner) hydratePromotionBanner(existingBanner || createPromotionBanner(), promotion);
+  else if (existingBanner) existingBanner.hidden = true;
+}
+
+function createPromotionPopup() {
+  const modal = document.createElement("div");
+  modal.className = "promo-modal";
+  modal.id = "weekendPromoModal";
+  modal.setAttribute("aria-hidden", "true");
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+  modal.setAttribute("aria-labelledby", "weekendPromoTitle");
+  modal.innerHTML = `
+    <div class="promo-modal-backdrop" data-promo-close></div>
+    <div class="promo-modal-panel">
+      <button class="promo-modal-close" type="button" data-promo-close aria-label="Close promotion">×</button>
+      <p class="promo-kicker" data-promo-kicker></p>
+      <p class="promo-discount"><strong data-promo-offer></strong> <span data-promo-offer-suffix></span></p>
+      <h2 id="weekendPromoTitle" data-promo-popup-title></h2>
+      <p class="promo-copy" data-promo-popup-body></p>
+      <button class="promo-code" type="button" data-promo-copy>
+        <span>Discount code</span>
+        <strong data-promo-code></strong>
+        <small data-promo-copy-label>Tap to copy</small>
+      </button>
+      <div class="promo-countdown-wrap">
+        <p>Offer ends in</p>
+        <div class="promo-countdown" data-promo-countdown aria-label="Time remaining in promotion"></div>
+      </div>
+      <a class="promo-cta" data-promo-cta><span data-promo-cta-label></span> <span aria-hidden="true">→</span></a>
+      <p class="promo-fine-print" data-promo-fine-print></p>
+    </div>`;
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function createPromotionBanner() {
+  const banner = document.createElement("aside");
+  banner.className = "promo-banner";
+  banner.dataset.promoSurface = "banner";
+  banner.setAttribute("aria-label", "Current promotion");
+  banner.innerHTML = `
+    <div class="promo-banner-main">
+      <span class="promo-banner-badge" data-promo-badge></span>
+      <div><strong data-promo-banner-title></strong><span data-promo-banner-body></span></div>
+      <button class="promo-banner-code" type="button" data-promo-copy>
+        <span data-promo-code></span>
+        <small data-promo-copy-label>Copy</small>
+      </button>
+    </div>
+    <div class="promo-banner-timer">
+      <span>Time left</span>
+      <div class="promo-countdown promo-countdown-compact" data-promo-countdown aria-label="Time remaining in promotion"></div>
+    </div>`;
+  const header = document.querySelector("header");
+  if (header) header.insertAdjacentElement("afterend", banner);
+  else document.body.prepend(banner);
+  return banner;
+}
+
+function hydratePromotionPopup(modal, promotion) {
+  setPromotionText(modal, "[data-promo-kicker]", promotion.popup_kicker);
+  setPromotionText(modal, "[data-promo-offer]", promotion.offer_value);
+  setPromotionText(modal, "[data-promo-offer-suffix]", promotion.offer_suffix);
+  setPromotionText(modal, "[data-promo-popup-title]", promotion.popup_title);
+  setPromotionText(modal, "[data-promo-popup-body]", promotion.popup_body);
+  setPromotionText(modal, "[data-promo-code]", promotion.coupon_code);
+  setPromotionText(modal, "[data-promo-cta-label]", promotion.cta_label);
+  setPromotionText(modal, "[data-promo-fine-print]", promotion.fine_print || formatPromotionEnd(promotion.ends_at));
+  const copyButton = modal.querySelector("[data-promo-copy]");
+  copyButton.dataset.promoCopy = promotion.coupon_code;
+  copyButton.setAttribute("aria-label", `Copy discount code ${promotion.coupon_code}`);
+  const cta = modal.querySelector("[data-promo-cta]");
+  cta.href = safePromotionUrl(promotion.cta_url);
+}
+
+function hydratePromotionBanner(banner, promotion) {
+  banner.hidden = false;
+  setPromotionText(banner, "[data-promo-badge]", promotion.badge_text);
+  setPromotionText(banner, "[data-promo-banner-title]", promotion.banner_title);
+  setPromotionText(banner, "[data-promo-banner-body]", promotion.banner_body);
+  setPromotionText(banner, "[data-promo-code]", promotion.coupon_code);
+  const copyButton = banner.querySelector("[data-promo-copy]");
+  copyButton.dataset.promoCopy = promotion.coupon_code;
+  copyButton.setAttribute("aria-label", `Copy discount code ${promotion.coupon_code}`);
+}
+
+function setPromotionText(container, selector, value) {
+  const element = container.querySelector(selector);
+  if (element) element.textContent = value || "";
+}
+
+function safePromotionUrl(value) {
+  const url = String(value || "cars.html").trim();
+  return /^(?:https?:\/\/|\/|\.\/|\.\.\/|[a-z0-9][a-z0-9._/-]*\.html(?:[?#].*)?$)/i.test(url) ? url : "cars.html";
+}
+
+function formatPromotionEnd(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Terms may apply.";
+  return `Ends ${new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeStyle: "short", timeZone: "America/New_York" }).format(date)} Eastern. Terms may apply.`;
+}
+
+function promotionSeenKey(promotion) {
+  const version = String(promotion.updated_at || promotion.ends_at || "").replace(/[^a-z0-9]/gi, "");
+  return `rentmect_promotion_${promotion.id || promotion.coupon_code}_${version}_seen`;
+}
+
+function hasSeenSitePromotion(promotion) {
+  try {
+    return localStorage.getItem(promotionSeenKey(promotion)) === "true";
   } catch {
     return false;
   }
 }
 
-function markWeekendPromotionSeen() {
+function markSitePromotionSeen(promotion) {
   try {
-    localStorage.setItem(WEEKEND_PROMO_SEEN_KEY, "true");
+    localStorage.setItem(promotionSeenKey(promotion), "true");
   } catch {
     // The promotion still works when storage is unavailable.
   }
@@ -79,7 +274,7 @@ function markWeekendPromotionSeen() {
 
 function openWeekendPromoModal() {
   const modal = document.getElementById("weekendPromoModal");
-  if (!modal || Date.now() >= WEEKEND_PROMO_END.getTime()) return;
+  if (!modal || !activeSitePromotionEnd || Date.now() >= activeSitePromotionEnd.getTime()) return;
 
   modal.classList.add("open");
   modal.setAttribute("aria-hidden", "false");
@@ -97,14 +292,11 @@ function closeWeekendPromoModal() {
 }
 
 function updateWeekendPromoCountdown() {
-  const remaining = WEEKEND_PROMO_END.getTime() - Date.now();
+  const remaining = activeSitePromotionEnd?.getTime() - Date.now();
 
-  if (remaining <= 0) {
+  if (!Number.isFinite(remaining) || remaining <= 0) {
     window.clearInterval(weekendPromoTimer);
-    document.querySelectorAll("[data-promo-surface]").forEach((surface) => surface.hidden = true);
-    teardownWeekendPromoBannerLayout();
-    closeWeekendPromoModal();
-    document.getElementById("weekendPromoModal")?.remove();
+    removePromotionSurfaces();
     return;
   }
 
@@ -121,6 +313,13 @@ function updateWeekendPromoCountdown() {
       <span class="promo-time-unit"><strong>${String(value).padStart(2, "0")}</strong><small>${label}</small></span>
     `).join("");
   });
+}
+
+function removePromotionSurfaces() {
+  document.querySelectorAll("[data-promo-surface]").forEach((surface) => surface.hidden = true);
+  teardownWeekendPromoBannerLayout();
+  closeWeekendPromoModal();
+  document.getElementById("weekendPromoModal")?.remove();
 }
 
 function setupWeekendPromoBannerLayout() {
@@ -155,7 +354,7 @@ function teardownWeekendPromoBannerLayout() {
 }
 
 async function copyWeekendPromoCode(button) {
-  const code = button.dataset.promoCopy || "WEEKEND071726";
+  const code = button.dataset.promoCopy || activeSitePromotion?.coupon_code || "";
   const label = button.querySelector("[data-promo-copy-label]");
 
   try {
