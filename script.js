@@ -808,7 +808,7 @@ const RENT_ME_CT_CHATBOT_TOPICS = [
   },
   {
     keywords: ["drop off", "drop-off", "dropoff", "delivery", "deliver", "pickup service", "pick up service", "transportation", "bring the car", "come to me"],
-    response: "Pickup and drop-off services may be offered only when Rent Me CT approves them. Local pickup or return transportation within 15 miles may carry a $30 fee each way. Call or text 959-261-0721 to confirm whether it is available for your rental."
+    response: "Pickup and drop-off services may be offered only when Rent Me CT approves them. Local pickup or return transportation within 15 miles may carry a $30 fee each way. Call or text 860-558-6031 to confirm whether it is available for your rental."
   },
   {
     keywords: ["pickup", "pick up", "return", "address", "location", "where are you", "where located", "hours", "open", "time window"],
@@ -872,7 +872,7 @@ const RENT_ME_CT_CHATBOT_TOPICS = [
   },
   {
     keywords: ["phone", "call", "text", "contact", "number", "help", "human", "person"],
-    response: "For the fastest help, call or text Rent Me CT at 959-261-0721."
+    response: "For the fastest help, call or text Rent Me CT at 860-558-6031."
   }
 ];
 
@@ -904,7 +904,7 @@ function getChatbotReply(message) {
     return "Hey! I can help with rental requirements, insurance, deposits, mileage, pickup and return, documents, agreement rules, and availability. What would you like to know?";
   }
 
-  return "I may not have the exact answer to that yet. You can ask me about requirements, insurance, deposits, mileage, pickup/drop-off, late returns, damage, tolls, smoking, vehicle rules, availability, or call/text 959-261-0721 for help.";
+  return "I may not have the exact answer to that yet. You can ask me about requirements, insurance, deposits, mileage, pickup/drop-off, late returns, damage, tolls, smoking, vehicle rules, availability, or call/text 860-558-6031 for help.";
 }
 
 function sendChatMessage(event) {

@@ -22,32 +22,41 @@
    endpoint currently responds like the previous function, so the local refund
    and scheduler changes are not live yet.
 4. Set Edge Function secrets: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
+   `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`,
    `SUPABASE_SERVICE_ROLE_KEY`, and a new high-entropy
    `RENTMECT_DEPOSIT_RELEASE_SECRET`.
-5. Enable Stripe Identity in the Stripe Dashboard and complete any required business verification.
-6. In Stripe, point the webhook to
+5. Run `supabase/renter_address_and_vehicle_use.sql`, enable Maps JavaScript API,
+   Places API, and Places API (New), then set `VITE_GOOGLE_MAPS_API_KEY` on the
+   client portal deployment. Restrict that browser key to
+   `https://login.rentmect.com/*` and only those three APIs.
+6. Run `supabase/vehicle_deposits_and_under25_pricing.sql` with the SQL Editor
+   query title **Vehicle Deposits and Under-25 Pricing**, then deploy the updated
+   client portal, admin portal, and `stripe-web-hook` function together.
+7. Enable Stripe Identity in the Stripe Dashboard and complete any required business verification.
+8. In Stripe, point the webhook to
    `https://<project-ref>.supabase.co/functions/v1/stripe-web-hook/webhook` and
    subscribe to `checkout.session.completed`, `refund.created`,
    `refund.updated`, `refund.failed`, `identity.verification_session.verified`,
    `identity.verification_session.requires_input`, `identity.verification_session.processing`,
    and `identity.verification_session.canceled`.
-7. Add Supabase Vault secrets `project_url`, `project_anon_key`, and
+9. Add Supabase Vault secrets `project_url`, `project_anon_key`, and
    `rentmect_deposit_release_secret`. The last value must exactly match the Edge
    Function secret. Then run `supabase/security_deposit_release_schedule.sql`.
-8. Replace the client portal's local/placeholder `VITE_CLIENT_PORTAL_URL` with
+10. Replace the client portal's local/placeholder `VITE_CLIENT_PORTAL_URL` with
    its public HTTPS URL before building the deployment. This controls password
    reset redirects.
-9. Set `RENTMECT_CLIENT_PORTAL_URL` on the Stripe Edge Function to the public HTTPS
+11. Set `RENTMECT_CLIENT_PORTAL_URL` on the Stripe Edge Function to the public HTTPS
    client-portal URL so Identity return redirects cannot fall back to localhost.
-10. Confirm the deployed Edge Function uses Stripe live keys when ready for real
+12. Confirm the deployed Edge Function uses Stripe live keys when ready for real
    charges. The repository cannot inspect hosted Supabase secrets, so live mode
    is not currently confirmed.
-11. Run two Stripe test-mode bookings: one renter age 24 ($500 deposit) and one
-   age 25 ($300 deposit). Complete a clean return, test the admin refund button,
+13. Run two Stripe test-mode bookings using the same vehicle: one renter age 24
+   (vehicle deposit plus the configured adjustment and rental markup) and one
+   age 25 (vehicle deposit and standard rental rate). Complete a clean return, test the admin refund button,
    and verify the Stripe refund plus audit record.
-12. Run a Stripe Identity test session with a matching test document/selfie and a
+14. Run a Stripe Identity test session with a matching test document/selfie and a
    failed/retry session. Confirm pickup stays blocked until status is `verified`.
-13. Have counsel review the July 19 Stripe Identity privacy disclosure and define
+15. Have counsel review the July 19 Stripe Identity privacy disclosure and define
    an operational non-biometric/manual alternative for customers who cannot or do
    not consent to selfie verification where applicable law requires one.
 
