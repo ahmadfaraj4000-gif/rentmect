@@ -203,8 +203,8 @@ function setupVehicleGalleries() {
     nextButton.type = "button";
     previousButton.setAttribute("aria-label", `Show previous photo of ${vehicleName}`);
     nextButton.setAttribute("aria-label", `Show next photo of ${vehicleName}`);
-    previousButton.innerHTML = "&#10094;";
-    nextButton.innerHTML = "&#10095;";
+    previousButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 18 9 12l6-6" /></svg>';
+    nextButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 18 6-6-6-6" /></svg>';
 
     const gallery = {
       images,

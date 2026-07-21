@@ -611,9 +611,13 @@ img {
 }
 
 .vehicle-gallery-arrow {
+  -webkit-appearance: none;
+  appearance: none;
   position: absolute;
   z-index: 2;
   top: 50%;
+  display: grid;
+  place-items: center;
   width: 42px;
   height: 42px;
   padding: 0;
@@ -621,12 +625,21 @@ img {
   border-radius: 50%;
   background: rgba(8,11,18,0.72);
   color: #fff;
-  font-size: 25px;
-  line-height: 1;
   cursor: pointer;
   transform: translateY(-50%);
   box-shadow: 0 6px 20px rgba(0,0,0,0.3);
   transition: background .2s ease, transform .2s ease;
+}
+
+.vehicle-gallery-arrow svg {
+  display: block;
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .vehicle-gallery-arrow:hover,
