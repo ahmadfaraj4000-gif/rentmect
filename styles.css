@@ -610,6 +610,49 @@ img {
   transform: scale(1.01);
 }
 
+.vehicle-gallery-arrow {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 50%;
+  background: rgba(8,11,18,0.72);
+  color: #fff;
+  font-size: 25px;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  transition: background .2s ease, transform .2s ease;
+}
+
+.vehicle-gallery-arrow:hover,
+.vehicle-gallery-arrow:focus-visible {
+  background: rgba(196,15,26,0.92);
+  transform: translateY(-50%) scale(1.08);
+}
+
+.vehicle-gallery-previous { left: 12px; }
+.vehicle-gallery-next { right: 12px; }
+
+.vehicle-gallery-counter {
+  position: absolute;
+  z-index: 2;
+  right: 12px;
+  bottom: 10px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(8,11,18,0.76);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .04em;
+  pointer-events: none;
+}
+
 .placeholder.suv {
   background:
     url("assets/Audi-A8L-YPS.webp");

@@ -6,6 +6,7 @@ let lastRentalTimeNotice = "";
 
 document.addEventListener("DOMContentLoaded", function () {
   setupSitePromotion();
+  setupVehicleGalleries();
   loadAdminVehicleImages();
   populateTimeSelects();
   setMinDates();
@@ -20,6 +21,11 @@ document.addEventListener("DOMContentLoaded", function () {
 const SITE_PROMOTIONS_API_URL = "https://gqmiktepthaafupwdmcl.supabase.co/rest/v1/site_promotions";
 const SITE_PROMOTIONS_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxbWlrdGVwdGhhYWZ1cHdkbWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1ODgxNzgsImV4cCI6MjA5MzE2NDE3OH0.dDM6SSAwd03FLWcdOc8OemcFmZ7yOxKsuPq3qpmqoWI";
 const SITE_VEHICLES_API_URL = SITE_PROMOTIONS_API_URL.replace(/site_promotions$/, "vehicles");
+const VEHICLE_GALLERY_JPG_IMAGES = new Set([
+  "001-2", "002-1", "002-2", "100-3", "148-1", "157-2",
+  "191-1", "191-2", "210-1", "210-2", "225-2", "321-1",
+  "451-2", "474-1", "649-2", "656-1", "656-2", "656-3",
+]);
 const DEFAULT_SITE_PROMOTION = {
   id: "weekend071726",
   updated_at: "2026-07-19T00:00:00-04:00",
@@ -150,11 +156,73 @@ async function loadAdminVehicleImages() {
     vehicleCards.forEach((card) => {
       const customImageUrl = imageByVehicleId.get(card.dataset.vehicleId);
       const image = card.querySelector(".vehicle-image img");
-      if (customImageUrl && image && image.src !== customImageUrl) image.src = customImageUrl;
+      if (!customImageUrl || !image || image.src === customImageUrl) return;
+
+      const gallery = card.vehicleGallery;
+      if (gallery) {
+        gallery.images[0] = customImageUrl;
+        if (gallery.index === 0) gallery.show(0);
+        return;
+      }
+
+      image.src = customImageUrl;
     });
   } catch (error) {
     console.warn("Using built-in optimized vehicle pictures because admin pictures are unavailable.", error);
   }
+}
+
+function getFleetGalleryImages(fleetNumber) {
+  const imageCount = fleetNumber === "191" ? 5 : 4;
+  return Array.from({ length: imageCount }, (_, index) => {
+    const imageKey = `${fleetNumber}-${index + 1}`;
+    const extension = VEHICLE_GALLERY_JPG_IMAGES.has(imageKey) ? "jpg" : "webp";
+    return `assets/fleet-2/${imageKey}.${extension}`;
+  });
+}
+
+function setupVehicleGalleries() {
+  document.querySelectorAll(".car-item").forEach((card) => {
+    const imageContainer = card.querySelector(".vehicle-image");
+    const image = imageContainer?.querySelector("img");
+    const vehicleName = card.querySelector("h3")?.textContent.trim() || "Vehicle";
+    const fleetNumber = vehicleName.match(/#([a-z0-9]+)/i)?.[1]?.toUpperCase();
+    if (!imageContainer || !image || !fleetNumber) return;
+
+    const images = [image.currentSrc || image.src, ...getFleetGalleryImages(fleetNumber)];
+    const originalAlt = image.alt;
+    const counter = document.createElement("span");
+    const previousButton = document.createElement("button");
+    const nextButton = document.createElement("button");
+
+    counter.className = "vehicle-gallery-counter";
+    counter.setAttribute("aria-live", "polite");
+    previousButton.className = "vehicle-gallery-arrow vehicle-gallery-previous";
+    nextButton.className = "vehicle-gallery-arrow vehicle-gallery-next";
+    previousButton.type = "button";
+    nextButton.type = "button";
+    previousButton.setAttribute("aria-label", `Show previous photo of ${vehicleName}`);
+    nextButton.setAttribute("aria-label", `Show next photo of ${vehicleName}`);
+    previousButton.innerHTML = "&#10094;";
+    nextButton.innerHTML = "&#10095;";
+
+    const gallery = {
+      images,
+      index: 0,
+      show(index) {
+        this.index = (index + this.images.length) % this.images.length;
+        image.src = this.images[this.index];
+        image.alt = `${originalAlt} — photo ${this.index + 1} of ${this.images.length}`;
+        counter.textContent = `${this.index + 1} / ${this.images.length}`;
+      },
+    };
+
+    previousButton.addEventListener("click", () => gallery.show(gallery.index - 1));
+    nextButton.addEventListener("click", () => gallery.show(gallery.index + 1));
+    imageContainer.append(previousButton, nextButton, counter);
+    card.vehicleGallery = gallery;
+    gallery.show(0);
+  });
 }
 
 function getCurrentPromotionPage() {
