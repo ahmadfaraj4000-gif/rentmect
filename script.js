@@ -137,7 +137,7 @@ async function loadAdminVehicleImages() {
   if (!vehicleCards.length) return;
 
   try {
-    const query = new URLSearchParams({ select: "id,image_urls" });
+    const query = new URLSearchParams({ select: "id,image_urls,published" });
     const response = await fetch(`${SITE_VEHICLES_API_URL}?${query}`, {
       headers: {
         apikey: SITE_PROMOTIONS_ANON_KEY,
@@ -152,8 +152,21 @@ async function loadAdminVehicleImages() {
         .filter((vehicle) => vehicle?.id && Array.isArray(vehicle.image_urls) && vehicle.image_urls[0])
         .map((vehicle) => [vehicle.id, vehicle.image_urls[0]])
     );
+    const publicationByVehicleId = new Map(
+      (Array.isArray(vehicles) ? vehicles : [])
+        .filter((vehicle) => vehicle?.id)
+        .map((vehicle) => [vehicle.id, vehicle.published !== false])
+    );
 
     vehicleCards.forEach((card) => {
+      if (publicationByVehicleId.get(card.dataset.vehicleId) === false) {
+        card.hidden = true;
+        card.setAttribute("aria-hidden", "true");
+        return;
+      }
+
+      card.hidden = false;
+      card.removeAttribute("aria-hidden");
       const customImageUrl = imageByVehicleId.get(card.dataset.vehicleId);
       const image = card.querySelector(".vehicle-image img");
       if (!customImageUrl || !image || image.src === customImageUrl) return;

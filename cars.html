@@ -1081,6 +1081,8 @@
     const WHEELBASE_BRAND_COLOR = "9b0008";
     const WHEELBASE_RESERVE_URL = "https://checkout.wheelbasepro.com/reserve";
     const WHEELBASE_AVAILABILITY_PROXY_URL = "https://gqmiktepthaafupwdmcl.supabase.co/functions/v1/wheelbase-availability";
+    const RENTMECT_CALENDAR_AVAILABILITY_URL = "https://gqmiktepthaafupwdmcl.supabase.co/rest/v1/rpc/get_admin_calendar_fleet_availability";
+    const RENTMECT_PUBLIC_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxbWlrdGVwdGhhYWZ1cHdkbWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1ODgxNzgsImV4cCI6MjA5MzE2NDE3OH0.dDM6SSAwd03FLWcdOc8OemcFmZ7yOxKsuPq3qpmqoWI";
     const WHEELBASE_RENTAL_API_URL = "https://api.outdoorsy.co/v0/rentals";
     const WHEELBASE_INITIAL_CARD_BATCH_SIZE = 8;
     var wheelbaseApp = null;
@@ -1089,6 +1091,8 @@
     let wheelbaseRentalsById = new Map();
     let wheelbaseRentalPriceRequests = new Map();
     let wheelbaseAvailabilityRequests = new Map();
+    let rentmectCalendarAvailabilityRequest = null;
+    let rentmectCalendarAvailabilityKey = "";
     let wheelbasePriceSyncedIds = new Set();
     let wheelbaseAvailabilitySyncedKeys = new Set();
     let wheelbaseLazyObserver = null;
@@ -1578,6 +1582,59 @@
       return null;
     }
 
+    async function getRentMeCtCalendarAvailability() {
+      const dates = getSelectedDates();
+      const times = getSelectedTimes();
+      if (!dates.pickupDate || !dates.returnDate) return new Map();
+
+      const requestKey = [dates.pickupDate, times.pickupTime, dates.returnDate, times.returnTime].join("|");
+      if (rentmectCalendarAvailabilityRequest && rentmectCalendarAvailabilityKey === requestKey) {
+        return rentmectCalendarAvailabilityRequest;
+      }
+
+      rentmectCalendarAvailabilityKey = requestKey;
+      rentmectCalendarAvailabilityRequest = fetch(RENTMECT_CALENDAR_AVAILABILITY_URL, {
+        method: "POST",
+        headers: {
+          apikey: RENTMECT_PUBLIC_ANON_KEY,
+          Authorization: `Bearer ${RENTMECT_PUBLIC_ANON_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          p_pickup_date: dates.pickupDate,
+          p_pickup_time: times.pickupTime || "9:00 AM",
+          p_return_date: dates.returnDate,
+          p_return_time: times.returnTime || "9:00 AM",
+        }),
+      }).then(async (response) => {
+        if (!response.ok) throw new Error(`Calendar availability request failed (${response.status})`);
+        const rows = await response.json();
+        return new Map((Array.isArray(rows) ? rows : []).map((row) => [row.vehicle_id, row]));
+      }).catch((error) => {
+        console.warn("Rent Me CT calendar availability fallback failed", error);
+        return new Map();
+      });
+
+      return rentmectCalendarAvailabilityRequest;
+    }
+
+    async function applyRentMeCtCalendarFallback(card) {
+      const vehicleId = card?.dataset?.vehicleId;
+      if (!vehicleId) {
+        markCardNeedsWheelbaseCheckout(card);
+        return;
+      }
+
+      const availability = (await getRentMeCtCalendarAvailability()).get(vehicleId);
+      if (!availability) {
+        markCardNeedsWheelbaseCheckout(card);
+      } else if (availability.available) {
+        markCardAvailable(card, "Available");
+      } else {
+        markCardUnavailable(card, "Unavailable");
+      }
+    }
+
     async function checkDirectWheelbaseAvailabilityForCard(card) {
       const dates = getSelectedDates();
       const times = getSelectedTimes();
@@ -1616,7 +1673,7 @@
 
           if (!response.ok) {
             console.warn("Wheelbase availability proxy failed", { rentalId, payload });
-            markCardNeedsWheelbaseCheckout(card);
+            await applyRentMeCtCalendarFallback(card);
             return;
           }
 
@@ -1629,12 +1686,12 @@
             markCardUnavailable(card, "Unavailable");
           } else {
             console.warn("Wheelbase availability response did not include a clear boolean", { rentalId, payload });
-            markCardNeedsWheelbaseCheckout(card);
+            await applyRentMeCtCalendarFallback(card);
           }
         } catch (error) {
           if (cacheKey !== getAvailabilityCacheKey(card)) return;
           console.warn("Wheelbase availability request failed", { rentalId, error });
-          markCardNeedsWheelbaseCheckout(card);
+          await applyRentMeCtCalendarFallback(card);
         }
       })().finally(() => {
         wheelbaseAvailabilityRequests.delete(cacheKey);
@@ -1707,6 +1764,8 @@
     function refreshWheelbaseDates() {
       const dates = getSelectedDates();
       wheelbaseAvailabilitySyncedKeys.clear();
+      rentmectCalendarAvailabilityRequest = null;
+      rentmectCalendarAvailabilityKey = "";
 
       document.querySelectorAll(".car-item").forEach((card) => {
         if (!card.dataset.wheelbaseRentalId) {
