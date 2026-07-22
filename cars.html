@@ -2078,74 +2078,16 @@
       window.location.href = buildIndividualRentalCheckoutUrl(bookingData.wheelbaseRentalId, bookingData);
     }
 
-    async function openBookingPreview(event) {
+    function openBookingPreview(event) {
       event?.preventDefault();
-
-      const previewLink = event?.currentTarget || document.getElementById("bookingPreviewLink");
-      const bookingData = {
-        ...getRentalPeriodData(),
-        selectedVehicle: BOOKING_FLOW_TEST_VEHICLE_NAME,
-        selectedVehicleId: BOOKING_FLOW_TEST_VEHICLE_ID,
-        bookingFlowTest: true
-      };
-
-      if (!bookingData.pickupDate || !bookingData.returnDate) {
-        alert("Choose pickup and return dates before opening Booking Preview.");
-        return;
-      }
-
-      if (!validateRentalPeriodForWheelbase(bookingData)) return;
-
-      const originalText = previewLink?.textContent || "Booking Preview";
-      if (previewLink) {
-        previewLink.textContent = "Opening Preview...";
-        previewLink.setAttribute("aria-busy", "true");
-      }
-
-      try {
-        localStorage.setItem("rentmect_pending_booking", JSON.stringify(bookingData));
-
-        const pendingBookingApiUrl = SITE_PROMOTIONS_API_URL.replace(
-          /site_promotions(?:\?.*)?$/,
-          "rpc/create_website_pending_booking"
-        );
-        const response = await fetch(pendingBookingApiUrl, {
-          method: "POST",
-          headers: {
-            apikey: SITE_PROMOTIONS_ANON_KEY,
-            Authorization: `Bearer ${SITE_PROMOTIONS_ANON_KEY}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            p_pickup_date: bookingData.pickupDate,
-            p_return_date: bookingData.returnDate,
-            p_pickup_time: bookingData.pickupTime || "9:00 AM",
-            p_return_time: bookingData.returnTime || "9:00 AM",
-            p_vehicle_id: bookingData.selectedVehicleId,
-            p_selected_vehicle_name: bookingData.selectedVehicle
-          })
-        });
-
-        const responseBody = await response.json().catch(() => null);
-        if (!response.ok) {
-          throw new Error(responseBody?.message || "Could not create the booking preview.");
-        }
-
-        const bookingId = typeof responseBody === "string" ? responseBody : responseBody?.id;
-        if (!bookingId) throw new Error("The booking preview did not return a booking ID.");
-
-        const portalUrl = new URL("https://login.rentmect.com/");
-        portalUrl.searchParams.set("booking", bookingId);
-        portalUrl.searchParams.set("preview", "1");
-        window.location.href = portalUrl.toString();
-      } catch (error) {
-        console.error("Booking Preview handoff failed", error);
-        alert(error?.message || "Booking Preview could not be opened. Please try again.");
-        if (previewLink) {
-          previewLink.textContent = originalText;
-          previewLink.removeAttribute("aria-busy");
-        }
-      }
+      const dates = getRentalPeriodData();
+      const portalUrl = new URL("https://login.rentmect.com/");
+      portalUrl.searchParams.set("preview", "fleet");
+      if (dates.pickupDate) portalUrl.searchParams.set("pickupDate", dates.pickupDate);
+      if (dates.returnDate) portalUrl.searchParams.set("returnDate", dates.returnDate);
+      if (dates.pickupTime) portalUrl.searchParams.set("pickupTime", dates.pickupTime);
+      if (dates.returnTime) portalUrl.searchParams.set("returnTime", dates.returnTime);
+      window.location.href = portalUrl.toString();
     }
 
     function startBooking(event) {

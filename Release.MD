@@ -224,8 +224,10 @@ Do not blindly rerun every SQL file against production. First run the preflight 
 23. `supabase/rental_due_sms_reminders.sql`
 24. `supabase/booking_flow_test_vehicle.sql`
 25. `supabase/vehicle_deposits_and_under25_pricing.sql`
-26. Fleet seed files only if the matching production vehicle IDs have been verified.
-27. Cron schedule files only after their secrets/functions are ready.
+26. `supabase/admin_pushover_notifications.sql`
+27. `supabase/vehicle_maintenance_notifications.sql`
+28. Fleet seed files only if the matching production vehicle IDs have been verified.
+29. Cron schedule files only after their secrets/functions are ready.
 
 `client_portal_calendar_source_of_truth.sql` must remain the final active definition of `create_rental_with_lock` among the availability migrations. `passwordless_checkout_hold.sql` then adds the hold functions without replacing that rental-lock function. The vehicle/under-25 pricing migration must run after the legacy audit migration so its per-vehicle pricing trigger replaces the old global $300/$500 trigger.
 
@@ -251,12 +253,18 @@ Do not blindly rerun every SQL file against production. First run the preflight 
 - `stripe-web-hook` — Checkout, Identity, webhook recording, deposit refund, and scheduled release actions.
 - `admin-manual-booking` — secure admin-created customer/rental workflow.
 - `send-rental-due-reminders` — rental reminders and admin SMS alerts.
+- `notify-admin-events` — queued Pushover alerts for bookings, document review,
+  returns due today, and mileage-based maintenance.
+- `send-emails` — SendGrid booking confirmations, admin test emails, opted-in
+  customer campaigns, scheduled batches, and delivery-event ingestion.
 
 ### Deploy/verify
 
 - [ ] Deploy the updated `stripe-web-hook` after its database migrations.
 - [ ] Deploy/verify `admin-manual-booking`.
 - [ ] Deploy/verify `send-rental-due-reminders`.
+- [ ] Deploy/verify `notify-admin-events` after its two notification migrations.
+- [ ] Deploy/verify `send-emails` after `email_automation_and_campaigns.sql`.
 - [ ] Verify the existing `wheelbase-availability` function but do not replace it casually.
 - [ ] Recover and version `send-phone-code` and `check-phone-code`.
 
@@ -270,6 +278,11 @@ Do not blindly rerun every SQL file against production. First run the preflight 
 - [ ] `RENTMECT_DEPOSIT_RELEASE_SECRET`
 - [ ] Twilio account/Verify credentials required by the deployed phone/reminder functions.
 - [ ] Resend credentials in Supabase SMTP settings, not frontend environment variables.
+- [ ] `PUSHOVER_APP_TOKEN`, `PUSHOVER_USER_KEY`, and the optional
+  `RENTMECT_ADMIN_PORTAL_URL` for the server-only admin notification function.
+- [ ] `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SENDGRID_FROM_NAME`,
+  `SENDGRID_REPLY_TO_EMAIL`, and `SENDGRID_MARKETING_UNSUBSCRIBE_GROUP_ID`.
+- [ ] `RENTMECT_EMAIL_WORKER_SECRET` and `SENDGRID_EVENT_WEBHOOK_SECRET`.
 
 Never expose service-role, Stripe secret, webhook, Resend, or Twilio secrets through `VITE_*`, `cars.html`, `index.html`, or another browser bundle.
 
@@ -322,6 +335,8 @@ The internal Booking Flow Test Vehicle can open Stripe only when the configured 
 - [ ] Run `supabase/rental_due_sms_reminder_schedule.sql` only after reminder functions and Twilio are verified.
 - [ ] Confirm `rentmect-expire-checkout-holds` runs every minute.
 - [ ] Inspect pg_cron history for failed jobs.
+- [ ] Add `rentmect_email_worker_secret` to Vault and run
+  `supabase/email_worker_schedule.sql` after deploying `send-emails`.
 
 ## Portal deployments and domains
 
