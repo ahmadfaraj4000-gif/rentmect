@@ -73,6 +73,7 @@
   top: 0;
   z-index: 100;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   min-height: 72px;
   padding: 0 max(20px, calc((100vw - 1240px) / 2));
@@ -728,6 +729,7 @@
     position: relative;
     display: grid;
     place-items: center;
+    align-self: center;
     flex: 0 0 46px;
     width: 46px;
     height: 46px;
@@ -753,11 +755,15 @@
   .site-v2 .mobile-menu-btn::before {
     content: "";
     display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
     width: 21px;
     height: 2px;
     border-radius: 999px;
     background: var(--v2-ink);
     box-shadow: 0 -7px 0 var(--v2-ink), 0 7px 0 var(--v2-ink);
+    transform: translate(-50%, -50%);
   }
 
   .site-v2 .mobile-menu-btn::after {
