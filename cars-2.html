@@ -44,17 +44,12 @@
     </nav>
   </header>
 
-  <div class="cars2-preview-header">
+  <div id="cars2PreviewHeader" class="cars2-preview-header" hidden>
     <div>
-      <span id="cars2HeaderLabel" class="cars2-header-label">Rent Me CT Vehicles</span>
       <button id="cars2HeaderBack" class="cars2-header-back" type="button" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
         Back to all vehicles
       </button>
-      <span class="cars2-header-secure">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.7 2.9 8.4 7 10 4.1-1.6 7-5.3 7-10V6l-7-3Z"></path><path d="m9 12 2 2 4-4"></path></svg>
-        Secure booking
-      </span>
     </div>
   </div>
 
@@ -108,12 +103,14 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
           <input id="cars2Search" type="search" placeholder="Search the fleet" autocomplete="off" />
         </label>
-        <button id="cars2AvailableOnly" class="cars2-toggle" type="button" aria-pressed="false">Available only</button>
       </section>
 
-      <nav id="cars2Filters" class="cars2-filters" aria-label="Filter vehicles">
-        <button type="button" class="active" data-filter="all" aria-pressed="true">All vehicles</button>
-      </nav>
+      <div class="cars2-filter-shell" aria-label="Filter rental vehicles">
+        <button id="cars2AvailableOnly" class="cars2-toggle" type="button" aria-pressed="false">Available only</button>
+        <nav id="cars2Filters" class="cars2-filters" aria-label="Filter vehicles">
+          <button type="button" class="active" data-filter="all" aria-pressed="true">All vehicles</button>
+        </nav>
+      </div>
 
       <p id="cars2Status" class="cars2-status" role="status" aria-live="polite">Loading live fleet…</p>
       <p id="cars2Error" class="cars2-error" role="alert" hidden></p>

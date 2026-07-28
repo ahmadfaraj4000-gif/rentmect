@@ -871,8 +871,9 @@ function loadBookingDatesIntoForm() {
 
   const pickupDate = params.get("pickupDate") || bookingData.pickupDate || bookingData.pickup_date || "";
   const returnDate = params.get("returnDate") || bookingData.returnDate || bookingData.return_date || "";
-  const pickupTime = params.get("pickupTime") || bookingData.pickupTime || bookingData.pickup_time || "9:00 AM";
-  const returnTime = params.get("returnTime") || bookingData.returnTime || bookingData.return_time || "9:00 AM";
+  const formDefaultTime = document.querySelector(".quick-booking-form")?.dataset.defaultTime || "";
+  const pickupTime = params.get("pickupTime") || formDefaultTime || bookingData.pickupTime || bookingData.pickup_time || "9:00 AM";
+  const returnTime = params.get("returnTime") || formDefaultTime || bookingData.returnTime || bookingData.return_time || "9:00 AM";
 
   const pickupInput = document.getElementById("pickupDate");
   const returnInput = document.getElementById("returnDate");

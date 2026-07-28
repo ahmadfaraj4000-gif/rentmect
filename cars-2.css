@@ -200,7 +200,7 @@
 }
 
 .cars2-fleet-tools,
-.cars2-filters,
+.cars2-filter-shell,
 .cars2-grid,
 .cars2-status,
 .cars2-error.fleet-error {
@@ -215,6 +215,13 @@
   justify-content: flex-start;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.cars2-filter-shell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
 }
 
 .cars2-search {
@@ -269,7 +276,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 22px;
+  width: auto;
+  margin: 0;
 }
 
 .cars2-filters button {
@@ -1081,15 +1089,14 @@ body.cars2-modal-open {
   }
 
   .cars2-fleet-tools {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: block;
     align-items: center;
     gap: 8px;
   }
 
   .cars2-toggle {
-    align-self: stretch;
-    min-height: 48px;
+    flex: 0 0 auto;
+    min-height: 44px;
     padding-right: 14px;
     padding-left: 14px;
     white-space: nowrap;
@@ -1099,17 +1106,32 @@ body.cars2-modal-open {
     width: 100%;
   }
 
-  .cars2-filters {
+  .cars2-filter-shell {
+    position: sticky;
+    top: 68px;
+    z-index: 60;
     flex-wrap: nowrap;
     gap: 8px;
-    padding: 0 0 8px;
+    width: 100%;
+    margin: 0 0 18px;
+    padding: 10px 12px;
     overflow-x: auto;
+    border-top: 1px solid var(--cars2-line);
+    border-bottom: 1px solid var(--cars2-line);
+    background: rgba(244, 246, 242, .97);
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
   }
 
+  .cars2-filter-shell::-webkit-scrollbar,
   .cars2-filters::-webkit-scrollbar {
     display: none;
+  }
+
+  .cars2-filters {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
 
   .cars2-filters button {
@@ -1153,7 +1175,6 @@ body.cars2-modal-open {
   .cars2-hero,
   .cars2-date-panel,
   .cars2-fleet-tools,
-  .cars2-filters,
   .cars2-grid,
   .cars2-status,
   .cars2-insurance-top-note,
