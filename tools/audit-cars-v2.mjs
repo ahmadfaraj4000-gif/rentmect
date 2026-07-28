@@ -91,7 +91,7 @@ check('Public phone banner is visible and uses the exact olive',
 check('Wheelbase backup stays excluded from search indexing',
   wheelbaseBackup.includes('name="robots" content="noindex, nofollow"'));
 check('Cars-2 is isolated from Wheelbase checkout', !/wheelbase-widget|wheelbase\.pro\/rentals/i.test(cars2Html + cars2Js));
-check('Cars-2 is intentionally excluded from search indexing', cars2Html.includes('name="robots" content="noindex,nofollow"'));
+check('Cars-2 is available for search indexing', !/name="robots"[^>]+noindex/i.test(cars2Html));
 check('Cars-2 uses the exact admin-sidebar green', cars2Css.includes('--cars2-olive: #123d2a'));
 check('Unavailable vehicles remain strongly red in both fleet experiences',
   cars2Css.includes('.cars2-card-status.unavailable')
@@ -155,8 +155,10 @@ includes('cars-2.js', 'data-gallery-direction', 'Cars-2 fleet cards expose previ
 includes('cars-2.js', 'showDetailImage', 'Cars-2 booking preview has an interactive gallery');
 includes('cars-2.js', 'vehicleFeatures(vehicle)', 'Cars-2 uses one vehicle-feature source across cards and details');
 check('Cars-2 no longer displays the empty feature placeholder', !cars2Js.includes('Vehicle features are being updated.'));
-check('Cars-2 is unmistakably labeled as the Supabase test page',
-  cars2Html.includes('class="cars2-test-banner"') && cars2Html.includes('SUPABASE TESTING'));
+check('Cars-2 is labeled as Supabase at the bottom without a testing banner',
+  cars2Html.includes('class="cars2-provider-signature"')
+  && cars2Html.includes('>Supabase</p>')
+  && !cars2Html.includes('SUPABASE TESTING'));
 check('Cars-2 includes the complete public navigation',
   cars2Html.includes('class="site-header cars2-site-navigation"')
   && cars2Html.includes('<nav id="mainNav">')
@@ -165,7 +167,28 @@ check('Cars-2 includes the complete public navigation',
   && cars2Html.includes('data-contact-modal>Contact</a>')
   && cars2Html.includes('class="nav-cta reserve-btn" href="cars-2.html"'));
 check('Cars-2 exposes no other internal database-preview language',
-  !/Supabase|calendar-connected|private preview|admin calendar/i.test(cars2Html.replace('SUPABASE TESTING', '')));
+  !/calendar-connected|private preview|admin calendar|supabase testing/i.test(cars2Html));
+check('Cars-2 filter controls match the Wheelbase layout',
+  cars2Html.includes('id="cars2AvailableOnly"')
+  && cars2Html.includes('>All Cars</button>')
+  && cars2Html.includes('id="cars2RentalLength"')
+  && cars2Css.includes('.cars2-price-filter')
+  && cars2Js.includes('state.pricingDays'));
+check('Public booking links follow the admin-selected provider',
+  read('script.js').includes('get_public_booking_page_setting')
+  && read('script.js').includes('function applyBookingPageRouting')
+  && read('script.js').includes('window.getActiveBookingPage')
+  && home.includes('window.getActiveBookingPage?.()'));
+check('Admin supports confirmed immediate and scheduled provider changes',
+  read('rentmect-admin-portal/src/main.jsx').includes('Live Booking Page')
+  && read('rentmect-admin-portal/src/main.jsx').includes('Switch now')
+  && read('rentmect-admin-portal/src/main.jsx').includes('Schedule switch')
+  && read('rentmect-admin-portal/src/main.jsx').includes('BookingPageConfirmationModal')
+  && read('rentmect-admin-portal/src/main.jsx').includes('schedule_booking_page_switch'));
+check('Booking routing migration keeps Wheelbase as the fail-safe default',
+  read('supabase/migrations/20260728150000_booking_page_routing.sql').includes("active_provider text not null default 'wheelbase'")
+  && read('supabase/migrations/20260728150000_booking_page_routing.sql').includes('get_public_booking_page_setting')
+  && read('supabase/migrations/20260728150000_booking_page_routing.sql').includes('p_scheduled_at <= now()'));
 check('Wheelbase fleet hero has no inherited red glow or gradient',
   read('cars-wheelbase-v2.css').includes('.cars-wheelbase-v2 .page-hero')
   && read('cars-wheelbase-v2.css').includes('background: transparent'));

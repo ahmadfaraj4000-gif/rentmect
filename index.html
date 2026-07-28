@@ -554,7 +554,8 @@
       const params = new URLSearchParams(bookingData);
 
       updateQuickBookingSummary("Loading vehicles available for your dates…", "valid");
-      window.location.href = `cars.html?${params.toString()}`;
+      const bookingPage = window.getActiveBookingPage?.() || "cars.html";
+      window.location.href = `${bookingPage}?${params.toString()}`;
     }
   </script>
 </body>

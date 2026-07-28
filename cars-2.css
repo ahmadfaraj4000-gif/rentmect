@@ -8,20 +8,6 @@
   --cars2-danger: #a62b32;
 }
 
-.cars2-test-banner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 32px;
-  padding: 6px 16px;
-  background: #8f1720;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 950;
-  letter-spacing: .16em;
-  text-align: center;
-}
-
 .cars2-skip-link {
   position: fixed;
   top: 8px;
@@ -201,6 +187,7 @@
 
 .cars2-fleet-tools,
 .cars2-filter-shell,
+.cars2-price-filter,
 .cars2-grid,
 .cars2-status,
 .cars2-error.fleet-error {
@@ -221,7 +208,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 22px;
+  margin-bottom: 12px;
 }
 
 .cars2-search {
@@ -248,15 +235,15 @@
 .cars2-toggle,
 .cars2-filters button,
 .cars2-detail-topbar button {
-  min-height: 44px;
-  padding: 10px 16px;
+  min-height: 42px;
+  padding: 9px 15px;
   border: 1px solid #cbd2cd;
   border-radius: 999px;
   background: #fff;
   color: #28302b;
   font: inherit;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 850;
   cursor: pointer;
 }
 
@@ -268,28 +255,59 @@
   color: #fff;
 }
 
-.cars2-toggle {
-  min-height: 48px;
-}
-
 .cars2-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  width: auto;
+  flex: 1 1 auto;
+  gap: 7px;
   margin: 0;
 }
 
 .cars2-filters button {
-  min-height: 38px;
-  padding: 8px 14px;
+  min-height: 42px;
+  padding: 9px 15px;
+}
+
+.cars2-price-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  margin-bottom: 24px;
+  color: var(--cars2-copy);
+  font-size: 12px;
+}
+
+.cars2-price-filter select {
+  min-height: 42px;
+  padding: 8px 36px 8px 12px;
+  border: 1px solid #cbd2cd;
+  border-radius: 9px;
+  background-color: #fff;
+  color: var(--cars2-ink);
+  font: inherit;
+  font-weight: 800;
 }
 
 .cars2-status {
-  margin-top: 28px;
-  margin-bottom: 28px;
+  margin-top: -8px;
+  margin-bottom: 20px;
   color: var(--cars2-copy);
+  font-size: 13px;
+  text-align: left;
+}
+
+.cars2-provider-signature {
+  width: min(1240px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 20px 0 28px;
+  border-top: 1px solid var(--cars2-line);
+  color: #69736d;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .12em;
   text-align: center;
+  text-transform: uppercase;
 }
 
 .cars2-error {
@@ -1108,12 +1126,12 @@ body.cars2-modal-open {
 
   .cars2-filter-shell {
     position: sticky;
-    top: 68px;
+    top: 74px;
     z-index: 60;
     flex-wrap: nowrap;
     gap: 8px;
-    width: 100%;
-    margin: 0 0 18px;
+    width: auto;
+    margin: 0 -12px 10px;
     padding: 10px 12px;
     overflow-x: auto;
     border-top: 1px solid var(--cars2-line);
@@ -1138,6 +1156,11 @@ body.cars2-modal-open {
     flex: 0 0 auto;
     min-height: 44px;
     white-space: nowrap;
+  }
+
+  .cars2-price-filter {
+    margin-top: 14px;
+    margin-bottom: 24px;
   }
 
   .cars2-grid {
@@ -1175,6 +1198,7 @@ body.cars2-modal-open {
   .cars2-hero,
   .cars2-date-panel,
   .cars2-fleet-tools,
+  .cars2-price-filter,
   .cars2-grid,
   .cars2-status,
   .cars2-insurance-top-note,

@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="robots" content="noindex,nofollow" />
   <meta name="theme-color" content="#61713a" />
   <title>Choose Your Rental | Rent Me CT</title>
   <meta name="description" content="Choose a Rent Me CT vehicle, confirm your dates, and start your reservation." />
-  <link rel="canonical" href="https://rentmect.com/cars.html" />
+  <link rel="canonical" href="https://rentmect.com/cars-2.html" />
   <link rel="icon" type="image/png" href="assets/favicon.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="site-v2.css" />
@@ -18,8 +17,6 @@
 </head>
 <body class="site-v2 cars-v2-page">
   <a class="cars2-skip-link" href="#cars2Main">Skip to vehicles</a>
-
-  <div class="cars2-test-banner" role="status">SUPABASE TESTING</div>
 
   <div class="top-bar">
     <div>Call/Text 24/7: <a href="tel:+18605586031">860-558-6031</a></div>
@@ -108,8 +105,18 @@
       <div class="cars2-filter-shell" aria-label="Filter rental vehicles">
         <button id="cars2AvailableOnly" class="cars2-toggle" type="button" aria-pressed="false">Available only</button>
         <nav id="cars2Filters" class="cars2-filters" aria-label="Filter vehicles">
-          <button type="button" class="active" data-filter="all" aria-pressed="true">All vehicles</button>
+          <button type="button" class="active" data-filter="all" aria-pressed="true">All Cars</button>
         </nav>
+      </div>
+      <div class="cars2-price-filter">
+        <label for="cars2RentalLength"><strong>Show pricing for:</strong></label>
+        <select id="cars2RentalLength">
+          <option value="1">1 Day</option>
+          <option value="2">2 Days</option>
+          <option value="3">3 Days</option>
+          <option value="4">4 Days</option>
+          <option value="7">7 Days</option>
+        </select>
       </div>
 
       <p id="cars2Status" class="cars2-status" role="status" aria-live="polite">Loading live fleet…</p>
@@ -224,6 +231,8 @@
       </div>
     </div>
   </main>
+
+  <p class="cars2-provider-signature" aria-label="Booking system: Supabase">Supabase</p>
 
   <div id="cars2InsuranceModal" class="cars2-insurance-modal" role="dialog" aria-modal="true" aria-labelledby="cars2InsuranceModalTitle" hidden>
     <button class="cars2-insurance-modal-backdrop" type="button" data-insurance-close aria-label="Close insurance reminder"></button>

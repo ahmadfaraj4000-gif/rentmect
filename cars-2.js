@@ -43,6 +43,7 @@
     filter: "all",
     search: "",
     availableOnly: false,
+    pricingDays: 1,
     checking: false,
     loading: true,
     starting: false,
@@ -72,7 +73,7 @@
       "cars2FleetView", "cars2DetailView", "cars2PickupDate", "cars2ReturnDate",
       "cars2PickupTime", "cars2ReturnTime", "cars2DetailPickupDate",
       "cars2DetailReturnDate", "cars2DetailPickupTime", "cars2DetailReturnTime",
-      "cars2Search", "cars2AvailableOnly", "cars2Filters", "cars2Status",
+      "cars2Search", "cars2AvailableOnly", "cars2Filters", "cars2RentalLength", "cars2Status",
       "cars2Error", "cars2Grid", "cars2PreviewHeader", "cars2HeaderBack", "cars2FeaturedImage",
       "cars2FeaturedFrame", "cars2GalleryPrevious", "cars2GalleryNext", "cars2GalleryCounter",
       "cars2Thumbnails", "cars2VehicleName", "cars2VehicleMeta",
@@ -92,6 +93,10 @@
     });
     elements.cars2Search.addEventListener("input", (event) => {
       state.search = event.target.value.trim().toLowerCase();
+      renderVehicles();
+    });
+    elements.cars2RentalLength.addEventListener("change", (event) => {
+      state.pricingDays = Math.max(1, Number(event.target.value) || 1);
       renderVehicles();
     });
     elements.cars2AvailableOnly.addEventListener("click", () => {
@@ -215,7 +220,7 @@
     const brands = [...new Set(state.vehicles.map((vehicle) => String(vehicle.brand || "").trim()).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b));
     const filters = [
-      ["all", "All vehicles"],
+      ["all", "All Cars"],
       ...brands.map((brand) => [brand.toLowerCase(), brand]),
       ["suv", "SUV"],
       ["sedan", "Sedan"],
@@ -255,6 +260,8 @@
     const checking = state.checking;
     const status = checking ? "Checking…" : available ? "Available" : result?.reason || "Unavailable";
     const deposit = Number(vehicle.security_deposit ?? 300);
+    const pricingDays = Math.max(1, Number(state.pricingDays) || 1);
+    const displayedPrice = Number(vehicle.daily_rate || 0) * pricingDays;
     const images = vehicleImages(vehicle);
     return `
       <article class="cars2-vehicle-card" data-gallery-vehicle-id="${escapeHtml(vehicle.id)}" data-gallery-index="0">
@@ -277,7 +284,7 @@
             <li>${money(deposit)} refundable deposit</li>
             <li>Three-hour turnaround protected</li>
           </ul>
-          <p class="cars2-card-price"><strong>${money(vehicle.daily_rate)}</strong><span>/ day</span></p>
+          <p class="cars2-card-price"><strong>${money(displayedPrice)}</strong><span>/ ${pricingDays} ${pricingDays === 1 ? "day" : "days"}</span></p>
           <button class="cars2-card-button" type="button" data-vehicle-id="${escapeHtml(vehicle.id)}" ${checking || !available ? "disabled" : ""}>
             ${checking ? "Checking dates…" : available ? "View & book" : "Unavailable"}
           </button>
