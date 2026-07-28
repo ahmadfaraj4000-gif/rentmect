@@ -1057,13 +1057,65 @@ body.cars2-modal-open {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .cars2-trip-fields input,
+  .cars2-trip-fields select {
+    box-sizing: border-box;
+    height: 54px;
+    min-height: 54px;
+    padding-top: 0;
+    padding-bottom: 0;
+    line-height: normal;
+  }
+
+  .cars2-trip-fields input[type="date"] {
+    display: flex;
+    align-items: center;
+    text-align: center;
+  }
+
+  .cars2-trip-fields input[type="date"]::-webkit-date-and-time-value {
+    min-height: 1.4em;
+    margin: 0;
+    line-height: 1.4;
+    text-align: center;
+  }
+
   .cars2-fleet-tools {
-    align-items: stretch;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
   }
 
   .cars2-toggle {
-    align-self: flex-start;
+    align-self: stretch;
+    min-height: 48px;
+    padding-right: 14px;
+    padding-left: 14px;
+    white-space: nowrap;
+  }
+
+  .cars2-search {
+    width: 100%;
+  }
+
+  .cars2-filters {
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 0 0 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cars2-filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .cars2-filters button {
+    flex: 0 0 auto;
+    min-height: 44px;
+    white-space: nowrap;
   }
 
   .cars2-grid {

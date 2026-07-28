@@ -6,6 +6,8 @@ let lastRentalTimeNotice = "";
 let quickBookingReturnTimeCustomized = false;
 
 document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".chatbot-toggle, .chatbot").forEach((element) => element.remove());
+  setupMobileNavigation();
   setupSitePromotion();
   setupVehicleGalleries();
   loadAdminVehicleImages();
@@ -491,7 +493,32 @@ async function copyWeekendPromoCode(button) {
 
 function toggleMenu() {
   const nav = document.getElementById("mainNav");
-  if (nav) nav.classList.toggle("open");
+  if (!nav) return;
+
+  const isOpen = nav.classList.toggle("open");
+  const button = document.querySelector(".mobile-menu-btn");
+  if (button) {
+    button.setAttribute("aria-expanded", String(isOpen));
+    button.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
+  }
+}
+
+function setupMobileNavigation() {
+  const nav = document.getElementById("mainNav");
+  const button = document.querySelector(".mobile-menu-btn");
+  if (!nav || !button) return;
+
+  button.setAttribute("aria-controls", "mainNav");
+  button.setAttribute("aria-expanded", String(nav.classList.contains("open")));
+  button.setAttribute("aria-label", nav.classList.contains("open") ? "Close navigation" : "Open navigation");
+
+  nav.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => {
+      nav.classList.remove("open");
+      button.setAttribute("aria-expanded", "false");
+      button.setAttribute("aria-label", "Open navigation");
+    });
+  });
 }
 
 function setupContactModal() {

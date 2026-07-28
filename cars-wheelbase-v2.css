@@ -198,6 +198,22 @@ body.cars-wheelbase-v2 {
   margin: 0 0 14px;
 }
 
+.cars-wheelbase-v2 .fleet-filter-shell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.cars-wheelbase-v2 .fleet-filter-shell .availability-filter-bar {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.cars-wheelbase-v2 .fleet-filter-shell .filters {
+  flex: 1 1 auto;
+}
+
 .cars-wheelbase-v2 .availability-filter-btn,
 .cars-wheelbase-v2 .filter-btn {
   min-height: 42px;
@@ -237,6 +253,7 @@ body.cars-wheelbase-v2 {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
+  margin: 0;
 }
 
 .cars-wheelbase-v2 .price-filter {
@@ -494,34 +511,140 @@ body.cars-wheelbase-v2 {
   }
 
   .cars-wheelbase-v2 .site-header {
+    position: sticky;
+    top: 0;
+    flex-wrap: nowrap;
     min-height: 66px;
     padding: 0 14px;
   }
 
   .cars-wheelbase-v2 .mobile-menu-btn {
+    position: relative;
+    display: grid;
+    place-items: center;
+    flex: 0 0 46px;
+    width: 46px;
+    height: 46px;
+    min-height: 46px;
+    margin: 0;
+    padding: 0 !important;
+    border: 1px solid #cbd2cd !important;
+    border-radius: 50% !important;
+    background: #fff !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .cars-wheelbase-v2 .mobile-menu-btn::before {
+    content: "";
     display: block;
-    border: 0;
-    background: transparent;
-    color: var(--fleet-olive);
-    font-weight: 900;
+    width: 21px;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--fleet-ink);
+    box-shadow: 0 -7px 0 var(--fleet-ink), 0 7px 0 var(--fleet-ink);
+  }
+
+  .cars-wheelbase-v2 .mobile-menu-btn::after {
+    display: none !important;
   }
 
   .cars-wheelbase-v2 .site-header nav {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 12px;
+    right: 12px;
+    z-index: 120;
     display: none;
-    width: 100%;
+    width: auto;
     align-items: stretch;
     flex-direction: column;
     gap: 4px;
-    margin-top: 0;
-    padding: 8px 0 14px;
+    margin: 0;
+    padding: 10px;
+    border: 1px solid var(--fleet-line);
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 18px 44px rgba(24, 35, 28, .16);
   }
 
   .cars-wheelbase-v2 .site-header nav.open {
     display: flex;
   }
 
+  .cars-wheelbase-v2 .site-header nav a,
+  .cars-wheelbase-v2 .site-header nav .nav-cta {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 46px;
+    padding: 0 14px;
+    border-radius: 9px;
+  }
+
   .cars-wheelbase-v2 .quick-booking-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cars-wheelbase-v2 .quick-booking-form input,
+  .cars-wheelbase-v2 .quick-booking-form select {
+    box-sizing: border-box;
+    height: 56px;
+    min-height: 56px;
+    padding-top: 0;
+    padding-bottom: 0;
+    line-height: normal;
+  }
+
+  .cars-wheelbase-v2 .quick-booking-form input[type="date"] {
+    display: flex;
+    align-items: center;
+    text-align: center;
+  }
+
+  .cars-wheelbase-v2 .quick-booking-form input[type="date"]::-webkit-date-and-time-value {
+    min-height: 1.4em;
+    margin: 0;
+    line-height: 1.4;
+    text-align: center;
+  }
+
+  .cars-wheelbase-v2 .fleet-filter-shell {
+    position: sticky;
+    top: 74px;
+    z-index: 60;
+    flex-wrap: nowrap;
+    gap: 8px;
+    margin: 0 -12px 10px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    border-top: 1px solid var(--fleet-line);
+    border-bottom: 1px solid var(--fleet-line);
+    background: rgba(244, 246, 242, .97);
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cars-wheelbase-v2 .fleet-filter-shell::-webkit-scrollbar,
+  .cars-wheelbase-v2 .fleet-filter-shell .filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .cars-wheelbase-v2 .fleet-filter-shell .filters {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .cars-wheelbase-v2 .fleet-filter-shell button {
+    flex: 0 0 auto;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+
+  .cars-wheelbase-v2 .availability-filter-status {
+    margin: 0 0 12px;
   }
 
   .cars-wheelbase-v2 .insurance-top-notice {
@@ -551,6 +674,10 @@ body.cars-wheelbase-v2 {
 
   .cars-wheelbase-v2 .quick-booking-form {
     grid-template-columns: 1fr;
+  }
+
+  .cars-wheelbase-v2 .booking-panel {
+    padding: 18px;
   }
 
   .cars-wheelbase-v2 .insurance-notice-actions {

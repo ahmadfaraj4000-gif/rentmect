@@ -319,7 +319,7 @@
       <img src="assets/logo.png" alt="Rent Me CT Logo" />
     </a>
 
-    <button class="mobile-menu-btn" onclick="toggleMenu()">Menu ☰</button>
+    <button class="mobile-menu-btn" type="button" onclick="toggleMenu()" aria-label="Open navigation" aria-controls="mainNav" aria-expanded="false">Menu</button>
 
     <nav id="mainNav">
       <a href="index.html">Home</a>
@@ -396,25 +396,27 @@
 
 
     <section class="section">
-      <div class="availability-filter-bar">
-        <button class="availability-filter-btn" id="availableOnlyFilter" type="button" aria-pressed="false" onclick="filterAvailableCars(this)">Available cars only</button>
-        <p class="availability-filter-status" id="availabilityFilterStatus" aria-live="polite"></p>
+      <div class="fleet-filter-shell" aria-label="Filter rental vehicles">
+        <div class="availability-filter-bar">
+          <button class="availability-filter-btn" id="availableOnlyFilter" type="button" aria-pressed="false" onclick="filterAvailableCars(this)">Available only</button>
+        </div>
+        <div class="filters" id="filters-sidebar">
+          <button class="filter-btn active" onclick="filterCars('all', this)">All Cars</button>
+          <button class="filter-btn" onclick="filterCars('audi', this)">Audi</button>
+          <button class="filter-btn" onclick="filterCars('mercedes', this)">Mercedes</button>
+          <button class="filter-btn" onclick="filterCars('bmw', this)">BMW</button>
+          <button class="filter-btn" onclick="filterCars('buick', this)">Buick</button>
+          <button class="filter-btn" onclick="filterCars('cadillac', this)">Cadillac</button>
+          <button class="filter-btn" onclick="filterCars('dodge', this)">Dodge</button>
+          <button class="filter-btn" onclick="filterCars('ford', this)">Ford</button>
+          <button class="filter-btn" onclick="filterCars('kia', this)">Kia</button>
+          <button class="filter-btn" onclick="filterCars('suv', this)">SUV</button>
+          <button class="filter-btn" onclick="filterCars('sedan', this)">Sedan</button>
+          <button class="filter-btn" onclick="filterCars('truck', this)">Truck</button>
+          <button class="filter-btn" onclick="filterCars('luxury', this)">Luxury</button>
+        </div>
       </div>
-      <div class="filters" id="filters-sidebar">
-        <button class="filter-btn active" onclick="filterCars('all', this)">All Cars</button>
-        <button class="filter-btn" onclick="filterCars('audi', this)">Audi</button>
-        <button class="filter-btn" onclick="filterCars('mercedes', this)">Mercedes</button>
-        <button class="filter-btn" onclick="filterCars('bmw', this)">BMW</button>
-        <button class="filter-btn" onclick="filterCars('buick', this)">Buick</button>
-        <button class="filter-btn" onclick="filterCars('cadillac', this)">Cadillac</button>
-        <button class="filter-btn" onclick="filterCars('dodge', this)">Dodge</button>
-        <button class="filter-btn" onclick="filterCars('ford', this)">Ford</button>
-        <button class="filter-btn" onclick="filterCars('kia', this)">Kia</button>
-        <button class="filter-btn" onclick="filterCars('suv', this)">SUV</button>
-        <button class="filter-btn" onclick="filterCars('sedan', this)">Sedan</button>
-        <button class="filter-btn" onclick="filterCars('truck', this)">Truck</button>
-        <button class="filter-btn" onclick="filterCars('luxury', this)">Luxury</button>
-      </div>
+      <p class="availability-filter-status" id="availabilityFilterStatus" aria-live="polite"></p>
      <div class="price-filter" style="margin-top:20px;margin-bottom:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <label for="rentalLength"><strong>Show pricing for:</strong></label>
         <select id="rentalLength" onchange="updateRentalPrices()" style="padding:10px 14px;border-radius:10px;">
@@ -1034,8 +1036,6 @@
     </div>
   </footer>
 
-  <button class="chatbot-toggle" onclick="toggleChatbot()">💬</button>
-
   <div class="insurance-modal" id="insuranceReminderModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="insuranceReminderTitle">
     <div class="insurance-modal-backdrop" onclick="closeInsuranceReminder()"></div>
     <div class="insurance-modal-panel">
@@ -1058,20 +1058,6 @@
         <button class="btn-secondary" type="button" onclick="viewInsuranceOptions()">View My Options</button>
       </div>
     </div>
-  </div>
-
-  <div class="chatbot" id="chatbot">
-    <div class="chatbot-header">
-      <strong>Rent Me CT Assistant</strong>
-      <button onclick="toggleChatbot()">×</button>
-    </div>
-    <div class="chatbot-messages" id="chatMessages">
-      <div class="bot-message">Need help choosing a car? Tell me your trip, passengers, and budget.</div>
-    </div>
-    <form class="chatbot-form" onsubmit="sendChatMessage(event)">
-      <input id="chatInput" type="text" placeholder="Ask about vehicles or booking..." />
-      <button type="submit">Send</button>
-    </form>
   </div>
 
   <script src="https://d3cuf6g1arkgx6.cloudfront.net/sdk/1-5/wheelbase-widget.min.js"></script>
