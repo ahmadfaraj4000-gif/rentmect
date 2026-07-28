@@ -489,6 +489,23 @@ body.cars-wheelbase-v2 {
 .cars-wheelbase-v2 .site-footer {
   border-top: 1px solid var(--fleet-line);
   background: #fff;
+  color: #161a18;
+}
+
+.cars-wheelbase-v2 .site-footer h3 {
+  color: #111512;
+}
+
+.cars-wheelbase-v2 .site-footer p,
+.cars-wheelbase-v2 .site-footer a,
+.cars-wheelbase-v2 .site-footer .powered-credit,
+.cars-wheelbase-v2 .site-footer .footer-legal a {
+  color: #303832;
+}
+
+.cars-wheelbase-v2 .site-footer a:hover,
+.cars-wheelbase-v2 .site-footer .powered-credit a {
+  color: #111512;
 }
 
 @media (max-width: 960px) {
@@ -528,12 +545,20 @@ body.cars-wheelbase-v2 {
     min-height: 46px;
     margin: 0;
     padding: 0 !important;
-    border: 1px solid #cbd2cd !important;
-    border-radius: 50% !important;
-    background: #fff !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
     color: transparent !important;
     font-size: 0 !important;
     box-shadow: none !important;
+  }
+
+  .cars-wheelbase-v2 .mobile-menu-btn:hover,
+  .cars-wheelbase-v2 .mobile-menu-btn:active {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
   }
 
   .cars-wheelbase-v2 .mobile-menu-btn::before {

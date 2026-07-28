@@ -615,18 +615,25 @@
 
 .site-v2 .site-footer h3 {
   margin-top: 0;
+  color: #111512;
   font-size: 13px;
 }
 
 .site-v2 .site-footer p,
 .site-v2 .site-footer a {
-  color: var(--v2-copy);
+  color: #303832;
   font-size: 12px;
   line-height: 1.7;
 }
 
 .site-v2 .site-footer a:hover {
-  color: var(--v2-olive-dark);
+  color: #111512;
+}
+
+.site-v2 .site-footer .powered-credit,
+.site-v2 .site-footer .powered-credit a,
+.site-v2 .site-footer .footer-legal a {
+  color: #252c27;
 }
 
 .site-v2 .footer-bottom {
@@ -727,12 +734,20 @@
     min-height: 46px;
     margin: 0;
     padding: 0;
-    border: 1px solid var(--v2-line);
-    border-radius: 50%;
-    background: #fff;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     color: transparent !important;
     font-size: 0;
     box-shadow: none;
+  }
+
+  .site-v2 .mobile-menu-btn:hover,
+  .site-v2 .mobile-menu-btn:active {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
   }
 
   .site-v2 .mobile-menu-btn::before {
