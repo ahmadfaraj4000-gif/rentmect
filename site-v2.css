@@ -817,6 +817,19 @@
     grid-template-columns: 1fr;
   }
 
+  .site-v2 .quick-booking-form input[type="date"] {
+    display: flex;
+    align-items: center;
+    text-align: center;
+  }
+
+  .site-v2 .quick-booking-form input[type="date"]::-webkit-date-and-time-value {
+    min-height: 1.4em;
+    margin: 0;
+    line-height: 1.4;
+    text-align: center;
+  }
+
   .site-v2 .dark-section {
     padding: 28px 20px;
   }

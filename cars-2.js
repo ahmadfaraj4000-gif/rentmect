@@ -73,7 +73,7 @@
       "cars2PickupTime", "cars2ReturnTime", "cars2DetailPickupDate",
       "cars2DetailReturnDate", "cars2DetailPickupTime", "cars2DetailReturnTime",
       "cars2Search", "cars2AvailableOnly", "cars2Filters", "cars2Status",
-      "cars2Error", "cars2Grid", "cars2HeaderLabel", "cars2HeaderBack", "cars2FeaturedImage",
+      "cars2Error", "cars2Grid", "cars2PreviewHeader", "cars2HeaderBack", "cars2FeaturedImage",
       "cars2FeaturedFrame", "cars2GalleryPrevious", "cars2GalleryNext", "cars2GalleryCounter",
       "cars2Thumbnails", "cars2VehicleName", "cars2VehicleMeta",
       "cars2VehicleDescription", "cars2Features", "cars2DailyRate",
@@ -289,7 +289,7 @@
     const vehicle = state.vehicles.find((item) => item.id === vehicleId);
     if (!vehicle) return;
     state.selectedId = vehicleId;
-    elements.cars2HeaderLabel.hidden = true;
+    elements.cars2PreviewHeader.hidden = false;
     elements.cars2HeaderBack.hidden = false;
     if (push) {
       const nextUrl = new URL(window.location.href);
@@ -303,7 +303,7 @@
 
   function showFleet(push = true) {
     state.selectedId = "";
-    elements.cars2HeaderLabel.hidden = false;
+    elements.cars2PreviewHeader.hidden = true;
     elements.cars2HeaderBack.hidden = true;
     elements.cars2DetailView.hidden = true;
     elements.cars2FleetView.hidden = false;
@@ -320,7 +320,7 @@
   function renderDetail() {
     const vehicle = selectedVehicle();
     if (!vehicle) return showFleet(false);
-    elements.cars2HeaderLabel.hidden = true;
+    elements.cars2PreviewHeader.hidden = false;
     elements.cars2HeaderBack.hidden = false;
     const images = vehicleImages(vehicle);
     elements.cars2FleetView.hidden = true;
