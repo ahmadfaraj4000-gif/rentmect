@@ -1616,6 +1616,12 @@ body.modal-open {
 
 /* CHATBOT */
 
+/* Temporarily disabled across every public page. */
+.chatbot-toggle,
+.chatbot {
+  display: none !important;
+}
+
 .chatbot-toggle {
   position: fixed;
   right: 24px;
