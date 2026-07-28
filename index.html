@@ -26,6 +26,7 @@
 
   <link rel="canonical" href="https://rentmect.com/" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="site-v2.css" />
   <link rel="icon" href="assets/logo.png" />
 
   <script type="application/ld+json">
@@ -66,7 +67,7 @@
     "Bradley International Airport",
     "Connecticut"
   ],
-  "openingHours": "Mo-Su 09:00-21:00",
+  "openingHours": "Mo-Su 09:00-23:59",
   "makesOffer": [
     {
       "@type": "Offer",
@@ -180,7 +181,7 @@
 </script>
 </head>
 
-<body>
+<body class="site-v2">
   <div class="top-bar">
     <div>Call/Text 24/7: <a href="tel:+18605586031">860-558-6031</a></div>
     <div>Reliable Car Rentals in Connecticut</div>
@@ -198,7 +199,7 @@
       <a href="cars.html">Cars</a>
       <a href="requirements.html">Requirements</a>
       <a href="agreement.html">Agreement</a>
-      <a href="tel:+18605586031">Contact</a>
+      <a href="tel:+18605586031" data-contact-modal>Contact</a>
       <a class="nav-cta reserve-btn" href="cars.html">Reserve Now</a>
     </nav>
   </header>
@@ -240,93 +241,28 @@
           <h2>Start Your Reservation</h2>
           <form class="quick-booking-form" onsubmit="startBooking(event)">
             <div>
-              <label>Pickup Date</label>
-              <input type="date" id="pickupDate" required />
+              <label for="pickupDate">Pickup Date</label>
+              <input type="date" id="pickupDate" name="pickupDate" required aria-describedby="bookingSelectionSummary" />
             </div>
 
             <div>
-              <label>Return Date</label>
-              <input type="date" id="returnDate" required />
+              <label for="returnDate">Return Date</label>
+              <input type="date" id="returnDate" name="returnDate" required aria-describedby="bookingSelectionSummary" />
             </div>
 
             <div>
-              <label>Pickup Time</label>
-              <select id="pickupTime" required></select>
+              <label for="pickupTime">Pickup Time</label>
+              <select id="pickupTime" name="pickupTime" required aria-describedby="bookingSelectionSummary"></select>
             </div>
 
             <div>
-              <label>Return Time</label>
-              <select id="returnTime" required></select>
+              <label for="returnTime">Return Time</label>
+              <select id="returnTime" name="returnTime" required aria-describedby="bookingSelectionSummary"></select>
             </div>
 
-            <button type="submit">Choose Vehicle</button>
+            <button type="submit" aria-describedby="bookingSelectionSummary">Choose Vehicle</button>
           </form>
-        </div>
-      </div>
-    </section>
-
-    <section class="section intro-section">
-      <div class="section-heading">
-        <p class="eyebrow">Farmington, Connecticut</p>
-        <h2>Rent Luxury Cars Today</h2>
-        <p>
-          Whether you need a vehicle because your ride fell through, you are visiting Connecticut,
-          or you need something reliable for work, Rent Me CT keeps the rental process simple.
-        </p>
-      </div>
-
-      <div class="feature-grid">
-        <div class="feature-card">
-          <h3>Wheelbase Checkout</h3>
-          <p>Choose your dates, vehicle, renter details, documents, insurance, and payment through Wheelbase checkout.</p>
-        </div>
-
-        <div class="feature-card">
-          <h3>Insurance Required</h3>
-          <p>Bring valid personal insurance, review the coverage options listed on our site, or choose available Wheelbase insurance at checkout.</p>
-        </div>
-
-        <div class="feature-card">
-          <h3>Farmington Pickup</h3>
-          <p>Pickup and return are based at 12 Holmes Circle in Farmington, Connecticut unless another approved arrangement is confirmed.</p>
-        </div>
-
-        <div class="feature-card">
-          <h3>Clear Rental Terms</h3>
-          <p>Review mileage, deposits, license requirements, fuel, cleaning, late return, and vehicle care rules before you reserve.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section dark-section">
-      <div class="split">
-        <div>
-          <p class="eyebrow red">Why Rent Me CT</p>
-          <h2>Built for fast, clean, and convenient rentals.</h2>
-          <p>
-            We are located in Farmington, CT, near Bradley International Airport and the greater
-            Hartford area. Our goal is to make renting a car feel modern, clear, and stress-free.
-          </p>
-          <a class="btn-primary" href="cars.html">View Cars</a>
-        </div>
-
-        <div class="stats-grid">
-          <div>
-            <strong>Daily</strong>
-            <span>Flexible Rentals</span>
-          </div>
-          <div>
-            <strong>200</strong>
-            <span>Miles Included Daily</span>
-          </div>
-          <div>
-            <strong>9AM-9PM</strong>
-            <span>Pickup Window</span>
-          </div>
-          <div>
-            <strong>CT</strong>
-            <span>Local Rental Agency</span>
-          </div>
+          <p id="bookingSelectionSummary" class="booking-selection-summary" aria-live="polite"></p>
         </div>
       </div>
     </section>
@@ -380,27 +316,36 @@
       </div>
     </section>
 
-    <section class="section reviews-section">
-      <div class="section-heading">
-        <p class="eyebrow">Reviews</p>
-        <h2>What People Say About Us</h2>
-      </div>
+    <section class="section dark-section">
+      <div class="split">
+        <div>
+          <p class="eyebrow red">Why Rent Me CT</p>
+          <h2>Built for fast, clean, and convenient rentals.</h2>
+          <p>
+            We are located in Farmington, CT, near Bradley International Airport and the greater
+            Hartford area. Our goal is to make renting a car feel modern, clear, and stress-free.
+          </p>
+          <a class="btn-primary" href="cars.html">View Cars</a>
+        </div>
 
-      <div class="review-grid">
-        <article class="review-card">
-          <p>“Rent Me CT made the whole rental process quick and simple. The booking was easy, the vehicle was ready, and everything was exactly as promised.”</p>
-          <strong>Ashley de Lotz</strong>
-        </article>
-
-        <article class="review-card">
-          <p>“I rented a car during my trip to Connecticut. The location near Bradley Airport made pickup easy, and the car was clean and well maintained.”</p>
-          <strong>Rick Gebhardt</strong>
-        </article>
-
-        <article class="review-card">
-          <p>“Great experience renting from Rent Me CT. The team was helpful and made sure I had the right car for my trip.”</p>
-          <strong>Adrian Vajas</strong>
-        </article>
+        <div class="stats-grid">
+          <div>
+            <strong>Daily</strong>
+            <span>Flexible Rentals</span>
+          </div>
+          <div>
+            <strong>200</strong>
+            <span>Miles Included Daily</span>
+          </div>
+          <div>
+            <strong>9AM–MIDNIGHT</strong>
+            <span>Pickup &amp; Return Window</span>
+          </div>
+          <div>
+            <strong>CT</strong>
+            <span>Local Rental Agency</span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -454,19 +399,29 @@
   </div>
 </section>
 
-<section class="section seo-mini-section" id="seo-service-pages">
-  <div class="section-heading mini-heading">
-    <p class="eyebrow">Local Rental Pages</p>
-    <h2>Helpful Local Rental Guides</h2>
-  </div>
+    <section class="section reviews-section">
+      <div class="section-heading">
+        <p class="eyebrow">Reviews</p>
+        <h2>What People Say About Us</h2>
+      </div>
 
-  <div class="seo-mini-links">
-    <a href="car-rental-farmington-ct.html">Farmington CT</a>
-    <a href="bradley-airport-car-rental.html">Bradley Airport</a>
-    <a href="luxury-car-rental-connecticut.html">Luxury Rentals</a>
-    <a href="weekly-car-rental-ct.html">Weekly Rentals</a>
-  </div>
-</section>
+      <div class="review-grid">
+        <article class="review-card">
+          <p>“Rent Me CT made the whole rental process quick and simple. The booking was easy, the vehicle was ready, and everything was exactly as promised.”</p>
+          <strong>Ashley de Lotz</strong>
+        </article>
+
+        <article class="review-card">
+          <p>“I rented a car during my trip to Connecticut. The location near Bradley Airport made pickup easy, and the car was clean and well maintained.”</p>
+          <strong>Rick Gebhardt</strong>
+        </article>
+
+        <article class="review-card">
+          <p>“Great experience renting from Rent Me CT. The team was helpful and made sure I had the right car for my trip.”</p>
+          <strong>Adrian Vajas</strong>
+        </article>
+      </div>
+    </section>
 
     <section class="section cta-section">
       <h2>Ready to stop depending on someone else’s ride?</h2>
@@ -590,14 +545,18 @@
       const returnTime = document.getElementById("returnTime")?.value;
 
       if (!pickupDate || !returnDate || !pickupTime || !returnTime) {
-        alert("Please choose your pickup date, return date, pickup time, and return time.");
+        updateQuickBookingSummary("Choose your pickup date, return date, pickup time, and return time.", "error");
         return;
       }
 
-      const pickup = new Date(`${pickupDate}T00:00:00`);
-      const dropoff = new Date(`${returnDate}T00:00:00`);
+      const pickup = getRentalDateTime(pickupDate, pickupTime);
+      const dropoff = getRentalDateTime(returnDate, returnTime);
       if (dropoff <= pickup) {
-        alert("Please choose a return date after your pickup date.");
+        updateQuickBookingSummary("Return must be after pickup.", "error");
+        return;
+      }
+      if (pickup <= new Date()) {
+        updateQuickBookingSummary("Pickup must be later than the current time.", "error");
         return;
       }
 
@@ -612,6 +571,7 @@
 
       const params = new URLSearchParams(bookingData);
 
+      updateQuickBookingSummary("Loading vehicles available for your dates…", "valid");
       window.location.href = `cars.html?${params.toString()}`;
     }
   </script>

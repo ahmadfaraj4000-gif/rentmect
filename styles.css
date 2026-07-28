@@ -1972,6 +1972,374 @@ body.modal-open {
   }
 }
 
+/* ===== CLEAN PUBLIC PROMOTIONS =====
+   Shared by static and admin-created promotion surfaces. */
+
+.promo-modal .promo-modal-backdrop {
+  background: rgba(18, 24, 20, 0.62);
+  backdrop-filter: blur(5px);
+}
+
+.promo-modal .promo-modal-panel {
+  width: min(520px, 100%);
+  padding: 36px;
+  border: 1px solid #d7ddd6;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #151816;
+  box-shadow: 0 28px 80px rgba(18, 28, 21, 0.22);
+  animation: none;
+}
+
+.promo-modal .promo-modal-panel::before {
+  display: none;
+}
+
+.promo-modal .promo-modal-close {
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #d7ddd6;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #123d2a;
+  box-shadow: none;
+  font-size: 22px;
+  transition: none;
+}
+
+.promo-modal .promo-kicker {
+  margin: 0 0 10px;
+  color: #123d2a;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+}
+
+.promo-modal .promo-discount {
+  margin: 0;
+  color: #123d2a;
+  font-size: 18px;
+  font-weight: 850;
+  text-transform: none;
+}
+
+.promo-modal .promo-discount strong {
+  margin-bottom: 5px;
+  color: #123d2a;
+  font-size: clamp(60px, 15vw, 82px);
+  letter-spacing: -0.065em;
+  line-height: 0.95;
+  text-shadow: none;
+}
+
+.promo-modal .promo-modal-panel h2 {
+  max-width: 420px;
+  margin: 20px auto 9px;
+  color: #151816;
+  font-size: clamp(28px, 5vw, 35px);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.promo-modal .promo-copy {
+  max-width: 420px;
+  margin: 0 auto 20px;
+  color: #59625d;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.promo-modal .promo-code {
+  width: 100%;
+  min-height: 76px;
+  padding: 12px 16px;
+  border: 1px solid #cfd9d2;
+  border-radius: 10px;
+  background: #f3f7f4;
+  color: #123d2a;
+  box-shadow: none;
+  transition: none;
+}
+
+.promo-modal .promo-code span,
+.promo-modal .promo-code small {
+  color: #596a60;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+}
+
+.promo-modal .promo-code strong {
+  margin: 5px 0;
+  color: #123d2a;
+  font-size: clamp(21px, 5vw, 27px);
+  letter-spacing: 0.1em;
+}
+
+.promo-modal .promo-countdown-wrap > p {
+  margin: 18px 0 9px;
+  color: #596a60;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+}
+
+.promo-modal .promo-countdown {
+  gap: 7px;
+}
+
+.promo-modal .promo-time-unit,
+.promo-modal .promo-time-unit:nth-child(even) {
+  padding: 9px 5px;
+  border: 1px solid #d7ddd6;
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.promo-modal .promo-time-unit strong,
+.promo-modal .promo-time-unit:nth-child(even) strong {
+  color: #123d2a;
+  font-size: 21px;
+}
+
+.promo-modal .promo-time-unit small {
+  color: #69736d;
+  font-size: 8px;
+}
+
+.promo-modal .promo-cta {
+  min-height: 48px;
+  margin-top: 16px;
+  padding: 12px 18px;
+  border: 1px solid #123d2a;
+  border-radius: 9px;
+  background: #123d2a;
+  color: #ffffff;
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 850;
+  transition: none;
+}
+
+.promo-modal .promo-fine-print {
+  margin-top: 11px;
+  color: #778079;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.promo-banner {
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  min-height: 76px;
+  padding: 12px max(20px, calc((100vw - 1240px) / 2));
+  border-top: 1px solid #cfd9d2;
+  background: #ffffff;
+  color: #151816;
+  box-shadow: 0 -10px 30px rgba(18, 28, 21, 0.1);
+}
+
+.promo-banner .promo-banner-main {
+  min-width: 0;
+  gap: 12px;
+}
+
+.promo-banner .promo-banner-main > div {
+  min-width: 0;
+  gap: 2px;
+}
+
+.promo-banner .promo-banner-main > div strong {
+  overflow: hidden;
+  color: #151816;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.promo-banner .promo-banner-main > div span,
+.promo-banner .promo-banner-timer > span {
+  color: #596a60;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+}
+
+.promo-banner .promo-banner-badge {
+  padding: 8px 10px;
+  border: 1px solid #c8d6cb;
+  border-radius: 8px;
+  background: #e6f0ea;
+  color: #123d2a;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.promo-banner .promo-banner-code {
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid #123d2a;
+  border-radius: 8px;
+  background: #123d2a;
+  color: #ffffff;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  transition: none;
+}
+
+.promo-banner .promo-banner-code small {
+  margin-top: 1px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 7px;
+}
+
+.promo-banner .promo-banner-timer {
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+.promo-banner .promo-countdown-compact {
+  gap: 4px;
+}
+
+.promo-banner .promo-countdown-compact .promo-time-unit,
+.promo-banner .promo-countdown-compact .promo-time-unit:nth-child(even) {
+  min-width: 44px;
+  padding: 6px 5px;
+  border: 1px solid #d7ddd6;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.promo-banner .promo-countdown-compact .promo-time-unit strong,
+.promo-banner .promo-countdown-compact .promo-time-unit:nth-child(even) strong {
+  color: #123d2a;
+  font-size: 15px;
+}
+
+.promo-banner :where(button, a)::before,
+.promo-banner :where(button, a)::after,
+.promo-modal :where(button, a)::before,
+.promo-modal :where(button, a)::after {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .promo-modal {
+    padding: 12px;
+  }
+
+  .promo-modal .promo-modal-panel {
+    width: min(100%, 500px);
+    padding: 34px 18px 20px;
+    border-radius: 14px;
+  }
+
+  .promo-modal .promo-discount strong {
+    font-size: clamp(58px, 20vw, 76px);
+  }
+
+  .promo-banner {
+    gap: 8px;
+    min-height: 62px;
+    padding: 8px 10px;
+    border-top-width: 1px;
+    box-shadow: 0 -8px 24px rgba(18, 28, 21, 0.1);
+  }
+
+  .promo-banner .promo-banner-main {
+    display: flex;
+    flex: 1 1 auto;
+    gap: 7px;
+  }
+
+  .promo-banner .promo-banner-badge {
+    display: inline-flex;
+    padding: 6px 7px;
+    font-size: 10px;
+  }
+
+  .promo-banner .promo-banner-main > div {
+    display: grid;
+    min-width: 0;
+  }
+
+  .promo-banner .promo-banner-main > div strong {
+    max-width: 34vw;
+    font-size: 11px;
+  }
+
+  .promo-banner .promo-banner-main > div span,
+  .promo-banner .promo-banner-timer > span {
+    display: block;
+    font-size: 7px;
+  }
+
+  .promo-banner .promo-banner-code {
+    width: auto;
+    min-width: 86px;
+    min-height: 38px;
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+
+  .promo-banner .promo-banner-timer {
+    display: flex;
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  .promo-banner .promo-countdown-compact {
+    display: flex;
+    width: auto;
+  }
+
+  .promo-banner .promo-countdown-compact .promo-time-unit {
+    min-width: 31px;
+    padding: 5px 2px;
+  }
+
+  .promo-banner .promo-countdown-compact .promo-time-unit strong {
+    font-size: 12px;
+  }
+
+  .promo-banner .promo-countdown-compact .promo-time-unit small {
+    font-size: 6px;
+  }
+}
+
+@media (max-width: 520px) {
+  .promo-banner .promo-banner-badge,
+  .promo-banner .promo-banner-main > div {
+    display: none;
+  }
+
+  .promo-banner .promo-banner-code {
+    min-width: 104px;
+  }
+
+  .promo-banner .promo-banner-timer {
+    flex: 1 1 auto;
+  }
+
+  .promo-banner .promo-countdown-compact,
+  .promo-banner .promo-countdown-compact .promo-time-unit {
+    flex: 1 1 0;
+  }
+}
+
+/* ===== END CLEAN PUBLIC PROMOTIONS ===== */
 
 /* ===== SEO LANDING PAGES + SEO HUB ===== */
 .seo-hub-grid,
@@ -2207,58 +2575,11 @@ body.modal-open {
   z-index: 3;
 }
 
-/* C. Subtle button shimmer */
-.btn-primary,
-.nav-cta,
-.quick-booking-form button {
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-primary::after,
-.nav-cta::after,
-.quick-booking-form button::after {
-  content: "";
-  position: absolute;
-  top: -40%;
-  left: -80%;
-  width: 45%;
-  height: 180%;
-  background: linear-gradient(
-    115deg,
-    transparent 0%,
-    rgba(255,255,255,0.18) 45%,
-    rgba(255,255,255,0.42) 50%,
-    rgba(255,255,255,0.18) 55%,
-    transparent 100%
-  );
-  transform: skewX(-18deg);
-  animation: buttonShimmer 4.8s ease-in-out infinite;
-  pointer-events: none;
-}
-
-@keyframes buttonShimmer {
-  0% {
-    left: -80%;
-  }
-
-  45% {
-    left: -80%;
-  }
-
-  100% {
-    left: 130%;
-  }
-}
-
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .hero::before,
   .hero .hero-overlay::before,
-  .hero .hero-overlay::after,
-  .btn-primary::after,
-  .nav-cta::after,
-  .quick-booking-form button::after {
+  .hero .hero-overlay::after {
     animation: none;
   }
 }

@@ -25,6 +25,7 @@
   <meta name="twitter:image" content="https://rentmect.com/assets/logo.png" />
   <link rel="stylesheet" href="https://d3cuf6g1arkgx6.cloudfront.net/sdk/1-5/wheelbase-widget.css" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="cars-wheelbase-v2.css" />
   <link rel="icon" href="assets/logo.png" />
   <script type="application/ld+json">
 {
@@ -66,7 +67,7 @@
         "Bradley International Airport",
         "Connecticut"
       ],
-      "openingHours": "Mo-Su 09:00-21:00"
+      "openingHours": "Mo-Su 09:00-23:59"
     },
     {
       "@type": "CollectionPage",
@@ -307,7 +308,7 @@
   </style>
 </head>
 
-<body>
+<body class="cars-wheelbase-v2">
   <div class="top-bar">
     <div>Call/Text 24/7: <a href="tel:+18605586031">860-558-6031</a></div>
     <div>Reliable Car Rentals in Connecticut</div>
@@ -325,7 +326,7 @@
       <a href="cars.html">Cars</a>
       <a href="requirements.html">Requirements</a>
       <a href="agreement.html">Agreement</a>
-      <a href="tel:+18605586031">Contact</a>
+      <a href="tel:+18605586031" data-contact-modal>Contact</a>
       <a class="nav-cta reserve-btn" href="cars.html">Reserve Now</a>
     </nav>
   </header>
@@ -1028,7 +1029,7 @@
         <a href="privacy-policy.html">Privacy Policy</a>
         <a href="terms.html">Terms</a>
         <a href="ftc-disclosure.html">FTC Disclosure</a>
-        <a href="rentmect-client-portal/" id="bookingPreviewLink" rel="nofollow" onclick="openBookingPreview(event)">Booking Preview</a>
+        <a href="cars-2.html" id="bookingPreviewLink" rel="nofollow" onclick="openBookingPreview(event)">Booking Preview</a>
       </nav>
     </div>
   </footer>
@@ -1944,6 +1945,7 @@
     });
   </script>
 
+  <script src="fleet-gallery-data.js"></script>
   <script src="script.js"></script>
 
   <script>
@@ -2081,12 +2083,13 @@
     function openBookingPreview(event) {
       event?.preventDefault();
       const dates = getRentalPeriodData();
-      const portalUrl = new URL("https://login.rentmect.com/");
-      portalUrl.searchParams.set("preview", "fleet");
+      const portalUrl = new URL("cars-2.html", window.location.href);
       if (dates.pickupDate) portalUrl.searchParams.set("pickupDate", dates.pickupDate);
       if (dates.returnDate) portalUrl.searchParams.set("returnDate", dates.returnDate);
       if (dates.pickupTime) portalUrl.searchParams.set("pickupTime", dates.pickupTime);
       if (dates.returnTime) portalUrl.searchParams.set("returnTime", dates.returnTime);
+      const promoCode = new URL(window.location.href).searchParams.get("promo") || activeSitePromotion?.coupon_code || "";
+      if (promoCode) portalUrl.searchParams.set("promo", promoCode);
       window.location.href = portalUrl.toString();
     }
 

@@ -1,0 +1,574 @@
+:root {
+  --fleet-olive: #123d2a;
+  --fleet-olive-dark: #0b2e1f;
+  --fleet-soft: #f4f6f2;
+  --fleet-line: #d9dfdb;
+  --fleet-ink: #161a18;
+  --fleet-copy: #5d6862;
+}
+
+body.cars-wheelbase-v2 {
+  margin: 0;
+  background: var(--fleet-soft);
+  color: var(--fleet-ink);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.cars-wheelbase-v2 .top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 34px;
+  padding: 7px max(20px, calc((100vw - 1240px) / 2));
+  background: var(--fleet-olive);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  box-sizing: border-box;
+}
+
+.cars-wheelbase-v2 .top-bar a {
+  color: #fff;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.cars-wheelbase-v2 .site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 76px;
+  padding: 0 max(24px, calc((100vw - 1240px) / 2));
+  border-bottom: 1px solid var(--fleet-line);
+  background: rgba(255, 255, 255, .97);
+  box-shadow: none;
+}
+
+.cars-wheelbase-v2 .logo-wrap img {
+  width: 112px;
+  max-height: 56px;
+  object-fit: contain;
+}
+
+.cars-wheelbase-v2 .site-header nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.cars-wheelbase-v2 .site-header nav a {
+  color: #354039;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.cars-wheelbase-v2 .site-header nav .nav-cta {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 9px;
+  background: var(--fleet-olive);
+  color: #fff;
+}
+
+.cars-wheelbase-v2 main {
+  padding-top: 0;
+}
+
+.cars-wheelbase-v2 .page-hero {
+  width: min(760px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 58px 0 28px;
+  background: transparent;
+  text-align: center;
+}
+
+.cars-wheelbase-v2 .page-hero h1 {
+  margin: 7px 0 0;
+  color: var(--fleet-ink);
+  font-size: clamp(42px, 6vw, 66px);
+  line-height: .98;
+  letter-spacing: -.055em;
+  text-shadow: none;
+}
+
+.cars-wheelbase-v2 .eyebrow {
+  color: var(--fleet-olive);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+
+.cars-wheelbase-v2 .section {
+  width: min(1240px, calc(100% - 40px));
+  max-width: none;
+  margin-right: auto;
+  margin-left: auto;
+  padding: 0;
+}
+
+.cars-wheelbase-v2 .insurance-top-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+  padding: 18px 20px;
+  border: 1px solid #d6dfd0;
+  border-radius: 13px;
+  background: #f7f9f4;
+  box-shadow: none;
+}
+
+.cars-wheelbase-v2 .insurance-top-notice h2 {
+  margin: 4px 0 6px;
+  font-size: 22px;
+  letter-spacing: -.025em;
+}
+
+.cars-wheelbase-v2 .insurance-top-notice p {
+  max-width: 800px;
+  margin-top: 0;
+  margin-bottom: 0;
+  color: var(--fleet-copy);
+  line-height: 1.55;
+}
+
+.cars-wheelbase-v2 .insurance-notice-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.cars-wheelbase-v2 .booking-panel {
+  margin-bottom: 24px;
+  padding: 22px;
+  border: 1px solid var(--fleet-line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(20, 29, 23, .055);
+}
+
+.cars-wheelbase-v2 .booking-panel h2 {
+  margin: 0 0 15px;
+  font-size: 21px;
+}
+
+.cars-wheelbase-v2 .quick-booking-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cars-wheelbase-v2 .quick-booking-form > div {
+  min-width: 0;
+}
+
+.cars-wheelbase-v2 .quick-booking-form label {
+  display: block;
+  margin-bottom: 6px;
+  color: #55615b;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.cars-wheelbase-v2 .quick-booking-form input,
+.cars-wheelbase-v2 .quick-booking-form select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 13px;
+  border: 1px solid #cbd2cd;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--fleet-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.cars-wheelbase-v2 .availability-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  margin: 0 0 14px;
+}
+
+.cars-wheelbase-v2 .availability-filter-btn,
+.cars-wheelbase-v2 .filter-btn {
+  min-height: 42px;
+  padding: 9px 15px;
+  border: 1px solid #cbd2cd;
+  border-radius: 999px;
+  background: #fff;
+  color: #28302b;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  box-shadow: none;
+  transition: none;
+  animation: none;
+}
+
+.cars-wheelbase-v2 .availability-filter-btn::before {
+  display: none;
+}
+
+.cars-wheelbase-v2 .availability-filter-btn.active,
+.cars-wheelbase-v2 .availability-filter-btn:hover,
+.cars-wheelbase-v2 .filter-btn.active,
+.cars-wheelbase-v2 .filter-btn:hover {
+  border-color: var(--fleet-olive);
+  background: var(--fleet-olive);
+  color: #fff;
+}
+
+.cars-wheelbase-v2 .availability-filter-status {
+  margin: 0;
+  color: var(--fleet-copy);
+  font-size: 13px;
+}
+
+.cars-wheelbase-v2 .filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.cars-wheelbase-v2 .price-filter {
+  margin: 14px 0 24px !important;
+  color: var(--fleet-copy);
+  font-size: 12px;
+}
+
+.cars-wheelbase-v2 .price-filter select {
+  min-height: 42px;
+  padding: 8px 36px 8px 12px !important;
+  border: 1px solid #cbd2cd !important;
+  border-radius: 9px !important;
+  background-color: #fff;
+  color: var(--fleet-ink);
+  font: inherit;
+  font-weight: 800;
+}
+
+.cars-wheelbase-v2 .vehicle-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  padding-bottom: 52px;
+}
+
+.cars-wheelbase-v2 .vehicle-card {
+  overflow: hidden;
+  border: 1px solid var(--fleet-line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 13px 34px rgba(33, 41, 34, .055);
+}
+
+.cars-wheelbase-v2 .vehicle-image {
+  position: relative;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: #e9ece8;
+}
+
+.cars-wheelbase-v2 .vehicle-image > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cars-wheelbase-v2 .vehicle-body {
+  padding: 19px;
+}
+
+.cars-wheelbase-v2 .vehicle-body .availability {
+  display: inline-flex;
+  margin-bottom: 10px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #e3f3e8;
+  color: #176b38;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.cars-wheelbase-v2 .vehicle-body .availability.availability-unavailable {
+  border: 1px solid #8f1720;
+  background: #b4232c;
+  color: #fff;
+  box-shadow: none;
+}
+
+.cars-wheelbase-v2 .vehicle-body h3 {
+  margin: 0 0 5px;
+  font-size: 22px;
+  line-height: 1.1;
+  letter-spacing: -.035em;
+}
+
+.cars-wheelbase-v2 .vehicle-body > p,
+.cars-wheelbase-v2 .car-details {
+  color: var(--fleet-copy);
+  font-size: 13px;
+}
+
+.cars-wheelbase-v2 .car-details {
+  margin: 15px 0;
+  padding-left: 18px;
+  line-height: 1.7;
+}
+
+.cars-wheelbase-v2 .rental-price {
+  display: block;
+  margin: 0 0 13px;
+  color: var(--fleet-ink);
+  font-size: 23px;
+  letter-spacing: -.025em;
+}
+
+.cars-wheelbase-v2 .btn-primary,
+.cars-wheelbase-v2 .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 10px 16px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+  transition: none;
+  animation: none;
+}
+
+.cars-wheelbase-v2 .btn-primary {
+  border: 1px solid var(--fleet-olive);
+  background: var(--fleet-olive);
+  color: #fff;
+}
+
+.cars-wheelbase-v2 .btn-secondary {
+  border: 1px solid #cbd2cd;
+  background: #fff;
+  color: var(--fleet-olive);
+}
+
+.cars-wheelbase-v2 .btn-primary.full {
+  width: 100%;
+}
+
+.cars-wheelbase-v2 button::before,
+.cars-wheelbase-v2 button::after,
+.cars-wheelbase-v2 .btn-primary::before,
+.cars-wheelbase-v2 .btn-primary::after {
+  animation: none !important;
+}
+
+.cars-wheelbase-v2 .checkout-preview {
+  margin-bottom: 74px;
+  padding: 42px 0 0;
+  border-top: 1px solid var(--fleet-line);
+}
+
+.cars-wheelbase-v2 .checkout-heading {
+  max-width: 760px;
+  margin-bottom: 20px;
+}
+
+.cars-wheelbase-v2 .checkout-heading h2 {
+  margin: 5px 0 0;
+  font-size: clamp(30px, 4vw, 44px);
+  letter-spacing: -.04em;
+}
+
+.cars-wheelbase-v2 .insurance-checkout-box {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.cars-wheelbase-v2 .insurance-checkout-box > h2 {
+  margin-bottom: 8px;
+  font-size: 22px;
+}
+
+.cars-wheelbase-v2 .insurance-checkout-box > p {
+  max-width: 800px;
+  color: var(--fleet-copy);
+  line-height: 1.6;
+}
+
+.cars-wheelbase-v2 .insurance-option-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.cars-wheelbase-v2 .insurance-option-list > a {
+  position: relative;
+  display: flex;
+  min-height: 202px;
+  flex-direction: column;
+  padding: 20px;
+  border: 1px solid var(--fleet-line);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--fleet-ink);
+  text-decoration: none;
+}
+
+.cars-wheelbase-v2 .insurance-option-list > a.recommended-insurance {
+  border-color: #aebc98;
+  background: #f7f9f3;
+}
+
+.cars-wheelbase-v2 .insurance-option-list span:not(.insurance-recommended-badge) {
+  color: var(--fleet-olive);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.cars-wheelbase-v2 .insurance-option-list strong {
+  margin-top: 8px;
+  font-size: 20px;
+}
+
+.cars-wheelbase-v2 .insurance-option-list p {
+  color: var(--fleet-copy);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.cars-wheelbase-v2 .insurance-recommended-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--fleet-olive);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.cars-wheelbase-v2 .insurance-modal-panel {
+  border-radius: 16px;
+  box-shadow: 0 26px 70px rgba(9, 19, 13, .24);
+}
+
+.cars-wheelbase-v2 .site-footer {
+  border-top: 1px solid var(--fleet-line);
+  background: #fff;
+}
+
+@media (max-width: 960px) {
+  .cars-wheelbase-v2 .vehicle-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cars-wheelbase-v2 .insurance-option-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .cars-wheelbase-v2 .top-bar {
+    display: flex;
+    justify-content: center;
+    min-height: 32px;
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  .cars-wheelbase-v2 .site-header {
+    min-height: 66px;
+    padding: 0 14px;
+  }
+
+  .cars-wheelbase-v2 .mobile-menu-btn {
+    display: block;
+    border: 0;
+    background: transparent;
+    color: var(--fleet-olive);
+    font-weight: 900;
+  }
+
+  .cars-wheelbase-v2 .site-header nav {
+    display: none;
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 0;
+    padding: 8px 0 14px;
+  }
+
+  .cars-wheelbase-v2 .site-header nav.open {
+    display: flex;
+  }
+
+  .cars-wheelbase-v2 .quick-booking-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cars-wheelbase-v2 .insurance-top-notice {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 560px) {
+  .cars-wheelbase-v2 .top-bar > div:last-child {
+    display: none;
+  }
+
+  .cars-wheelbase-v2 .section,
+  .cars-wheelbase-v2 .page-hero {
+    width: calc(100% - 24px);
+  }
+
+  .cars-wheelbase-v2 .page-hero {
+    padding-top: 38px;
+  }
+
+  .cars-wheelbase-v2 .vehicle-grid,
+  .cars-wheelbase-v2 .insurance-option-list {
+    grid-template-columns: 1fr;
+  }
+
+  .cars-wheelbase-v2 .quick-booking-form {
+    grid-template-columns: 1fr;
+  }
+
+  .cars-wheelbase-v2 .insurance-notice-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .cars-wheelbase-v2 .insurance-notice-actions > * {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cars-wheelbase-v2 *,
+  .cars-wheelbase-v2 *::before,
+  .cars-wheelbase-v2 *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
