@@ -164,9 +164,11 @@
 .cars2-trip-fields input,
 .cars2-trip-fields select,
 .cars2-search input {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  min-height: 48px;
+  height: 54px;
+  min-height: 54px;
   padding: 0 14px;
   border: 1px solid #cbd2cd;
   border-radius: 9px;
@@ -298,15 +300,15 @@
 }
 
 .cars2-provider-signature {
-  width: min(1240px, calc(100% - 40px));
-  margin: 0 auto;
-  padding: 20px 0 28px;
-  border-top: 1px solid var(--cars2-line);
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: 0;
+  padding: 14px 0 0;
   color: #69736d;
   font-size: 11px;
   font-weight: 850;
   letter-spacing: .12em;
-  text-align: center;
+  text-align: right;
   text-transform: uppercase;
 }
 
@@ -507,16 +509,29 @@
   margin-bottom: 10px;
   padding: 5px 9px;
   border-radius: 999px;
-  background: #e3f3e8;
-  color: #176b38;
+  border: 1px solid #d6dbd7;
+  background: #f1f2f0;
+  color: #5b655f;
   font-size: 10px;
   font-weight: 900;
+  box-shadow: none !important;
+  filter: none;
+  text-shadow: none;
+}
+
+.cars2-card-status.available {
+  border-color: #b8d9c3;
+  background: #e3f3e8;
+  color: #176b38;
 }
 
 .cars2-card-status.unavailable {
   border: 1px solid #8f1720;
   background: #b4232c;
   color: #fff;
+  box-shadow: none !important;
+  filter: none;
+  text-shadow: none;
 }
 
 .cars2-card-body h2 {
@@ -991,6 +1006,9 @@ body.cars2-modal-open {
   color: #5b655f;
   font-size: 12px;
   font-weight: 800;
+  box-shadow: none !important;
+  filter: none;
+  text-shadow: none;
 }
 
 .cars2-availability.available {
@@ -1002,6 +1020,9 @@ body.cars2-modal-open {
   border: 1px solid #8f1720;
   background: #b4232c;
   color: #fff;
+  box-shadow: none !important;
+  filter: none;
+  text-shadow: none;
 }
 
 .cars2-total {
@@ -1085,12 +1106,15 @@ body.cars2-modal-open {
 
   .cars2-trip-fields input,
   .cars2-trip-fields select {
-    box-sizing: border-box;
     height: 54px;
     min-height: 54px;
     padding-top: 0;
     padding-bottom: 0;
     line-height: normal;
+  }
+
+  .cars2-provider-signature {
+    text-align: center;
   }
 
   .cars2-trip-fields input[type="date"] {

@@ -316,13 +316,18 @@ body.cars-wheelbase-v2 {
   color: #176b38;
   font-size: 10px;
   font-weight: 900;
+  box-shadow: none !important;
+  filter: none;
+  text-shadow: none;
 }
 
 .cars-wheelbase-v2 .vehicle-body .availability.availability-unavailable {
   border: 1px solid #8f1720;
   background: #b4232c;
   color: #fff;
-  box-shadow: none;
+  box-shadow: none !important;
+  filter: none;
+  text-shadow: none;
 }
 
 .cars-wheelbase-v2 .vehicle-body h3 {

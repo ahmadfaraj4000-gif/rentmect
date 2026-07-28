@@ -258,7 +258,15 @@
     const result = state.availability.get(vehicle.id);
     const available = result?.available === true;
     const checking = state.checking;
-    const status = checking ? "Checking…" : available ? "Available" : result?.reason || "Unavailable";
+    const status = checking ? "Checking…" : available ? "Available" : "Unavailable";
+    const statusClass = checking ? "checking" : available ? "available" : "unavailable";
+    const statusLabel = checking
+      ? "Checking availability"
+      : available
+        ? "Available"
+        : result?.reason
+          ? `Unavailable: ${result.reason}`
+          : "Unavailable";
     const deposit = Number(vehicle.security_deposit ?? 300);
     const pricingDays = Math.max(1, Number(state.pricingDays) || 1);
     const displayedPrice = Number(vehicle.daily_rate || 0) * pricingDays;
@@ -276,7 +284,7 @@
           <span class="cars2-card-gallery-counter" aria-live="polite">1 / ${images.length}</span>
         </div>
         <div class="cars2-card-body">
-          <span class="cars2-card-status ${available ? "" : "unavailable"}">${escapeHtml(status)}</span>
+          <span class="cars2-card-status ${statusClass}" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${escapeHtml(status)}</span>
           <h2>${escapeHtml(vehicle.name || "Rent Me CT vehicle")}</h2>
           <p class="cars2-card-meta">${escapeHtml(vehicleFeatures(vehicle).join(" • "))}</p>
           <ul>
@@ -358,7 +366,15 @@
     if (!vehicle) return;
     const result = state.availability.get(vehicle.id);
     const available = result?.available === true;
-    const message = state.checking ? "Checking calendar…" : available ? "Available for these dates" : result?.reason || "Unavailable for these dates";
+    const unavailableReason = String(result?.reason || "").trim();
+    const unavailableDetail = unavailableReason.replace(/^unavailable(?:\s*[:—-]\s*|\s+)/i, "").trim();
+    const message = state.checking
+      ? "Checking calendar…"
+      : available
+        ? "Available for these dates"
+        : unavailableDetail
+          ? `Unavailable — ${unavailableDetail}`
+          : "Unavailable for these dates";
     elements.cars2DetailAvailability.textContent = message;
     elements.cars2DetailAvailability.className = `cars2-availability ${state.checking ? "" : available ? "available" : "unavailable"}`;
     const days = rentalDays(state.trip.pickupDate, state.trip.returnDate);
