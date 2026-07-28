@@ -7,6 +7,8 @@ let quickBookingReturnTimeCustomized = false;
 
 document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".chatbot-toggle, .chatbot").forEach((element) => element.remove());
+  setupBookingPageRouting();
+  observeBookingPageLinks();
   setupMobileNavigation();
   setupSitePromotion();
   setupVehicleGalleries();
@@ -24,6 +26,104 @@ document.addEventListener("DOMContentLoaded", function () {
 const SITE_PROMOTIONS_API_URL = "https://gqmiktepthaafupwdmcl.supabase.co/rest/v1/site_promotions";
 const SITE_PROMOTIONS_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxbWlrdGVwdGhhYWZ1cHdkbWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1ODgxNzgsImV4cCI6MjA5MzE2NDE3OH0.dDM6SSAwd03FLWcdOc8OemcFmZ7yOxKsuPq3qpmqoWI";
 const SITE_VEHICLES_API_URL = SITE_PROMOTIONS_API_URL.replace(/site_promotions$/, "vehicles");
+const BOOKING_PAGE_SETTING_API_URL = SITE_PROMOTIONS_API_URL.replace(
+  /rest\/v1\/site_promotions$/,
+  "rest/v1/rpc/get_public_booking_page_setting"
+);
+const BOOKING_PAGE_PATHS = new Set(["cars.html", "cars-2.html"]);
+let activeBookingPagePath = "cars.html";
+let bookingPageRefreshTimer = 0;
+let bookingPagePollingTimer = 0;
+let bookingPageLinkObserver = null;
+
+window.getActiveBookingPage = () => activeBookingPagePath;
+window.resolveBookingPageUrl = (value) => resolveBookingPageUrl(value);
+
+async function setupBookingPageRouting() {
+  try {
+    const response = await fetch(BOOKING_PAGE_SETTING_API_URL, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        apikey: SITE_PROMOTIONS_ANON_KEY,
+        Authorization: `Bearer ${SITE_PROMOTIONS_ANON_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    });
+    if (!response.ok) throw new Error(`Booking page setting request failed (${response.status})`);
+    const [setting] = await response.json();
+    activeBookingPagePath = BOOKING_PAGE_PATHS.has(setting?.page_path) ? setting.page_path : "cars.html";
+    applyBookingPageRouting();
+    scheduleBookingPageRefresh(setting);
+  } catch (error) {
+    activeBookingPagePath = "cars.html";
+    applyBookingPageRouting();
+    console.warn("Using Wheelbase booking-page fallback.", error);
+  }
+}
+
+function observeBookingPageLinks() {
+  if (bookingPageLinkObserver || !document.body) return;
+  bookingPageLinkObserver = new MutationObserver((records) => {
+    records.forEach((record) => {
+      record.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) applyBookingPageRouting(node);
+      });
+    });
+  });
+  bookingPageLinkObserver.observe(document.body, { childList: true, subtree: true });
+  if (!bookingPagePollingTimer) {
+    bookingPagePollingTimer = window.setInterval(setupBookingPageRouting, 60000);
+  }
+}
+
+function scheduleBookingPageRefresh(setting) {
+  window.clearTimeout(bookingPageRefreshTimer);
+  if (!setting?.scheduled_at) return;
+  const scheduledAt = new Date(setting.scheduled_at).getTime();
+  const serverNow = new Date(setting.server_now || Date.now()).getTime();
+  if (!Number.isFinite(scheduledAt) || !Number.isFinite(serverNow)) return;
+  const delay = Math.max(250, Math.min(scheduledAt - serverNow + 250, 2147483000));
+  bookingPageRefreshTimer = window.setTimeout(setupBookingPageRouting, delay);
+}
+
+function applyBookingPageRouting(root = document) {
+  document.body?.setAttribute("data-booking-provider", activeBookingPagePath === "cars-2.html" ? "supabase" : "wheelbase");
+  const previewLink = document.getElementById("bookingPreviewLink");
+  if (previewLink) {
+    const previewIsAvailable = activeBookingPagePath === "cars.html";
+    previewLink.hidden = !previewIsAvailable;
+    previewLink.setAttribute("aria-hidden", String(!previewIsAvailable));
+    if (previewIsAvailable) previewLink.setAttribute("href", "cars-2.html");
+  }
+
+  const anchors = [];
+  if (root.matches?.("a[href]")) anchors.push(root);
+  root.querySelectorAll?.("a[href]").forEach((anchor) => anchors.push(anchor));
+  anchors.forEach((anchor) => {
+    if (anchor.id === "bookingPreviewLink") return;
+    const resolved = resolveBookingPageUrl(anchor.getAttribute("href"));
+    if (resolved && resolved !== anchor.getAttribute("href")) anchor.setAttribute("href", resolved);
+  });
+}
+
+function resolveBookingPageUrl(value) {
+  const href = String(value || "").trim();
+  if (!href) return href;
+  try {
+    const url = new URL(href, window.location.href);
+    const currentPage = url.pathname.split("/").pop()?.toLowerCase();
+    if (!BOOKING_PAGE_PATHS.has(currentPage)) return href;
+    url.pathname = url.pathname.replace(/[^/]+$/, activeBookingPagePath);
+    if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return url.toString();
+    if (href.startsWith("/")) return `${url.pathname}${url.search}${url.hash}`;
+    return `${activeBookingPagePath}${url.search}${url.hash}`;
+  } catch {
+    return href;
+  }
+}
+
 const VEHICLE_GALLERY_JPG_IMAGES = new Set([
   "001-2", "002-1", "002-2", "100-3", "148-1", "157-2",
   "191-1", "191-2", "210-1", "210-2", "225-2", "321-1",
@@ -341,7 +441,7 @@ function hydratePromotionPopup(modal, promotion) {
   copyButton.dataset.promoCopy = promotion.coupon_code;
   copyButton.setAttribute("aria-label", `Copy discount code ${promotion.coupon_code}`);
   const cta = modal.querySelector("[data-promo-cta]");
-  const destination = new URL(safePromotionUrl(promotion.cta_url), window.location.href);
+  const destination = new URL(resolveBookingPageUrl(safePromotionUrl(promotion.cta_url)), window.location.href);
   if (promotion.coupon_code) destination.searchParams.set("promo", promotion.coupon_code);
   cta.href = destination.toString();
 }
