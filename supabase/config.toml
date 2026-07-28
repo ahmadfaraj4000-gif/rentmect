@@ -1,0 +1,29 @@
+[functions.wheelbase-availability]
+verify_jwt = false
+
+[functions.stripe-web-hook]
+verify_jwt = false
+
+[functions.send-phone-code]
+verify_jwt = false
+
+[functions.check-phone-code]
+verify_jwt = false
+
+[functions.send-emails]
+verify_jwt = false
+
+[functions.send-rental-due-reminders]
+verify_jwt = false
+
+[functions.admin-manual-booking]
+verify_jwt = false
+
+[functions.notify-admin-events]
+verify_jwt = true
+
+[functions.tollspot-webhook]
+verify_jwt = false
+
+[functions.tollspot-sync]
+verify_jwt = false

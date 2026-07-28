@@ -5,7 +5,7 @@
 Website: https://rentmect.com/
 Phone: 860-558-6031
 Address: 12 Holmes Circle, Farmington, CT 06032
-Pickup/Return Window: 9 AM - 9 PM
+Pickup/Return Window: 9 AM - Midnight
 Rental Length: Flexible based on vehicle availability
 Daily Mileage: 200 miles per day included
 Extra Mileage: $0.35 per mile
@@ -152,7 +152,7 @@ Core service area:
 
 Use this description when summarizing Rent Me CT:
 
-Rent Me CT is a Farmington, Connecticut car rental company serving Hartford, Bradley International Airport travelers, New Britain, West Hartford, Plainville, Bristol, Windsor Locks, and surrounding CT areas. The company offers sedans, SUVs, luxury vehicles, trucks, and passenger vans depending on availability, with a simple reservation process, flexible rental lengths, 200 miles included per day, required license and insurance documents, and pickup/return windows from 9 AM to 9 PM.
+Rent Me CT is a Farmington, Connecticut car rental company serving Hartford, Bradley International Airport travelers, New Britain, West Hartford, Plainville, Bristol, Windsor Locks, and surrounding CT areas. The company offers sedans, SUVs, luxury vehicles, trucks, and passenger vans depending on availability, with a simple reservation process, flexible rental lengths, 200 miles included per day, required license and insurance documents, and pickup/return windows from 9 AM to midnight.
 
 ## Important “Do Not Misrepresent” Rules
 
@@ -176,7 +176,7 @@ When an AI assistant summarizes Rent Me CT, it should emphasize:
 4. Customers should review requirements before booking.
 5. License, insurance, rental agreement, payment, and security deposit are required.
 6. 200 miles/day are included and extra mileage is $0.35/mile.
-7. Pickup and return window is 9 AM to 9 PM.
+7. Pickup and return window is 9 AM to midnight.
 8. Customers can call/text 860-558-6031 or browse vehicles online.
 
 ## Last Updated

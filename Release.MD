@@ -226,8 +226,17 @@ Do not blindly rerun every SQL file against production. First run the preflight 
 25. `supabase/vehicle_deposits_and_under25_pricing.sql`
 26. `supabase/admin_pushover_notifications.sql`
 27. `supabase/vehicle_maintenance_notifications.sql`
-28. Fleet seed files only if the matching production vehicle IDs have been verified.
-29. Cron schedule files only after their secrets/functions are ready.
+28. `supabase/email_automation_and_campaigns.sql`
+29. `supabase/booking_integrity_guards.sql`
+30. `supabase/rental_billing_and_completion.sql`
+31. Rerun `supabase/local_payment_and_extensions.sql` so extension payment uses
+    the approved-extension calendar-hold helper and booking-fee ledger.
+32. Rerun `supabase/stripe_payments.sql` and then run
+    `supabase/booking_flow_test_payment.sql`.
+33. Run `supabase/vigorous_booking_audit.sql`; it must report PASS and rolls
+    back every audit fixture without calling a payment or messaging provider.
+34. Fleet seed files only if the matching production vehicle IDs have been verified.
+35. Cron schedule files only after their secrets/functions are ready.
 
 `client_portal_calendar_source_of_truth.sql` must remain the final active definition of `create_rental_with_lock` among the availability migrations. `passwordless_checkout_hold.sql` then adds the hold functions without replacing that rental-lock function. The vehicle/under-25 pricing migration must run after the legacy audit migration so its per-vehicle pricing trigger replaces the old global $300/$500 trigger.
 
@@ -303,12 +312,17 @@ Never expose service-role, Stripe secret, webhook, Resend, or Twilio secrets thr
   - `identity.verification_session.requires_input`
   - `identity.verification_session.processing`
   - `identity.verification_session.canceled`
+  - `payment_intent.succeeded`
+  - `payment_intent.payment_failed`
 - [ ] Put the webhook signing secret in the Edge Function secrets.
 - [ ] Test a 24-year-old customer and confirm a $500 deposit.
 - [ ] Test a 25-year-old customer and confirm a $300 deposit.
 - [ ] Confirm an unverified identity cannot reach payment.
 - [ ] Confirm missing license, insurance, phone verification, or agreement blocks payment on the server.
 - [ ] Complete payment and confirm the rental becomes `paid` in the admin calendar.
+- [ ] Add a test toll, use **Charge saved card**, and confirm the exact taxed
+  amount is paid once. Repeat with an authentication-required test card and
+  confirm the charge stays unpaid with the customer Checkout fallback available.
 - [ ] Complete a clean return and manually refund the deposit from Rental Manager.
 - [ ] Confirm Stripe refund status and audit log.
 - [ ] Test the seven-day automatic refund schedule using a controlled shortened due date in staging.

@@ -3,6 +3,7 @@ const RENT_ME_CT_ADDRESS = "12 Holmes Circle, Farmington, CT";
 let selectedVehicleName = "";
 let selectedRentalPeriod = "";
 let lastRentalTimeNotice = "";
+let quickBookingReturnTimeCustomized = false;
 
 document.addEventListener("DOMContentLoaded", function () {
   setupSitePromotion();
@@ -186,8 +187,11 @@ async function loadAdminVehicleImages() {
 }
 
 function getFleetGalleryImages(fleetNumber) {
-  const imageCount = fleetNumber === "191" ? 5 : 4;
-  return Array.from({ length: imageCount }, (_, index) => {
+  const highResolutionImages = window.RENTMECT_FLEET_GALLERY_IMAGES?.[fleetNumber];
+  if (Array.isArray(highResolutionImages) && highResolutionImages.length >= 4) {
+    return highResolutionImages.slice(0, 4);
+  }
+  return Array.from({ length: 4 }, (_, index) => {
     const imageKey = `${fleetNumber}-${index + 1}`;
     const extension = VEHICLE_GALLERY_JPG_IMAGES.has(imageKey) ? "jpg" : "webp";
     return `assets/fleet-2/${imageKey}.${extension}`;
@@ -335,7 +339,9 @@ function hydratePromotionPopup(modal, promotion) {
   copyButton.dataset.promoCopy = promotion.coupon_code;
   copyButton.setAttribute("aria-label", `Copy discount code ${promotion.coupon_code}`);
   const cta = modal.querySelector("[data-promo-cta]");
-  cta.href = safePromotionUrl(promotion.cta_url);
+  const destination = new URL(safePromotionUrl(promotion.cta_url), window.location.href);
+  if (promotion.coupon_code) destination.searchParams.set("promo", promotion.coupon_code);
+  cta.href = destination.toString();
 }
 
 function hydratePromotionBanner(banner, promotion) {
@@ -524,7 +530,7 @@ function setupContactModal() {
     document.body.appendChild(modal);
   }
 
-  document.querySelectorAll('nav a[href^="tel:"], .site-footer a[href^="tel:"], a[data-contact-modal]').forEach((link) => {
+  document.querySelectorAll('.site-footer a[href^="tel:"], a[data-contact-modal]').forEach((link) => {
     link.setAttribute("data-contact-modal", "");
   });
 
@@ -588,10 +594,12 @@ function populateTimeSelects() {
 
 function getRentalTimeOptions() {
   const times = [];
-  for (let hour = 9; hour <= 21; hour++) {
-    const suffix = hour >= 12 ? "PM" : "AM";
-    const displayHour = hour > 12 ? hour - 12 : hour;
-    times.push(`${displayHour}:00 ${suffix}`);
+  for (let minutes = 9 * 60; minutes < 24 * 60; minutes += 30) {
+    const hour = Math.floor(minutes / 60);
+    const minute = minutes % 60;
+    const suffix = hour >= 12 && hour < 24 ? "PM" : "AM";
+    const displayHour = hour % 12 || 12;
+    times.push(`${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`);
   }
   return times;
 }
@@ -625,10 +633,10 @@ function setRentalTimeNotice(message) {
 
 function notifyRentalTimeAdjusted(message, noticeKey) {
   setRentalTimeNotice(message);
+  updateQuickBookingSummary(message, "valid");
   if (!noticeKey || lastRentalTimeNotice === noticeKey) return;
 
   lastRentalTimeNotice = noticeKey;
-  alert(message);
 }
 
 function normalizeRentalTimeInputs(options = {}) {
@@ -641,6 +649,7 @@ function normalizeRentalTimeInputs(options = {}) {
   if (!pickupDate || !returnDate || !pickupTime || !returnTime) return;
 
   const today = getLocalDateInputValue();
+  let timeWasAdjusted = false;
   if (pickupDate.value === today) {
     const nextTime = getFirstFutureRentalTime(today);
 
@@ -651,8 +660,9 @@ function normalizeRentalTimeInputs(options = {}) {
       if (returnDate.value < returnDate.min) returnDate.value = returnDate.min;
       pickupTime.value = "9:00 AM";
       if (shouldNotify) {
+        timeWasAdjusted = true;
         notifyRentalTimeAdjusted(
-          "Pickup is closed for today. Please choose a pickup time starting tomorrow.",
+          "Pickup is closed for today, so we moved your pickup to tomorrow at 9:00 AM.",
           `closed-${nextPickupDate}`
         );
       }
@@ -661,6 +671,7 @@ function normalizeRentalTimeInputs(options = {}) {
       if (!selectedPickup || selectedPickup <= new Date()) {
         pickupTime.value = nextTime;
         if (shouldNotify) {
+          timeWasAdjusted = true;
           notifyRentalTimeAdjusted(
             `That pickup time has passed, so we moved pickup to ${nextTime}.`,
             `time-${today}-${nextTime}`
@@ -671,7 +682,59 @@ function normalizeRentalTimeInputs(options = {}) {
   }
 
   if (!returnTime.value) returnTime.value = "9:00 AM";
+  updatePickupTimeAvailability();
+  if (!timeWasAdjusted) updateQuickBookingSummary();
   window.syncVehicleAvailability?.();
+}
+
+function updatePickupTimeAvailability() {
+  const pickupDate = document.getElementById("pickupDate");
+  const pickupTime = document.getElementById("pickupTime");
+  if (!pickupDate || !pickupTime) return;
+
+  const now = new Date();
+  const today = getLocalDateInputValue(now);
+  [...pickupTime.options].forEach((option) => {
+    const optionDateTime = getRentalDateTime(pickupDate.value, option.value);
+    option.disabled = pickupDate.value === today && Boolean(optionDateTime && optionDateTime <= now);
+  });
+}
+
+function updateQuickBookingSummary(message = "", state = "") {
+  const summary = document.getElementById("bookingSelectionSummary");
+  if (!summary) return;
+
+  summary.classList.remove("valid", "error");
+  if (message) {
+    summary.textContent = message;
+    if (state) summary.classList.add(state);
+    return;
+  }
+
+  const pickupDate = document.getElementById("pickupDate")?.value;
+  const returnDate = document.getElementById("returnDate")?.value;
+  const pickupTime = document.getElementById("pickupTime")?.value;
+  const returnTime = document.getElementById("returnTime")?.value;
+  const pickup = getRentalDateTime(pickupDate, pickupTime);
+  const dropoff = getRentalDateTime(returnDate, returnTime);
+
+  if (!pickup || !dropoff) {
+    summary.textContent = "Choose your pickup and return once—we’ll carry them into the available fleet.";
+    return;
+  }
+  if (dropoff <= pickup) {
+    summary.textContent = "Return must be after pickup.";
+    summary.classList.add("error");
+    return;
+  }
+
+  const rentalDays = Math.max(1, Math.ceil((new Date(`${returnDate}T12:00:00`) - new Date(`${pickupDate}T12:00:00`)) / 86400000));
+  const shortDate = (value) => new Date(`${value}T12:00:00`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+  summary.textContent = `${rentalDays} rental day${rentalDays === 1 ? "" : "s"} • ${shortDate(pickupDate)} at ${pickupTime} → ${shortDate(returnDate)} at ${returnTime}`;
+  summary.classList.add("valid");
 }
 
 function setMinDates() {
@@ -695,8 +758,17 @@ function setMinDates() {
     window.syncVehicleAvailability?.();
   });
 
-  document.getElementById("pickupTime")?.addEventListener("change", () => normalizeRentalTimeInputs({ notify: true }));
-  document.getElementById("returnTime")?.addEventListener("change", () => normalizeRentalTimeInputs({ notify: true }));
+  document.getElementById("pickupTime")?.addEventListener("change", () => {
+    const returnTime = document.getElementById("returnTime");
+    if (document.querySelector(".quick-booking-form") && returnTime && !quickBookingReturnTimeCustomized) {
+      returnTime.value = document.getElementById("pickupTime").value;
+    }
+    normalizeRentalTimeInputs({ notify: true });
+  });
+  document.getElementById("returnTime")?.addEventListener("change", () => {
+    if (document.querySelector(".quick-booking-form")) quickBookingReturnTimeCustomized = true;
+    normalizeRentalTimeInputs({ notify: true });
+  });
 
   window.setInterval(() => {
     if (document.visibilityState !== "hidden") normalizeRentalTimeInputs({ notify: true });
@@ -893,7 +965,7 @@ const RENT_ME_CT_CHATBOT_TOPICS = [
   },
   {
     keywords: ["pickup", "pick up", "return", "address", "location", "where are you", "where located", "hours", "open", "time window"],
-    response: "Rent Me CT pickup and return are based at 12 Holmes Circle, Farmington, CT. Pickup and return times are available from 9 AM to 9 PM unless another arrangement is approved."
+    response: "Rent Me CT pickup and return are based at 12 Holmes Circle, Farmington, CT. Pickup and return times are available from 9 AM to midnight unless another arrangement is approved."
   },
   {
     keywords: ["license", "driver license", "driver's license", "drivers license", "documents", "paperwork", "what do i need", "requirements", "required"],

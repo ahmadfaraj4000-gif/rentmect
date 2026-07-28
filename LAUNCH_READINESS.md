@@ -15,10 +15,14 @@
   `supabase/functions/wheelbase-availability/index.ts`: not modified by this work.
 - Admin email center, booking-confirmation outbox, SendGrid worker, customer
   marketing consent, campaign scheduling, and delivery-event history: implemented locally.
+- Admin one-to-one customer email/SMS composer, reusable manual templates,
+  Twilio/SendGrid delivery logging, and audit attribution: implemented locally.
 - Supabase-only Booking Preview fleet/detail/verification handoff: implemented locally.
   The public `cars.html` Wheelbase booking path remains intact and separate.
 - Database-wide real-vehicle overlap/three-hour-turnaround guard, extension
   calendar-block checks, and no-charge fixed test-vehicle completion: implemented locally.
+- Server-owned booking-fee snapshots, admin toll/add-on charges, customer payment
+  links, extension-payment emails, and exact Stripe ledger validation: implemented locally.
 
 ## Must complete before taking live payments
 
@@ -44,7 +48,8 @@
    subscribe to `checkout.session.completed`, `refund.created`,
    `refund.updated`, `refund.failed`, `identity.verification_session.verified`,
    `identity.verification_session.requires_input`, `identity.verification_session.processing`,
-   and `identity.verification_session.canceled`.
+   `identity.verification_session.canceled`, `payment_intent.succeeded`, and
+   `payment_intent.payment_failed`.
 9. Add Supabase Vault secrets `project_url`, `project_anon_key`, and
    `rentmect_deposit_release_secret`. The last value must exactly match the Edge
    Function secret. Then run `supabase/security_deposit_release_schedule.sql`.
@@ -91,6 +96,81 @@
 21. Deploy the client portal and the updated `cars.html`. Confirm the footer
     Booking Preview opens `?preview=fleet`, while a normal public vehicle booking
     still opens Wheelbase checkout.
+22. Run `supabase/rental_billing_and_completion.sql`. Then rerun, in order,
+    `supabase/local_payment_and_extensions.sql`, `supabase/stripe_payments.sql`,
+    and `supabase/booking_flow_test_payment.sql` so their payment functions bind
+    to the new charge ledger and extension calendar-hold helper.
+23. Deploy the updated `stripe-web-hook` and `notify-admin-events` Edge Functions,
+    plus the client and admin portals. Do not replace or remove the existing
+    Wheelbase availability/checkout functions used by `cars.html`.
+24. Run `supabase/vigorous_booking_audit.sql` in SQL Editor. It must finish with
+    PASS. The transaction rolls back its temporary vehicle, rentals, service fees,
+    messages, and simulated ledger entries and never calls Stripe, SendGrid,
+    Pushover, Twilio, or Wheelbase.
+25. In Stripe test mode, repeat one age-24 and one age-25 booking and verify the
+    Checkout amount against the SQL audit totals. Test one extension and one
+    admin-added toll through Checkout. Then create another toll and use **Charge
+    saved card** from Admin → Rentals; verify one successful off-session test card
+    and one authentication-required test card falls back to the customer payment
+    link without being marked paid. Do not perform these checks with live keys.
+26. For the admin-assisted booking workflow, run
+    `supabase/admin_booking_procedure_and_customer_retention.sql`,
+    `supabase/admin_manual_booking_payment_hardening.sql`, and
+    `supabase/customer_checkout_cleanup_hardening.sql`; then run
+    `supabase/rental_mileage_workflow.sql` and
+    `supabase/admin_procedure_override_lockdown.sql` to disable legacy staff
+    procedure overrides. Run
+    `supabase/deposit_carryover_and_emergency_exceptions.sql`, then rerun
+    `supabase/local_payment_and_extensions.sql`,
+    `supabase/vehicle_deposits_and_under25_pricing.sql`, and
+    `supabase/stripe_payments.sql`; finally rerun
+    `supabase/stripe_identity_verification.sql` and
+    `supabase/admin_audit_and_deposit_controls.sql`. This installs the
+    deposit-allocation ledger, carries deposits across extensions/switches,
+    charges or refunds only the difference, and enables scoped emergency
+    release exceptions. Confirm the oldest admin profile is the intended owner
+    receiving `emergency_override_authorized = true`; explicitly authorize any
+    other owner account and leave ordinary staff false. Deploy
+    `admin-manual-booking`, `stripe-web-hook`, and
+    `notify-admin-events`, then set
+    `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and either
+    `TWILIO_MESSAGING_SERVICE_SID` or `TWILIO_PHONE_NUMBER` on that Edge
+    Function. Send a test secure checklist by both email and SMS before launch.
+26. Run `supabase/admin_customer_communications.sql`, redeploy `send-emails` and
+    `send-rental-due-reminders`, and set `RENTMECT_CLIENT_PORTAL_URL` plus
+    `RENTMECT_PHONE` on both functions. From Admin → Customers, send one manual
+    email and one manual text to controlled test contact details, verify the
+    rendered rental dates/vehicle, and confirm rows appear in
+    `admin_customer_messages`. This is a live delivery test, so use only contact
+    details you control.
+27. Run `supabase/manual_booking_payment_preferences.sql`, then redeploy
+    `admin-manual-booking` and the admin portal. Create controlled manual
+    bookings using each payment plan. Confirm Stripe Checkout and external
+    payment remain locked until phone, identity, approved license,
+    rental-specific approved insurance, and agreement are complete. Never type
+    card data into the admin portal; the on-device option opens Stripe Checkout.
+28. Follow `TOLLSPOT_INTEGRATION.md` for the staged Customer API integration.
+    The supplied contract requires server-side polling with `X-API-KEY`; it does
+    not define webhooks. The credential is stored in Supabase Secrets as
+    `TOLLSPOT_API_KEY`; its protected local copy remains only in the ignored
+    server environment. The production database migration and `tollspot-sync`
+    Edge Function are deployed with scheduled synchronization disabled. The
+    production base URL `https://selfserve.tollspot.app/api` was confirmed from
+    TollSpot's onboarding email, and the deployed read-only health check
+    connected successfully on July 27, 2026. Confirm sandbox availability,
+    rate limits, date semantics, and remaining provider-contract questions.
+    Rotate the API key because it appeared in a troubleshooting screenshot.
+    Do not enable customer-charge creation until the pilot reconciles exactly
+    and duplicate, matching, authorization, and rollback tests pass.
+29. Deploy the coordinated automated-billing upgrade: apply
+    `20260727190000_automated_billing_tolls_discounts.sql`, deploy
+    `tollspot-sync` and `stripe-web-hook`, run
+    `supabase/tollspot_automatic_schedule.sql`, and publish both portals.
+    Re-run the TollSpot reconciliation first. Then confirm deterministic tolls
+    create one pending rental charge, ambiguous tolls stay in the exception
+    queue, unpaid charges block both deposit-refund paths, discounts change the
+    customer and Stripe totals identically, and the Settings automation switch
+    schedules or pauses deposit refunds as expected.
 
 ## Strongly recommended before public launch
 
