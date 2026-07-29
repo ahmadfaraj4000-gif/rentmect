@@ -127,7 +127,9 @@
 }
 
 .cars2-date-panel {
+  box-sizing: border-box;
   width: min(1240px, calc(100% - 40px));
+  max-width: calc(100% - 40px);
   margin: 0 auto 24px;
   padding: 24px;
   border: 1px solid var(--cars2-line);
@@ -146,11 +148,13 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+  min-width: 0;
 }
 
 .cars2-trip-fields label {
   display: grid;
   gap: 7px;
+  min-width: 0;
 }
 
 .cars2-trip-fields label > span {
@@ -166,6 +170,7 @@
 .cars2-search input {
   box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
   min-width: 0;
   height: 54px;
   min-height: 54px;
@@ -1120,6 +1125,9 @@ body.cars2-modal-open {
   .cars2-trip-fields input[type="date"] {
     display: flex;
     align-items: center;
+    inline-size: 100%;
+    max-inline-size: 100%;
+    min-inline-size: 0;
     text-align: center;
   }
 
@@ -1235,6 +1243,10 @@ body.cars2-modal-open {
   .cars2-date-panel,
   .cars2-booking-card {
     padding: 16px;
+  }
+
+  .cars2-date-panel {
+    max-width: calc(100% - 24px);
   }
 
   .cars2-insurance-top-actions {
