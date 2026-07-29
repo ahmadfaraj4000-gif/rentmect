@@ -59,12 +59,13 @@
 
   document.addEventListener("DOMContentLoaded", initialize);
 
-  function initialize() {
+  async function initialize() {
     cacheElements();
     populateTimeOptions();
     normalizeInitialTrip();
     syncTripFields();
     bindEvents();
+    await abandonReturnedCheckout();
     loadVehicles();
   }
 
@@ -161,6 +162,10 @@
       if (event.key === "Escape" && !elements.cars2InsuranceModal.hidden) closeInsuranceReminder();
     });
     window.addEventListener("popstate", applyUrlState);
+    window.addEventListener("pageshow", () => {
+      if (!new URL(window.location.href).searchParams.has("abandonBooking")) return;
+      abandonReturnedCheckout().then(() => checkAvailability());
+    });
   }
 
   function openInsuranceReminder() {
@@ -473,7 +478,7 @@
       const fresh = await checkAvailability();
       const available = state.availability.get(vehicle.id)?.available === true;
       if (!fresh || !available) throw new Error("NO_LONGER_AVAILABLE");
-      const response = await apiFetch("/rest/v1/rpc/create_website_pending_booking", {
+      const response = await apiFetch("/rest/v1/rpc/create_website_pending_booking_with_token", {
         method: "POST",
         body: JSON.stringify({
           p_pickup_date: state.trip.pickupDate,
@@ -484,13 +489,22 @@
           p_selected_vehicle_name: vehicle.name,
         }),
       });
-      const bookingId = await response.json();
-      if (!isUuid(bookingId)) throw new Error("INVALID_BOOKING");
+      const bookingPayload = await response.json();
+      const checkout = Array.isArray(bookingPayload) ? bookingPayload[0] : bookingPayload;
+      const bookingId = checkout?.booking_id || "";
+      const abandonToken = checkout?.abandon_token || "";
+      if (!isUuid(bookingId) || !isUuid(abandonToken)) throw new Error("INVALID_BOOKING");
+      const returnUrl = new URL(window.location.href);
+      syncTripToUrl(returnUrl);
+      returnUrl.searchParams.set("abandonBooking", bookingId);
+      returnUrl.searchParams.set("abandonToken", abandonToken);
+      history.replaceState({}, "", returnUrl);
       const portalUrl = new URL(PORTAL_URL);
       portalUrl.searchParams.set("booking", bookingId);
       portalUrl.searchParams.set("preview", "1");
       portalUrl.searchParams.set("source", "cars2");
       portalUrl.searchParams.set("holdExpires", new Date(Date.now() + 25 * 60000).toISOString());
+      portalUrl.searchParams.set("abandonToken", abandonToken);
       const promo = sanitizePromo(url.searchParams.get("promo"));
       if (promo) portalUrl.searchParams.set("promo", promo);
       window.location.assign(portalUrl.toString());
@@ -501,6 +515,32 @@
         ? "That vehicle was just taken for these dates. Choose another vehicle or change the dates."
         : friendlyError(error, "The secure checkout hold could not be created. Please retry.");
       showError(elements.cars2DetailError, message);
+    }
+  }
+
+  async function abandonReturnedCheckout() {
+    const checkoutUrl = new URL(window.location.href);
+    const bookingId = checkoutUrl.searchParams.get("abandonBooking") || "";
+    const abandonToken = checkoutUrl.searchParams.get("abandonToken") || "";
+    if (!isUuid(bookingId) || !isUuid(abandonToken)) return;
+    try {
+      await apiFetch("/rest/v1/rpc/abandon_website_checkout", {
+        method: "POST",
+        body: JSON.stringify({
+          p_booking_id: bookingId,
+          p_abandon_token: abandonToken,
+          p_rental_id: null,
+        }),
+      });
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete("abandonBooking");
+      cleanUrl.searchParams.delete("abandonToken");
+      history.replaceState({}, "", cleanUrl);
+    } catch (error) {
+      showError(
+        elements.cars2Error,
+        friendlyError(error, "Your previous checkout is still being released. Refresh this page before choosing another vehicle."),
+      );
     }
   }
 
