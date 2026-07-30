@@ -13,13 +13,26 @@
     "191-1", "191-2", "210-1", "210-2", "225-2", "321-1",
     "451-2", "474-1", "649-2", "656-1", "656-2", "656-3",
   ]);
-  const VEHICLE_FEATURE_GROUPS = {
-    suv: new Set(["100", "148", "149", "203", "210", "225", "234", "474", "997"]),
-    compactSuv: new Set(["649", "650"]),
-    hatchback: new Set(["656"]),
-    truck: new Set(["191"]),
-    van: new Set(["451", "452"]),
-  };
+  const FEATURE_PRIORITY = [
+    "Apple CarPlay",
+    "Blind spot warning",
+    "Lane keeping assist",
+    "Backup camera",
+    "Android Auto",
+    "Adaptive cruise control",
+    "Automatic emergency braking",
+    "Forward collision warning",
+    "Parking sensors",
+    "Rear cross-traffic alert",
+    "Heated seats",
+    "Sunroof",
+    "Bluetooth",
+    "GPS",
+    "Keyless entry",
+    "USB charger",
+    "USB input",
+    "AUX input",
+  ];
   const TIME_OPTIONS = Array.from({ length: 30 }, (_, index) => {
     const minutes = 9 * 60 + index * 30;
     const hour = Math.floor(minutes / 60);
@@ -272,10 +285,10 @@
         : result?.reason
           ? `Unavailable: ${result.reason}`
           : "Unavailable";
-    const deposit = Number(vehicle.security_deposit ?? 300);
     const pricingDays = Math.max(1, Number(state.pricingDays) || 1);
     const displayedPrice = Number(vehicle.daily_rate || 0) * pricingDays;
     const images = vehicleImages(vehicle);
+    const highlights = vehicleHighlights(vehicle);
     return `
       <article class="cars2-vehicle-card" data-gallery-vehicle-id="${escapeHtml(vehicle.id)}" data-gallery-index="0">
         <div class="cars2-card-image">
@@ -291,11 +304,9 @@
         <div class="cars2-card-body">
           <span class="cars2-card-status ${statusClass}" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${escapeHtml(status)}</span>
           <h2>${escapeHtml(vehicle.name || "Rent Me CT vehicle")}</h2>
-          <p class="cars2-card-meta">${escapeHtml(vehicleFeatures(vehicle).join(" • "))}</p>
+          <p class="cars2-card-meta">${escapeHtml(vehicleCardMeta(vehicle))}</p>
           <ul>
-            <li>200 miles per day included</li>
-            <li>${money(deposit)} refundable deposit</li>
-            <li>Three-hour turnaround protected</li>
+            ${highlights.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}
           </ul>
           <p class="cars2-card-price"><strong>${money(displayedPrice)}</strong><span>/ ${pricingDays} ${pricingDays === 1 ? "day" : "days"}</span></p>
           <button class="cars2-card-button" type="button" data-vehicle-id="${escapeHtml(vehicle.id)}" ${checking || !available ? "disabled" : ""}>
@@ -350,7 +361,7 @@
     elements.cars2VehicleDescription.textContent = vehicle.description || "A clean, reliable Rent Me CT vehicle maintained for your trip.";
     elements.cars2DailyRate.textContent = money(vehicle.daily_rate);
     state.galleryIndex = 0;
-    elements.cars2Thumbnails.innerHTML = images.slice(0, 5).map((image, index) => `
+    elements.cars2Thumbnails.innerHTML = images.map((image, index) => `
       <button type="button" class="${index === 0 ? "active" : ""}" data-image-index="${index}" aria-label="Show ${escapeHtml(vehicle.name || "vehicle")} photo ${index + 1}">
         <img src="${escapeHtml(image)}" alt="" onerror="this.closest('button').hidden=true" />
       </button>`).join("");
@@ -646,6 +657,7 @@
 
   function vehicleImages(vehicle) {
     const uploaded = list(vehicle?.image_urls);
+    if (uploaded.length) return [...new Set(uploaded)].slice(0, 20);
     const normalized = String(vehicle?.name || "")
       .replace(/Mercedes[- ]Benz/i, "Mercedes-Benz")
       .replace(/[^a-zA-Z0-9]+/g, "-")
@@ -657,15 +669,28 @@
   }
 
   function vehicleFeatures(vehicle) {
-    const saved = list(vehicle?.features);
-    if (saved.length) return saved;
-    const fleet = fleetNumber(vehicle);
-    if (VEHICLE_FEATURE_GROUPS.compactSuv.has(fleet)) return ["SUV", "Compact", "Efficient"];
-    if (VEHICLE_FEATURE_GROUPS.hatchback.has(fleet)) return ["Compact", "Hatchback", "Efficient"];
-    if (VEHICLE_FEATURE_GROUPS.truck.has(fleet)) return ["Truck", "4x4", "Work Ready"];
-    if (VEHICLE_FEATURE_GROUPS.van.has(fleet)) return ["Van", "Passenger/Utility", "Spacious"];
-    if (VEHICLE_FEATURE_GROUPS.suv.has(fleet)) return ["SUV", "Luxury", "Comfortable"];
-    return ["Sedan", "Luxury", "Comfortable"];
+    return [...new Set(list(vehicle?.features).map((feature) => String(feature).trim()).filter(Boolean))];
+  }
+
+  function vehicleHighlights(vehicle) {
+    const saved = vehicleFeatures(vehicle);
+    const priority = new Map(FEATURE_PRIORITY.map((feature, index) => [feature.toLowerCase(), index]));
+    return saved
+      .map((feature, index) => ({
+        feature,
+        index,
+        rank: priority.get(feature.toLowerCase()) ?? FEATURE_PRIORITY.length + index,
+      }))
+      .sort((left, right) => left.rank - right.rank || left.index - right.index)
+      .slice(0, 3)
+      .map(({ feature }) => feature);
+  }
+
+  function vehicleCardMeta(vehicle) {
+    return [vehicle?.vehicle_type, vehicle?.brand, vehicle?.model]
+      .map((value) => String(value || "").trim())
+      .filter((value, index, values) => value && values.findIndex((item) => item.toLowerCase() === value.toLowerCase()) === index)
+      .join(" • ") || "Rent Me CT vehicle";
   }
 
   function slideCardImage(card, direction) {
