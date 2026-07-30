@@ -6,6 +6,9 @@
   --cars2-ink: #151816;
   --cars2-copy: #58625d;
   --cars2-danger: #a62b32;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .cars2-skip-link {
@@ -154,7 +157,10 @@
 .cars2-trip-fields label {
   display: grid;
   gap: 7px;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
+  overflow: hidden;
 }
 
 .cars2-trip-fields label > span {
@@ -417,6 +423,9 @@
 }
 
 .cars2-vehicle-card {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   border: 1px solid var(--cars2-line);
   border-radius: 16px;
@@ -862,6 +871,9 @@
   position: sticky;
   top: 104px;
   align-self: start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 22px;
   border: 1px solid var(--cars2-line);
   border-radius: 16px;
@@ -1113,15 +1125,22 @@ body.cars2-modal-open {
   }
 
   .cars2-trip-fields input[type="date"] {
-    display: flex;
-    align-items: center;
-    inline-size: 100%;
-    max-inline-size: 100%;
-    min-inline-size: 0;
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    inline-size: 100% !important;
+    max-inline-size: 100% !important;
+    min-inline-size: 0 !important;
+    -webkit-appearance: none;
+    appearance: none;
     text-align: center;
   }
 
   .cars2-trip-fields input[type="date"]::-webkit-date-and-time-value {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     min-height: 1.4em;
     margin: 0;
     line-height: 1.4;
