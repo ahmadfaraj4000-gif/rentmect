@@ -372,7 +372,9 @@
     });
     showDetailImage(0);
     const features = vehicleFeatures(vehicle);
-    elements.cars2Features.innerHTML = features.map((feature) => `<span>${escapeHtml(feature)}</span>`).join("");
+    elements.cars2Features.innerHTML = features
+      .map((feature) => `<span role="listitem">${escapeHtml(feature)}</span>`)
+      .join("");
     syncTripFields();
     renderDetailAvailability();
   }
