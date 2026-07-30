@@ -149,11 +149,27 @@ includes('cars-2.js', 'create_website_pending_booking', 'Cars-2 creates the data
 includes('cars-2.js', 'NO_LONGER_AVAILABLE', 'Cars-2 protects the final availability race');
 includes('cars-2.js', 'neq.${TEST_VEHICLE_ID}', 'Cars-2 excludes the internal test vehicle');
 includes('cars-2.js', 'portalUrl.searchParams.set("promo", promo)', 'Cars-2 carries promotion codes to checkout');
-includes('cars-2.js', 'Array.from({ length: 4 }', 'Cars-2 appends the same four supporting photos as cars.html');
-includes('cars-2.js', '].slice(0, 5)', 'Cars-2 caps every gallery at five photos');
+includes('cars-2.js', 'Array.from({ length: 4 }', 'Cars-2 retains the four-photo legacy fallback while Supabase is unavailable');
+includes('cars-2.js', 'if (uploaded.length) return [...new Set(uploaded)].slice(0, 20)', 'Cars-2 uses the complete admin-managed Supabase gallery');
 includes('cars-2.js', 'data-gallery-direction', 'Cars-2 fleet cards expose previous and next photo controls');
 includes('cars-2.js', 'showDetailImage', 'Cars-2 booking preview has an interactive gallery');
 includes('cars-2.js', 'vehicleFeatures(vehicle)', 'Cars-2 uses one vehicle-feature source across cards and details');
+check('Cars-2 cards rank and show exactly three useful saved features',
+  cars2Js.includes('const highlights = vehicleHighlights(vehicle)')
+  && cars2Js.includes('.slice(0, 3)')
+  && cars2Js.includes('"Apple CarPlay"')
+  && cars2Js.includes('"Blind spot warning"')
+  && cars2Js.includes('"Backup camera"'));
+check('Cars-2 cards no longer show mileage or turnaround filler',
+  !cars2Js.includes('<li>200 miles per day included</li>')
+  && !cars2Js.includes('<li>Three-hour turnaround protected</li>'));
+check('Published Supabase vehicles require pictures and three features',
+  read('supabase/migrations/20260730193000_vehicle_catalog_source_of_truth.sql')
+    .includes('vehicles_published_catalog_complete')
+  && read('supabase/migrations/20260730193000_vehicle_catalog_source_of_truth.sql')
+    .includes('coalesce(cardinality(features), 0) >= 3')
+  && read('supabase/migrations/20260730193000_vehicle_catalog_source_of_truth.sql')
+    .includes('coalesce(cardinality(image_urls), 0) >= 1'));
 check('Cars-2 no longer displays the empty feature placeholder', !cars2Js.includes('Vehicle features are being updated.'));
 check('Cars-2 is labeled as Supabase at the bottom without a testing banner',
   cars2Html.includes('class="cars2-provider-signature"')
