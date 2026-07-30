@@ -1209,3 +1209,246 @@ function sendChatMessage(event) {
   input.value = "";
   messages.scrollTop = messages.scrollHeight;
 }
+
+/* Privacy choices and shared legal navigation.
+   The public site currently does not load analytics or advertising pixels. This
+   manager keeps that default explicit and gives future non-essential services a
+   single consent gate through window.rentmectConsent.allows(category). */
+const RENTMECT_CONSENT_KEY = "rentmect_privacy_choices_v1";
+const RENTMECT_CONSENT_VERSION = "2026-07-30";
+
+function rentmectDefaultConsent() {
+  const globalPrivacyControl = navigator.globalPrivacyControl === true;
+  return {
+    necessary: true,
+    functional: false,
+    analytics: false,
+    marketing: false,
+    globalPrivacyControl,
+    version: RENTMECT_CONSENT_VERSION,
+    timestamp: null,
+  };
+}
+
+function readRentmectConsent() {
+  const defaults = rentmectDefaultConsent();
+  try {
+    const stored = JSON.parse(localStorage.getItem(RENTMECT_CONSENT_KEY) || "null");
+    if (!stored || stored.version !== RENTMECT_CONSENT_VERSION) return defaults;
+    return {
+      ...defaults,
+      functional: Boolean(stored.functional),
+      analytics: defaults.globalPrivacyControl ? false : Boolean(stored.analytics),
+      marketing: defaults.globalPrivacyControl ? false : Boolean(stored.marketing),
+      timestamp: stored.timestamp || null,
+    };
+  } catch (_) {
+    return defaults;
+  }
+}
+
+function saveRentmectConsent(next) {
+  const globalPrivacyControl = navigator.globalPrivacyControl === true;
+  const value = {
+    necessary: true,
+    functional: Boolean(next.functional),
+    analytics: globalPrivacyControl ? false : Boolean(next.analytics),
+    marketing: globalPrivacyControl ? false : Boolean(next.marketing),
+    globalPrivacyControl,
+    version: RENTMECT_CONSENT_VERSION,
+    timestamp: new Date().toISOString(),
+  };
+  try {
+    localStorage.setItem(RENTMECT_CONSENT_KEY, JSON.stringify(value));
+  } catch (_) {
+    // Preferences still apply for this page view if browser storage is blocked.
+  }
+  window.dispatchEvent(new CustomEvent("rentmect:consent-changed", { detail: value }));
+  return value;
+}
+
+function ensureRentmectFooterLinks() {
+  document.querySelectorAll(".footer-legal").forEach((nav) => {
+    const links = [
+      ["privacy-policy.html", "Privacy Policy"],
+      ["terms.html", "Terms of Service"],
+      ["cookie-policy.html", "Cookie Policy"],
+      ["accessibility.html", "Accessibility"],
+      ["rental-policies.html", "Rental Policies"],
+      ["sitemap.html", "Sitemap"],
+      ["privacy-choices.html", "Do Not Sell or Share My Personal Information"],
+    ];
+    links.forEach(([href, label]) => {
+      if (nav.querySelector(`a[href="${href}"]`)) return;
+      const link = document.createElement("a");
+      link.href = href;
+      link.textContent = label;
+      nav.appendChild(link);
+    });
+    if (!nav.querySelector("[data-manage-cookie-preferences]")) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "footer-privacy-button";
+      button.dataset.manageCookiePreferences = "";
+      button.textContent = "Manage Cookie Preferences";
+      nav.appendChild(button);
+    }
+  });
+}
+
+function ensureRentmectSkipLink() {
+  const main = document.querySelector("main");
+  if (!main) return;
+  if (!main.id) main.id = "main-content";
+  if (document.querySelector(".skip-link")) return;
+  const link = document.createElement("a");
+  link.className = "skip-link";
+  link.href = `#${main.id}`;
+  link.textContent = "Skip to main content";
+  document.body.prepend(link);
+}
+
+function initializeRentmectPrivacyChoices() {
+  if (document.getElementById("rentmectConsentBanner")) return;
+
+  ensureRentmectFooterLinks();
+  ensureRentmectSkipLink();
+
+  const banner = document.createElement("section");
+  banner.id = "rentmectConsentBanner";
+  banner.className = "privacy-banner";
+  banner.setAttribute("aria-label", "Privacy choices");
+  banner.innerHTML = `
+    <div>
+      <strong>Your privacy choices</strong>
+      <p>We use necessary browser storage for booking, security, and sign-in. We do not currently load advertising or analytics pixels. You can accept, reject, or customize any future non-essential storage.</p>
+      <a href="cookie-policy.html">Read the Cookie Policy</a>
+    </div>
+    <div class="privacy-banner-actions">
+      <button type="button" data-consent="accept">Accept all</button>
+      <button type="button" data-consent="reject">Reject non-essential</button>
+      <button type="button" data-consent="customize">Customize</button>
+    </div>`;
+
+  const modal = document.createElement("div");
+  modal.id = "rentmectConsentModal";
+  modal.className = "privacy-modal";
+  modal.hidden = true;
+  modal.innerHTML = `
+    <button type="button" class="privacy-modal-backdrop" data-consent-close aria-label="Close privacy preferences"></button>
+    <section class="privacy-modal-panel" role="dialog" aria-modal="true" aria-labelledby="rentmectConsentTitle" tabindex="-1">
+      <div class="privacy-modal-header">
+        <div>
+          <p class="eyebrow">Privacy controls</p>
+          <h2 id="rentmectConsentTitle">Manage cookie and storage preferences</h2>
+        </div>
+        <button type="button" class="privacy-modal-close" data-consent-close aria-label="Close privacy preferences">×</button>
+      </div>
+      <p>Necessary storage supports requested booking, fraud prevention, portal authentication, and your saved privacy choice. The public website currently has no analytics or advertising pixels.</p>
+      <div class="privacy-choice-list">
+        <label><span><strong>Necessary</strong><small>Booking handoff, security, sign-in, and consent records. Always on.</small></span><input type="checkbox" checked disabled /></label>
+        <label><span><strong>Functional</strong><small>Optional display preferences, such as remembering a dismissed promotion.</small></span><input id="rentmectConsentFunctional" type="checkbox" /></label>
+        <label><span><strong>Analytics</strong><small>Audience measurement. No analytics provider is currently active.</small></span><input id="rentmectConsentAnalytics" type="checkbox" /></label>
+        <label><span><strong>Marketing</strong><small>Targeted advertising. No advertising pixel is currently active.</small></span><input id="rentmectConsentMarketing" type="checkbox" /></label>
+      </div>
+      <p id="rentmectGpcNotice" class="privacy-gpc-notice" hidden><strong>Global Privacy Control detected.</strong> Analytics and marketing choices remain off while this browser signal is enabled.</p>
+      <div class="privacy-modal-actions">
+        <button type="button" data-consent-save>Save choices</button>
+        <button type="button" data-consent-modal-reject>Reject non-essential</button>
+      </div>
+      <p class="privacy-detail-link"><a href="privacy-choices.html">View privacy rights and opt-out information</a></p>
+    </section>`;
+
+  document.body.append(banner, modal);
+
+  const panel = modal.querySelector(".privacy-modal-panel");
+  const functional = modal.querySelector("#rentmectConsentFunctional");
+  const analytics = modal.querySelector("#rentmectConsentAnalytics");
+  const marketing = modal.querySelector("#rentmectConsentMarketing");
+  const gpcNotice = modal.querySelector("#rentmectGpcNotice");
+  let previousFocus = null;
+
+  const syncControls = () => {
+    const current = readRentmectConsent();
+    functional.checked = current.functional;
+    analytics.checked = current.analytics;
+    marketing.checked = current.marketing;
+    analytics.disabled = current.globalPrivacyControl;
+    marketing.disabled = current.globalPrivacyControl;
+    gpcNotice.hidden = !current.globalPrivacyControl;
+  };
+
+  const closeModal = () => {
+    modal.hidden = true;
+    document.body.classList.remove("privacy-modal-open");
+    if (previousFocus instanceof HTMLElement) previousFocus.focus();
+  };
+
+  const openModal = () => {
+    previousFocus = document.activeElement;
+    syncControls();
+    modal.hidden = false;
+    document.body.classList.add("privacy-modal-open");
+    window.requestAnimationFrame(() => panel.focus());
+  };
+
+  const finishChoice = (choice) => {
+    saveRentmectConsent(choice);
+    banner.hidden = true;
+    closeModal();
+  };
+
+  banner.querySelector('[data-consent="accept"]').addEventListener("click", () => {
+    finishChoice({ functional: true, analytics: true, marketing: true });
+  });
+  banner.querySelector('[data-consent="reject"]').addEventListener("click", () => {
+    finishChoice({ functional: false, analytics: false, marketing: false });
+  });
+  banner.querySelector('[data-consent="customize"]').addEventListener("click", openModal);
+  modal.querySelector("[data-consent-save]").addEventListener("click", () => {
+    finishChoice({
+      functional: functional.checked,
+      analytics: analytics.checked,
+      marketing: marketing.checked,
+    });
+  });
+  modal.querySelector("[data-consent-modal-reject]").addEventListener("click", () => {
+    finishChoice({ functional: false, analytics: false, marketing: false });
+  });
+  modal.querySelectorAll("[data-consent-close]").forEach((button) => button.addEventListener("click", closeModal));
+  document.querySelectorAll("[data-manage-cookie-preferences]").forEach((button) => button.addEventListener("click", openModal));
+  document.addEventListener("keydown", (event) => {
+    if (modal.hidden) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = [...panel.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+      .filter((element) => element.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
+  banner.hidden = Boolean(readRentmectConsent().timestamp);
+  window.rentmectConsent = {
+    get: readRentmectConsent,
+    allows: (category) => category === "necessary" || Boolean(readRentmectConsent()[category]),
+    open: openModal,
+  };
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeRentmectPrivacyChoices);
+} else {
+  initializeRentmectPrivacyChoices();
+}
