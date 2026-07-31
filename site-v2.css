@@ -620,11 +620,16 @@
   font-size: 13px;
 }
 
-.site-v2 .site-footer p,
-.site-v2 .site-footer a {
+.site-v2 .site-footer p {
   color: #303832;
   font-size: 12px;
   line-height: 1.7;
+}
+
+.site-v2 .site-footer a {
+  color: #303832;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .site-v2 .site-footer a:hover {
@@ -633,8 +638,38 @@
 
 .site-v2 .site-footer .powered-credit,
 .site-v2 .site-footer .powered-credit a,
-.site-v2 .site-footer .footer-legal a {
+.site-v2 .site-footer .footer-legal a,
+.site-v2 .site-footer .footer-legal .footer-privacy-button {
   color: #252c27;
+}
+
+.site-v2 .site-footer .powered-credit,
+.site-v2 .site-footer .powered-credit a {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.site-v2 .site-footer .footer-legal a,
+.site-v2 .site-footer .footer-legal .footer-privacy-button {
+  min-height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+
+.site-v2 .site-footer .footer-legal a:hover,
+.site-v2 .site-footer .footer-legal .footer-privacy-button:hover {
+  color: #111512;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .site-v2 .footer-bottom {

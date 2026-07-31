@@ -504,11 +504,13 @@ body.cars-wheelbase-v2 {
 .cars-wheelbase-v2 .site-footer p,
 .cars-wheelbase-v2 .site-footer a,
 .cars-wheelbase-v2 .site-footer .powered-credit,
-.cars-wheelbase-v2 .site-footer .footer-legal a {
+.cars-wheelbase-v2 .site-footer .footer-legal a,
+.cars-wheelbase-v2 .site-footer .footer-legal .footer-privacy-button {
   color: #303832;
 }
 
 .cars-wheelbase-v2 .site-footer a:hover,
+.cars-wheelbase-v2 .site-footer .footer-legal .footer-privacy-button:hover,
 .cars-wheelbase-v2 .site-footer .powered-credit a {
   color: #111512;
 }

@@ -808,6 +808,13 @@ img {
   margin: 8px 0;
 }
 
+.site-footer a {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
 .site-footer h3 {
   margin-bottom: 14px;
 }
@@ -824,14 +831,48 @@ img {
 
 .footer-legal {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 10px 22px;
 }
 
 .footer-legal a,
+.footer-legal .footer-privacy-button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  min-height: 20px;
+}
+
 .powered-credit,
 .powered-credit a {
   margin: 0;
+}
+
+.footer-legal a,
+.footer-legal .footer-privacy-button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #c6cad4;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-align: left;
+  text-decoration: none;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.footer-legal a:hover,
+.footer-legal .footer-privacy-button:hover {
+  color: #ffffff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .powered-credit {
@@ -844,7 +885,9 @@ img {
 .powered-credit a {
   display: inline;
   color: #ffffff;
+  font-size: inherit;
   font-weight: 950;
+  line-height: inherit;
 }
 
 .contact-modal {
