@@ -1125,7 +1125,9 @@ body.cars2-modal-open {
   }
 
   .cars2-trip-fields input[type="date"] {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
@@ -1137,13 +1139,19 @@ body.cars2-modal-open {
     text-align: center;
   }
 
+  .cars2-trip-fields input[type="date"]::-webkit-datetime-edit,
   .cars2-trip-fields input[type="date"]::-webkit-date-and-time-value {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    min-height: 1.4em;
+    height: 100%;
+    min-height: 100%;
     margin: 0;
-    line-height: 1.4;
+    padding: 0;
+    line-height: normal;
     text-align: center;
   }
 
