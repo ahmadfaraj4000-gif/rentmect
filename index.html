@@ -238,41 +238,51 @@
     <section class="hero">
       <div class="hero-overlay"></div>
       <div class="hero-content">
-        <p class="script-text">Liv To Drive</p>
-        <h1>Luxury &amp; Reliable Car Rentals Hartford, Ct</h1>
-        <p>
-          Rent Me CT makes it easy for Hartford-area drivers and visitors to reserve clean,
-          reliable vehicles for daily trips, weekly rentals, airport travel, business needs,
-          and special occasions.
-        </p>
+        <p class="script-text">LIV TO DRIVE</p>
+        <h1>Luxury Rentals in Hartford, CT</h1>
+        <p>Luxury vehicles for business, travel, and everyday driving. Reserve in minutes.</p>
 
-        <div class="booking-card">
-          <h2>Start Your Reservation</h2>
-          <form class="quick-booking-form" data-default-time="9:00 AM" onsubmit="startBooking(event)">
-            <div>
-              <label for="pickupDate">Pickup Date</label>
-              <input type="date" id="pickupDate" name="pickupDate" required aria-describedby="bookingSelectionSummary" />
-            </div>
+        <section class="availability-card" aria-labelledby="homepageAvailabilityTitle">
+          <h2 id="homepageAvailabilityTitle" class="availability-title">Check Availability</h2>
+          <p class="availability-copy">Choose your rental dates to see available vehicles.</p>
+          <form class="availability-form" data-booking-widget data-default-time="9:00 AM" onsubmit="startBooking(event)">
+            <label class="availability-field availability-field-date" for="pickupDate">
+              <span class="availability-label">Pickup Date</span>
+              <span class="availability-control">
+                <svg class="availability-calendar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg>
+                <input type="date" id="pickupDate" name="pickupDate" required aria-describedby="bookingSelectionSummary" />
+              </span>
+            </label>
 
-            <div>
-              <label for="returnDate">Return Date</label>
-              <input type="date" id="returnDate" name="returnDate" required aria-describedby="bookingSelectionSummary" />
-            </div>
+            <label class="availability-field availability-field-date" for="returnDate">
+              <span class="availability-label">Return Date</span>
+              <span class="availability-control">
+                <svg class="availability-calendar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg>
+                <input type="date" id="returnDate" name="returnDate" required aria-describedby="bookingSelectionSummary" />
+              </span>
+            </label>
 
-            <div>
-              <label for="pickupTime">Pickup Time</label>
-              <select id="pickupTime" name="pickupTime" required aria-describedby="bookingSelectionSummary"></select>
-            </div>
+            <label class="availability-field availability-field-time" for="pickupTime">
+              <span class="availability-label">Pickup Time</span>
+              <span class="availability-control">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                <select id="pickupTime" name="pickupTime" required aria-describedby="bookingSelectionSummary"></select>
+              </span>
+            </label>
 
-            <div>
-              <label for="returnTime">Return Time</label>
-              <select id="returnTime" name="returnTime" required aria-describedby="bookingSelectionSummary"></select>
-            </div>
+            <label class="availability-field availability-field-time" for="returnTime">
+              <span class="availability-label">Return Time</span>
+              <span class="availability-control">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                <select id="returnTime" name="returnTime" required aria-describedby="bookingSelectionSummary"></select>
+              </span>
+            </label>
 
-            <button type="submit" aria-describedby="bookingSelectionSummary">Choose Vehicle</button>
+            <button class="availability-submit" type="submit" aria-describedby="bookingSelectionSummary bookingReassurance">Check Availability</button>
           </form>
-          <p id="bookingSelectionSummary" class="booking-selection-summary" aria-live="polite"></p>
-        </div>
+          <p id="bookingSelectionSummary" class="availability-summary" aria-live="polite"></p>
+          <p id="bookingReassurance" class="availability-reassurance">No payment required to view available vehicles.</p>
+        </section>
       </div>
     </section>
 

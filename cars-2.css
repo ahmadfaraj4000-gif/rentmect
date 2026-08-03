@@ -6,9 +6,22 @@
   --cars2-ink: #151816;
   --cars2-copy: #58625d;
   --cars2-danger: #a62b32;
+  --red: var(--cars2-olive);
+  --red-bright: var(--cars2-olive-dark);
+  --red-deep: #0b2e1f;
+  --shadow-red: none;
   width: 100%;
   max-width: 100%;
   overflow-x: clip;
+}
+
+.cars-v2-page :where(.cars2-hero, .cars2-date-panel, .cars2-insurance-top-note)::before,
+.cars-v2-page :where(.cars2-hero, .cars2-date-panel, .cars2-insurance-top-note)::after {
+  background: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+  animation: none !important;
 }
 
 .cars2-skip-link {
@@ -107,26 +120,35 @@
 
 .cars2-hero .eyebrow,
 .cars2-detail-copy .eyebrow {
-  margin: 0 0 10px;
+  margin: 0 0 16px;
   color: var(--cars2-olive);
   font-size: 11px;
   font-weight: 900;
-  letter-spacing: .16em;
+  letter-spacing: .22em;
   text-transform: uppercase;
 }
 
+.cars2-hero .eyebrow {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
 .cars2-hero h1 {
-  margin: 0;
-  font-size: clamp(42px, 6vw, 68px);
-  line-height: .98;
-  letter-spacing: -.055em;
+  max-width: 780px;
+  margin: 0 auto;
+  font-size: clamp(40px, 5.4vw, 62px);
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  text-wrap: balance;
 }
 
 .cars2-hero > p:last-child {
-  max-width: 650px;
-  margin: 18px auto 0;
+  max-width: 620px;
+  margin: 20px auto 0;
   color: var(--cars2-copy);
-  font-size: 16px;
+  font-size: clamp(16px, 1.7vw, 19px);
+  line-height: 1.6;
 }
 
 .cars2-date-panel {
@@ -142,16 +164,59 @@
 }
 
 .cars2-date-panel h2 {
-  margin: 0 0 18px;
+  width: 100%;
+  max-width: none;
+  margin: 0 0 6px;
+  color: var(--cars2-ink);
   font-size: 21px;
   letter-spacing: -.025em;
+  text-align: center;
+}
+
+.cars2-date-panel-copy {
+  width: 100%;
+  max-width: none;
+  margin: 0 auto 18px;
+  color: var(--cars2-copy);
+  font-size: 14px;
+  line-height: 1.55;
+  text-align: center;
 }
 
 .cars2-trip-fields {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
   gap: 12px;
   min-width: 0;
+}
+
+.cars2-date-panel .cars2-trip-fields {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.cars2-control {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.cars2-control > svg {
+  position: absolute;
+  top: 50%;
+  left: 13px;
+  z-index: 1;
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: var(--cars2-olive);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  pointer-events: none;
+  transform: translateY(-50%);
 }
 
 .cars2-trip-fields label {
@@ -191,11 +256,86 @@
   font-weight: 700;
 }
 
+.cars2-control input,
+.cars2-control select,
+.cars2-search input {
+  padding-left: 40px;
+}
+
+.cars2-trip-fields .cars2-field-date input {
+  border-color: #aebcb3;
+  background-color: #fbfcfa;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.cars2-check-button {
+  width: 100%;
+  height: 54px;
+  min-height: 54px;
+  padding: 0 16px;
+  border: 1px solid var(--cars2-olive);
+  border-radius: 9px;
+  background: var(--cars2-olive) !important;
+  color: #fff !important;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+  text-align: center;
+  -webkit-text-fill-color: #fff;
+}
+
+.cars2-check-button:hover,
+.cars2-check-button:focus-visible {
+  border-color: var(--cars2-olive-dark);
+  background: var(--cars2-olive-dark) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+}
+
+.cars2-check-button:focus-visible {
+  outline: 3px solid rgba(97, 113, 58, .24);
+  outline-offset: 3px;
+}
+
+.cars2-check-button:disabled {
+  cursor: wait;
+  opacity: .72;
+}
+
+.cars2-trip-summary {
+  width: 100%;
+  max-width: none;
+  min-height: 20px;
+  margin: 14px auto 0;
+  color: var(--cars2-olive);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.cars2-reassurance {
+  width: 100%;
+  max-width: none;
+  margin: 4px auto 0;
+  color: var(--cars2-copy);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.5;
+  text-align: center;
+}
+
 .cars2-trip-fields input:focus,
 .cars2-trip-fields select:focus,
 .cars2-search input:focus {
   border-color: var(--cars2-olive);
   box-shadow: 0 0 0 3px rgba(97, 113, 58, .13);
+  text-shadow: none !important;
 }
 
 .cars2-fleet-tools,
@@ -1111,6 +1251,14 @@ body.cars2-modal-open {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .cars2-date-panel .cars2-trip-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cars2-check-button {
+    grid-column: 1 / -1;
+  }
+
   .cars2-trip-fields input,
   .cars2-trip-fields select {
     height: 54px;
@@ -1277,6 +1425,15 @@ body.cars2-modal-open {
 
   .cars2-trip-fields {
     grid-template-columns: 1fr;
+  }
+
+  .cars2-date-panel .cars2-trip-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .cars2-check-button {
+    grid-column: auto;
+    width: 100%;
   }
 
   .cars2-detail-fields {

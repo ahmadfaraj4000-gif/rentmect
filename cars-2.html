@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" href="assets/favicon.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="site-v2.css" />
-  <link rel="stylesheet" href="cars-2.css?v=20260730-mobile-overflow-fix" />
+  <link rel="stylesheet" href="cars-2.css?v=20260803-booking-alignment" />
   <script src="fleet-gallery-data.js" defer></script>
   <script src="script.js" defer></script>
   <script src="cars-2.js" defer></script>
@@ -54,9 +54,9 @@
   <main id="cars2Main">
     <div id="cars2FleetView">
       <section class="cars2-hero" aria-labelledby="cars2Title">
-        <p class="eyebrow">Rent Me CT fleet</p>
-        <h1 id="cars2Title">Choose your rental</h1>
-        <p>Choose your dates, see available vehicles, and start your reservation.</p>
+        <p class="eyebrow">LIV TO DRIVE</p>
+        <h1 id="cars2Title">Luxury Rentals in Hartford, CT</h1>
+        <p>Luxury vehicles for business, travel, and everyday driving. Reserve in minutes.</p>
       </section>
 
       <aside class="cars2-insurance-top-note" aria-label="Insurance requirement">
@@ -73,26 +73,42 @@
         </div>
       </aside>
 
-      <section class="cars2-date-panel" id="cars2Dates" aria-labelledby="cars2DatesTitle">
-        <h2 id="cars2DatesTitle">Choose rental dates</h2>
-        <div class="cars2-trip-fields">
-          <label>
-            <span>Pickup date</span>
-            <input id="cars2PickupDate" type="date" required />
+      <section class="availability-card" id="cars2Dates" aria-labelledby="cars2DatesTitle">
+        <h2 id="cars2DatesTitle" class="availability-title">Check Availability</h2>
+        <p class="availability-copy">Choose your rental dates to see available vehicles.</p>
+        <form id="cars2AvailabilityForm" class="availability-form" data-booking-widget>
+          <label class="availability-field availability-field-date" for="cars2PickupDate">
+            <span class="availability-label">Pickup Date</span>
+            <span class="availability-control">
+              <svg class="availability-calendar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg>
+              <input id="cars2PickupDate" type="date" required aria-describedby="cars2TripSummary" />
+            </span>
           </label>
-          <label>
-            <span>Return date</span>
-            <input id="cars2ReturnDate" type="date" required />
+          <label class="availability-field availability-field-date" for="cars2ReturnDate">
+            <span class="availability-label">Return Date</span>
+            <span class="availability-control">
+              <svg class="availability-calendar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg>
+              <input id="cars2ReturnDate" type="date" required aria-describedby="cars2TripSummary" />
+            </span>
           </label>
-          <label>
-            <span>Pickup time</span>
-            <select id="cars2PickupTime" required></select>
+          <label class="availability-field availability-field-time" for="cars2PickupTime">
+            <span class="availability-label">Pickup Time</span>
+            <span class="availability-control">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+              <select id="cars2PickupTime" required aria-describedby="cars2TripSummary"></select>
+            </span>
           </label>
-          <label>
-            <span>Return time</span>
-            <select id="cars2ReturnTime" required></select>
+          <label class="availability-field availability-field-time" for="cars2ReturnTime">
+            <span class="availability-label">Return Time</span>
+            <span class="availability-control">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+              <select id="cars2ReturnTime" required aria-describedby="cars2TripSummary"></select>
+            </span>
           </label>
-        </div>
+          <button id="cars2CheckAvailability" class="availability-submit" type="submit" aria-describedby="cars2TripSummary cars2Reassurance">Check Availability</button>
+        </form>
+        <p id="cars2TripSummary" class="availability-summary" aria-live="polite"></p>
+        <p id="cars2Reassurance" class="availability-reassurance">No payment required to view available vehicles.</p>
       </section>
 
       <section class="cars2-fleet-tools" aria-label="Fleet search and filters">

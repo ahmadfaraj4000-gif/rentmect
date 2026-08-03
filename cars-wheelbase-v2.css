@@ -8,10 +8,23 @@
 }
 
 body.cars-wheelbase-v2 {
+  --red: var(--fleet-olive);
+  --red-bright: var(--fleet-olive-dark);
+  --red-deep: #0b2e1f;
+  --shadow-red: none;
   margin: 0;
   background: var(--fleet-soft);
   color: var(--fleet-ink);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.cars-wheelbase-v2 :where(.page-hero, .booking-panel, .insurance-top-notice)::before,
+.cars-wheelbase-v2 :where(.page-hero, .booking-panel, .insurance-top-notice)::after {
+  background: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+  animation: none !important;
 }
 
 .cars-wheelbase-v2 .top-bar {
@@ -77,28 +90,44 @@ body.cars-wheelbase-v2 {
 }
 
 .cars-wheelbase-v2 .page-hero {
-  width: min(760px, calc(100% - 40px));
+  width: min(820px, calc(100% - 40px));
   margin: 0 auto;
   padding: 58px 0 28px;
   background: transparent;
   text-align: center;
 }
 
+.cars-wheelbase-v2 .page-hero .eyebrow {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
 .cars-wheelbase-v2 .page-hero h1 {
-  margin: 7px 0 0;
+  max-width: 780px;
+  margin: 16px auto 0;
   color: var(--fleet-ink);
-  font-size: clamp(42px, 6vw, 66px);
-  line-height: .98;
-  letter-spacing: -.055em;
+  font-size: clamp(40px, 5.4vw, 62px);
+  line-height: 1.1;
+  letter-spacing: -.02em;
   text-shadow: none;
+  text-wrap: balance;
 }
 
 .cars-wheelbase-v2 .eyebrow {
   color: var(--fleet-olive);
   font-size: 11px;
   font-weight: 900;
-  letter-spacing: .15em;
+  letter-spacing: .22em;
   text-transform: uppercase;
+}
+
+.cars-wheelbase-v2 .page-hero > p:last-child {
+  max-width: 620px;
+  margin: 20px auto 0;
+  color: var(--fleet-copy);
+  font-size: clamp(16px, 1.7vw, 19px);
+  line-height: 1.6;
 }
 
 .cars-wheelbase-v2 .section {
@@ -142,6 +171,25 @@ body.cars-wheelbase-v2 {
   gap: 8px;
 }
 
+.cars-wheelbase-v2 .insurance-notice-actions .btn-primary,
+.cars-wheelbase-v2 .insurance-notice-actions .btn-primary:hover,
+.cars-wheelbase-v2 .insurance-notice-actions .btn-primary:focus-visible,
+.cars-wheelbase-v2 .insurance-notice-actions .btn-primary:active {
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+  transform: none !important;
+}
+
+.cars-wheelbase-v2 .insurance-notice-actions .btn-primary::before,
+.cars-wheelbase-v2 .insurance-notice-actions .btn-primary::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
 .cars-wheelbase-v2 .booking-panel {
   margin-bottom: 24px;
   padding: 22px;
@@ -152,14 +200,57 @@ body.cars-wheelbase-v2 {
 }
 
 .cars-wheelbase-v2 .booking-panel h2 {
-  margin: 0 0 15px;
+  width: 100%;
+  max-width: none;
+  margin: 0 0 6px;
+  color: var(--fleet-ink);
   font-size: 21px;
+  text-align: center;
+}
+
+.cars-wheelbase-v2 .booking-panel-copy {
+  width: 100%;
+  max-width: none;
+  margin: 0 auto 18px;
+  color: var(--fleet-copy);
+  font-size: 14px;
+  line-height: 1.55;
+  text-align: center;
 }
 
 .cars-wheelbase-v2 .quick-booking-form {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
+  align-items: end;
+}
+
+.cars-wheelbase-v2 .conversion-booking-form {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.cars-wheelbase-v2 .booking-control {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.cars-wheelbase-v2 .booking-control > svg {
+  position: absolute;
+  top: 50%;
+  left: 13px;
+  z-index: 1;
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: var(--fleet-olive);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  pointer-events: none;
+  transform: translateY(-50%);
 }
 
 .cars-wheelbase-v2 .quick-booking-form > div {
@@ -179,6 +270,8 @@ body.cars-wheelbase-v2 {
 .cars-wheelbase-v2 .quick-booking-form input,
 .cars-wheelbase-v2 .quick-booking-form select {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 48px;
   padding: 0 13px;
   border: 1px solid #cbd2cd;
@@ -188,6 +281,80 @@ body.cars-wheelbase-v2 {
   font: inherit;
   font-size: 13px;
   font-weight: 750;
+}
+
+.cars-wheelbase-v2 .booking-control input,
+.cars-wheelbase-v2 .booking-control select {
+  padding-left: 40px;
+}
+
+.cars-wheelbase-v2 .quick-booking-form .booking-field-date input {
+  border-color: #aebcb3;
+  background-color: #fbfcfa;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.cars-wheelbase-v2 .quick-booking-form button,
+.cars-wheelbase-v2 .quick-booking-form .fleet-availability-button {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--fleet-olive);
+  border-radius: 9px;
+  background: var(--fleet-olive) !important;
+  color: #fff !important;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+  text-align: center;
+  -webkit-text-fill-color: #fff;
+}
+
+.cars-wheelbase-v2 .quick-booking-form button:hover,
+.cars-wheelbase-v2 .quick-booking-form button:focus-visible {
+  border-color: var(--fleet-olive-dark);
+  background: var(--fleet-olive-dark) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+}
+
+.cars-wheelbase-v2 :where(.quick-booking-form input, .quick-booking-form select, .quick-booking-form button):focus-visible {
+  outline: 3px solid rgba(18, 61, 42, .24);
+  outline-offset: 3px;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+.cars-wheelbase-v2 .booking-selection-summary {
+  width: 100%;
+  max-width: none;
+  min-height: 20px;
+  margin: 14px auto 0;
+  color: var(--fleet-olive);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.cars-wheelbase-v2 .booking-selection-summary.error {
+  color: #a62b32;
+}
+
+.cars-wheelbase-v2 .booking-reassurance {
+  width: 100%;
+  max-width: none;
+  margin: 4px auto 0;
+  color: var(--fleet-copy);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .cars-wheelbase-v2 .availability-filter-bar {
@@ -624,6 +791,14 @@ body.cars-wheelbase-v2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .cars-wheelbase-v2 .conversion-booking-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cars-wheelbase-v2 .quick-booking-form button {
+    grid-column: 1 / -1;
+  }
+
   .cars-wheelbase-v2 .quick-booking-form input,
   .cars-wheelbase-v2 .quick-booking-form select {
     box-sizing: border-box;
@@ -718,6 +893,15 @@ body.cars-wheelbase-v2 {
 
   .cars-wheelbase-v2 .quick-booking-form {
     grid-template-columns: 1fr;
+  }
+
+  .cars-wheelbase-v2 .conversion-booking-form {
+    grid-template-columns: 1fr;
+  }
+
+  .cars-wheelbase-v2 .quick-booking-form button {
+    grid-column: auto;
+    min-height: 56px;
   }
 
   .cars-wheelbase-v2 .booking-panel {

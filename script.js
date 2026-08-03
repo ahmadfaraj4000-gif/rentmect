@@ -860,8 +860,37 @@ function updateQuickBookingSummary(message = "", state = "") {
     month: "short",
     day: "numeric",
   });
-  summary.textContent = `${rentalDays} rental day${rentalDays === 1 ? "" : "s"} • ${shortDate(pickupDate)} at ${pickupTime} → ${shortDate(returnDate)} at ${returnTime}`;
+  summary.textContent = `${rentalDays} rental day${rentalDays === 1 ? "" : "s"} · ${shortDate(pickupDate)} at ${pickupTime} → ${shortDate(returnDate)} at ${returnTime}`;
   summary.classList.add("valid");
+}
+
+function checkFleetAvailability(event) {
+  event?.preventDefault();
+
+  const pickupDate = document.getElementById("pickupDate")?.value;
+  const returnDate = document.getElementById("returnDate")?.value;
+  const pickupTime = document.getElementById("pickupTime")?.value;
+  const returnTime = document.getElementById("returnTime")?.value;
+  const pickup = getRentalDateTime(pickupDate, pickupTime);
+  const dropoff = getRentalDateTime(returnDate, returnTime);
+
+  if (!pickup || !dropoff) {
+    updateQuickBookingSummary("Choose all four date and time fields.", "error");
+    return;
+  }
+  if (dropoff <= pickup) {
+    updateQuickBookingSummary("Return must be after pickup.", "error");
+    return;
+  }
+  if (pickup <= new Date()) {
+    updateQuickBookingSummary("Pickup must be later than the current time.", "error");
+    normalizeRentalTimeInputs({ notify: true });
+    return;
+  }
+
+  updateQuickBookingSummary();
+  window.syncVehicleAvailability?.();
+  document.getElementById("availabilityFilterStatus")?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function setMinDates() {
@@ -887,13 +916,13 @@ function setMinDates() {
 
   document.getElementById("pickupTime")?.addEventListener("change", () => {
     const returnTime = document.getElementById("returnTime");
-    if (document.querySelector(".quick-booking-form") && returnTime && !quickBookingReturnTimeCustomized) {
+    if (document.querySelector("[data-booking-widget]") && returnTime && !quickBookingReturnTimeCustomized) {
       returnTime.value = document.getElementById("pickupTime").value;
     }
     normalizeRentalTimeInputs({ notify: true });
   });
   document.getElementById("returnTime")?.addEventListener("change", () => {
-    if (document.querySelector(".quick-booking-form")) quickBookingReturnTimeCustomized = true;
+    if (document.querySelector("[data-booking-widget]")) quickBookingReturnTimeCustomized = true;
     normalizeRentalTimeInputs({ notify: true });
   });
 
@@ -971,7 +1000,7 @@ function loadBookingDatesIntoForm() {
 
   const pickupDate = params.get("pickupDate") || bookingData.pickupDate || bookingData.pickup_date || "";
   const returnDate = params.get("returnDate") || bookingData.returnDate || bookingData.return_date || "";
-  const formDefaultTime = document.querySelector(".quick-booking-form")?.dataset.defaultTime || "";
+  const formDefaultTime = document.querySelector("[data-booking-widget]")?.dataset.defaultTime || "";
   const pickupTime = params.get("pickupTime") || formDefaultTime || bookingData.pickupTime || bookingData.pickup_time || "9:00 AM";
   const returnTime = params.get("returnTime") || formDefaultTime || bookingData.returnTime || bookingData.return_time || "9:00 AM";
 
