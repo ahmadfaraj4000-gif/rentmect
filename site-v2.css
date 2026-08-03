@@ -1030,24 +1030,6 @@
   }
 }
 
-.skip-link {
-  position: fixed;
-  z-index: 10020;
-  top: 10px;
-  left: 10px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  background: #fff;
-  color: #123b2a;
-  font-weight: 800;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, .22);
-  transform: translateY(-160%);
-}
-
-.skip-link:focus {
-  transform: translateY(0);
-}
-
 .footer-legal {
   flex-wrap: wrap;
 }

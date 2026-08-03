@@ -48,41 +48,87 @@ body.cars-wheelbase-v2 {
 }
 
 .cars-wheelbase-v2 .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 76px;
-  padding: 0 max(24px, calc((100vw - 1240px) / 2));
-  border-bottom: 1px solid var(--fleet-line);
-  background: rgba(255, 255, 255, .97);
+  min-height: 72px;
+  padding: 0 max(20px, calc((100vw - 1240px) / 2));
+  border-bottom: 1px solid #dce1dc;
+  background: rgba(255, 255, 255, .98);
   box-shadow: none;
+  backdrop-filter: blur(18px);
+}
+
+.cars-wheelbase-v2 .logo-wrap {
+  position: static;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  margin-right: auto;
+  line-height: 0;
+  transform: none;
 }
 
 .cars-wheelbase-v2 .logo-wrap img {
   width: 112px;
-  max-height: 56px;
+  max-height: 48px;
   object-fit: contain;
 }
 
 .cars-wheelbase-v2 .site-header nav {
   display: flex;
   align-items: center;
-  gap: 24px;
+  width: auto;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 750;
 }
 
 .cars-wheelbase-v2 .site-header nav a {
-  color: #354039;
-  font-size: 13px;
-  font-weight: 800;
+  color: #3d463f;
+  font-size: inherit;
+  font-weight: inherit;
   text-decoration: none;
 }
 
+.cars-wheelbase-v2 .site-header nav > a:not(.nav-cta) {
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #3d463f;
+}
+
+.cars-wheelbase-v2 .site-header nav > a:not(.nav-cta):hover {
+  background: #e6f0ea;
+  color: var(--fleet-olive-dark);
+}
+
 .cars-wheelbase-v2 .site-header nav .nav-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 44px;
-  padding: 0 18px;
+  padding: 11px 18px;
+  border: 1px solid var(--fleet-olive);
   border-radius: 9px;
   background: var(--fleet-olive);
-  color: #fff;
+  color: #fff !important;
+  box-shadow: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: 0;
+  transition: none;
+}
+
+.cars-wheelbase-v2 .site-header nav .nav-cta:hover {
+  border-color: var(--fleet-olive-dark);
+  background: var(--fleet-olive-dark);
+  color: #fff !important;
+  transform: none;
+  box-shadow: none;
 }
 
 .cars-wheelbase-v2 main {
@@ -704,9 +750,20 @@ body.cars-wheelbase-v2 {
   .cars-wheelbase-v2 .site-header {
     position: sticky;
     top: 0;
-    flex-wrap: nowrap;
-    min-height: 66px;
-    padding: 0 14px;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    min-height: 68px;
+    padding: 0 20px;
+  }
+
+  .cars-wheelbase-v2 .logo-wrap {
+    z-index: 1;
+    margin-right: 0;
+  }
+
+  .cars-wheelbase-v2 .logo-wrap img {
+    width: 78px;
+    max-height: 48px;
   }
 
   .cars-wheelbase-v2 .mobile-menu-btn {
@@ -756,7 +813,7 @@ body.cars-wheelbase-v2 {
 
   .cars-wheelbase-v2 .site-header nav {
     position: absolute;
-    top: calc(100% + 8px);
+    top: 68px;
     left: 12px;
     right: 12px;
     z-index: 120;
@@ -765,26 +822,20 @@ body.cars-wheelbase-v2 {
     align-items: stretch;
     flex-direction: column;
     gap: 4px;
-    margin: 0;
-    padding: 10px;
-    border: 1px solid var(--fleet-line);
-    border-radius: 14px;
+    margin-top: 18px;
+    padding: 12px;
+    border: 1px solid #dce1dc;
+    border-radius: 12px;
     background: #fff;
-    box-shadow: 0 18px 44px rgba(24, 35, 28, .16);
+    box-shadow: 0 16px 45px rgba(31, 40, 32, .075);
   }
 
   .cars-wheelbase-v2 .site-header nav.open {
     display: flex;
   }
 
-  .cars-wheelbase-v2 .site-header nav a,
-  .cars-wheelbase-v2 .site-header nav .nav-cta {
-    display: flex;
-    align-items: center;
+  .cars-wheelbase-v2 .site-header nav > a {
     width: 100%;
-    min-height: 46px;
-    padding: 0 14px;
-    border-radius: 9px;
   }
 
   .cars-wheelbase-v2 .quick-booking-form {
