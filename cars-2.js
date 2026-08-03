@@ -43,13 +43,22 @@
   });
 
   const url = new URL(window.location.href);
+  const requestedPickupDate = validDateParam(url.searchParams.get("pickupDate"));
+  const requestedPickupTime = validTimeParam(url.searchParams.get("pickupTime"));
   const state = {
     trip: {
-      pickupDate: validDateParam(url.searchParams.get("pickupDate")) || dateInput(1),
-      returnDate: validDateParam(url.searchParams.get("returnDate")) || dateInput(3),
-      pickupTime: validTimeParam(url.searchParams.get("pickupTime")) || "9:00 AM",
+      pickupDate: requestedPickupDate || dateInput(0),
+      returnDate: validDateParam(url.searchParams.get("returnDate")) || dateInput(1),
+      pickupTime: requestedPickupTime || "9:00 AM",
       returnTime: validTimeParam(url.searchParams.get("returnTime")) || "9:00 AM",
     },
+    policy: {
+      minimumRentalDays: 1,
+      minimumRentalHours: 24,
+      advanceNoticeMinutes: 0,
+      serverNow: new Date().toISOString(),
+    },
+    quote: null,
     vehicles: [],
     availability: new Map(),
     selectedId: "",
@@ -69,12 +78,14 @@
   let cardSwipeStartX = null;
   let detailSwipeStartX = null;
   let insuranceModalTrigger = null;
+  let initialTripNormalized = false;
 
   document.addEventListener("DOMContentLoaded", initialize);
 
   async function initialize() {
     cacheElements();
     populateTimeOptions();
+    await loadBookingPolicy();
     normalizeInitialTrip();
     syncTripFields();
     bindEvents();
@@ -94,9 +105,30 @@
       "cars2VehicleDescription", "cars2Features", "cars2DailyRate",
       "cars2DetailAvailability", "cars2RentalDays", "cars2RentalSubtotal",
       "cars2BookVehicle", "cars2AvailabilityForm", "cars2CheckAvailability", "cars2TripSummary",
-      "cars2DetailError", "cars2InsuranceModal",
+      "cars2PolicyNote", "cars2DetailError", "cars2InsuranceModal",
       "cars2InsuranceContinue", "cars2InsuranceReview",
     ].forEach((id) => { elements[id] = document.getElementById(id); });
+  }
+
+  async function loadBookingPolicy() {
+    try {
+      const response = await apiFetch("/rest/v1/rpc/get_public_booking_policy", {
+        method: "POST",
+        body: "{}",
+      });
+      const payload = await response.json();
+      const policy = Array.isArray(payload) ? payload[0] : payload;
+      if (policy) {
+        state.policy = {
+          minimumRentalDays: Math.max(1, Number(policy.minimum_rental_days) || 1),
+          minimumRentalHours: Math.max(24, Number(policy.minimum_rental_hours) || 24),
+          advanceNoticeMinutes: Math.max(0, Number(policy.advance_notice_minutes) || 0),
+          serverNow: policy.server_now || new Date().toISOString(),
+        };
+      }
+    } catch (error) {
+      console.warn("Booking policy could not load; database validation remains active.", error);
+    }
   }
 
   function bindEvents() {
@@ -397,10 +429,10 @@
           : "Unavailable for these dates";
     elements.cars2DetailAvailability.textContent = message;
     elements.cars2DetailAvailability.className = `cars2-availability ${state.checking ? "" : available ? "available" : "unavailable"}`;
-    const days = rentalDays(state.trip.pickupDate, state.trip.returnDate);
+    const days = state.quote?.valid ? Number(state.quote.billable_days || 0) : rentalDays();
     elements.cars2RentalDays.textContent = `${days} rental day${days === 1 ? "" : "s"}`;
     elements.cars2RentalSubtotal.textContent = money(Number(vehicle.daily_rate || 0) * days);
-    elements.cars2BookVehicle.disabled = state.checking || state.starting || !available;
+    elements.cars2BookVehicle.disabled = state.checking || state.starting || !available || state.quote?.valid === false;
     elements.cars2BookVehicle.textContent = state.starting
       ? "Starting secure checkout…"
         : state.checking
@@ -423,6 +455,7 @@
     };
     const key = mapping[id];
     state.trip[key] = elements[id].value;
+    state.quote = null;
     if (key === "pickupDate" && state.trip.returnDate <= state.trip.pickupDate) {
       state.trip.returnDate = addDays(state.trip.pickupDate, 1);
     }
@@ -457,7 +490,7 @@
       state.checking = false;
       renderVehicles();
       renderDetailAvailability();
-      showError(elements.cars2DetailError, "Return must be after pickup, and pickup cannot be in the past.");
+      showError(elements.cars2DetailError, `Choose valid pickup and return times. Rentals require at least ${state.policy.minimumRentalHours} hours.`);
       return false;
     }
     const requestId = ++state.availabilityRequest;
@@ -467,6 +500,17 @@
     renderVehicles();
     renderDetailAvailability();
     try {
+      const quote = await fetchBookingQuote();
+      state.quote = quote;
+      renderTripSummary();
+      if (!quote?.valid) {
+        state.availability.clear();
+        state.checking = false;
+        renderVehicles();
+        renderDetailAvailability();
+        showError(state.selectedId ? elements.cars2DetailError : elements.cars2Error, quote?.error || "The selected rental times are not allowed.");
+        return false;
+      }
       const response = await apiFetch("/rest/v1/rpc/get_admin_calendar_fleet_availability", {
         method: "POST",
         body: JSON.stringify({
@@ -495,6 +539,20 @@
     }
   }
 
+  async function fetchBookingQuote(vehicleId = null) {
+    const response = await apiFetch("/rest/v1/rpc/get_booking_quote", {
+      method: "POST",
+      body: JSON.stringify({
+        p_vehicle_id: vehicleId,
+        p_pickup_date: state.trip.pickupDate,
+        p_pickup_time: state.trip.pickupTime,
+        p_return_date: state.trip.returnDate,
+        p_return_time: state.trip.returnTime,
+      }),
+    });
+    return response.json();
+  }
+
   async function startBooking() {
     const vehicle = selectedVehicle();
     if (!vehicle || state.starting || !validTrip()) return;
@@ -505,6 +563,9 @@
       const fresh = await checkAvailability();
       const available = state.availability.get(vehicle.id)?.available === true;
       if (!fresh || !available) throw new Error("NO_LONGER_AVAILABLE");
+      const finalQuote = await fetchBookingQuote(vehicle.id);
+      if (!finalQuote?.valid) throw new Error(finalQuote?.error || "BOOKING_POLICY_REJECTED");
+      state.quote = finalQuote;
       const response = await apiFetch("/rest/v1/rpc/create_website_pending_booking_with_token", {
         method: "POST",
         body: JSON.stringify({
@@ -620,34 +681,55 @@
     elements.cars2DetailPickupDate.min = today;
     elements.cars2ReturnDate.min = state.trip.pickupDate;
     elements.cars2DetailReturnDate.min = state.trip.pickupDate;
+    if (elements.cars2PolicyNote) {
+      const advance = state.policy.advanceNoticeMinutes === 0
+        ? "Same-day pickup is available."
+        : `Pickup requires ${formatMinutes(state.policy.advanceNoticeMinutes)} advance notice.`;
+      elements.cars2PolicyNote.textContent = `${advance} Every rental must be at least ${state.policy.minimumRentalHours} hours.`;
+    }
     renderTripSummary();
   }
 
   function renderTripSummary() {
     if (!elements.cars2TripSummary) return;
-    const days = rentalDays(state.trip.pickupDate, state.trip.returnDate);
+    if (state.quote?.valid === false) {
+      elements.cars2TripSummary.textContent = state.quote.error || `Rentals require at least ${state.policy.minimumRentalHours} hours.`;
+      elements.cars2TripSummary.classList.remove("valid");
+      return;
+    }
+    const days = state.quote?.valid ? Number(state.quote.billable_days || 0) : rentalDays();
     const shortDate = (value) => new Date(`${value}T12:00:00`).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
     });
-    elements.cars2TripSummary.textContent = `${days} rental day${days === 1 ? "" : "s"} · ${shortDate(state.trip.pickupDate)} at ${state.trip.pickupTime} → ${shortDate(state.trip.returnDate)} at ${state.trip.returnTime}`;
-    elements.cars2TripSummary.classList.add("valid");
+    const duration = rentalMinutes();
+    const durationText = duration > 0 ? formatMinutes(duration) : "Invalid duration";
+    elements.cars2TripSummary.textContent = `${durationText} · ${days} billed day${days === 1 ? "" : "s"} · ${shortDate(state.trip.pickupDate)} at ${state.trip.pickupTime} → ${shortDate(state.trip.returnDate)} at ${state.trip.returnTime}`;
+    elements.cars2TripSummary.classList.toggle("valid", validTrip());
   }
 
   function normalizeInitialTrip() {
     const today = dateInput(0);
-    if (!validDateParam(state.trip.pickupDate) || state.trip.pickupDate < today) state.trip.pickupDate = dateInput(1);
-    if (!validDateParam(state.trip.returnDate) || state.trip.returnDate <= state.trip.pickupDate) {
-      state.trip.returnDate = addDays(state.trip.pickupDate, 1);
+    const earliestSlot = earliestPickupSlot();
+    if (!validDateParam(state.trip.pickupDate) || state.trip.pickupDate < today) state.trip.pickupDate = earliestSlot.date;
+    if (!initialTripNormalized && !requestedPickupDate && !requestedPickupTime) {
+      state.trip.pickupDate = earliestSlot.date;
+      state.trip.pickupTime = earliestSlot.time;
     }
     if (!validTimeParam(state.trip.pickupTime)) state.trip.pickupTime = "9:00 AM";
     if (!validTimeParam(state.trip.returnTime)) state.trip.returnTime = "9:00 AM";
+    if (!validDateParam(state.trip.returnDate) || rentalMinutes() < state.policy.minimumRentalHours * 60) {
+      state.trip.returnDate = addDays(state.trip.pickupDate, state.policy.minimumRentalDays);
+      state.trip.returnTime = state.trip.pickupTime;
+    }
+    initialTripNormalized = true;
   }
 
   function validTrip() {
     if (!validDateParam(state.trip.pickupDate) || !validDateParam(state.trip.returnDate)) return false;
-    if (state.trip.pickupDate < dateInput(0) || state.trip.returnDate <= state.trip.pickupDate) return false;
-    return validTimeParam(state.trip.pickupTime) && validTimeParam(state.trip.returnTime);
+    if (state.trip.pickupDate < dateInput(0)) return false;
+    if (!validTimeParam(state.trip.pickupTime) || !validTimeParam(state.trip.returnTime)) return false;
+    return rentalMinutes() > 0;
   }
 
   function applyUrlState() {
@@ -799,9 +881,68 @@
     return TIME_OPTIONS.includes(String(value || "")) ? String(value) : "";
   }
 
-  function rentalDays(start, end) {
+  function rentalMinutes() {
+    const start = tripDateTime(state.trip.pickupDate, state.trip.pickupTime);
+    const end = tripDateTime(state.trip.returnDate, state.trip.returnTime);
     if (!start || !end) return 0;
-    return Math.max(0, Math.ceil((new Date(`${end}T12:00:00`) - new Date(`${start}T12:00:00`)) / 86400000));
+    return Math.max(0, Math.floor((end - start) / 60000));
+  }
+
+  function rentalDays() {
+    const minutes = rentalMinutes();
+    return minutes > 0 ? Math.ceil(minutes / 1440) : 0;
+  }
+
+  function tripDateTime(dateValue, timeValue) {
+    if (!validDateParam(dateValue) || !validTimeParam(timeValue)) return null;
+    const match = timeValue.match(/^(\d{1,2}):(\d{2}) (AM|PM)$/);
+    if (!match) return null;
+    let hour = Number(match[1]) % 12;
+    if (match[3] === "PM") hour += 12;
+    const [year, month, day] = dateValue.split("-").map(Number);
+    const targetWallClock = Date.UTC(year, month - 1, day, hour, Number(match[2]), 0);
+    let instant = targetWallClock;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const eastern = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+      }).formatToParts(new Date(instant)).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+      const observedWallClock = Date.UTC(Number(eastern.year), Number(eastern.month) - 1, Number(eastern.day), Number(eastern.hour), Number(eastern.minute), Number(eastern.second));
+      instant += targetWallClock - observedWallClock;
+    }
+    const parsed = new Date(instant);
+    return Number.isFinite(parsed.getTime()) ? parsed : null;
+  }
+
+  function earliestPickupSlot() {
+    const earliest = new Date(new Date(state.policy.serverNow).getTime() + state.policy.advanceNoticeMinutes * 60000);
+    const eastern = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+    }).formatToParts(earliest).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+    let date = `${eastern.year}-${eastern.month}-${eastern.day}`;
+    const minuteOfDay = Number(eastern.hour) * 60 + Number(eastern.minute) + (Number(eastern.second) > 0 ? 1 : 0);
+    let time = TIME_OPTIONS.find((option) => timeToMinutes(option) >= minuteOfDay) || "";
+    if (!time) {
+      date = addDays(date, 1);
+      time = TIME_OPTIONS[0];
+    }
+    return { date, time };
+  }
+
+  function timeToMinutes(value) {
+    const match = String(value).match(/^(\d{1,2}):(\d{2}) (AM|PM)$/);
+    if (!match) return 0;
+    let hour = Number(match[1]) % 12;
+    if (match[3] === "PM") hour += 12;
+    return hour * 60 + Number(match[2]);
+  }
+
+  function formatMinutes(minutes) {
+    const value = Math.max(0, Number(minutes) || 0);
+    if (value % 1440 === 0) return `${value / 1440} day${value === 1440 ? "" : "s"}`;
+    if (value % 60 === 0) return `${value / 60} hour${value === 60 ? "" : "s"}`;
+    return `${Math.floor(value / 60)}h ${value % 60}m`;
   }
 
   function money(value) {
