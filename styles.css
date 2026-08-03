@@ -3383,18 +3383,6 @@ body.modal-open {
   color: #a62b32 !important;
 }
 
-.availability-card .availability-reassurance {
-  width: 100%;
-  max-width: none;
-  margin: 4px auto 0;
-  color: #69746d !important;
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1.5;
-  text-align: center;
-  text-shadow: none !important;
-}
-
 @media (max-width: 980px) {
   .availability-card .availability-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
