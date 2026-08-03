@@ -508,7 +508,11 @@
         state.checking = false;
         renderVehicles();
         renderDetailAvailability();
-        showError(state.selectedId ? elements.cars2DetailError : elements.cars2Error, quote?.error || "The selected rental times are not allowed.");
+        if (state.selectedId) {
+          showError(elements.cars2DetailError, quote?.error || "The selected rental times are not allowed.");
+        } else {
+          hideError(elements.cars2Error);
+        }
         return false;
       }
       const response = await apiFetch("/rest/v1/rpc/get_admin_calendar_fleet_availability", {
