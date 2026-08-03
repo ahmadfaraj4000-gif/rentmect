@@ -22,9 +22,9 @@
     :root {
       --bg: #f3f4f6;
       --panel: #ffffff;
-      --red: #97000a;
-      --red-bright: #c40f1a;
-      --red-deep: #4f0004;
+      --olive: #123d2a;
+      --olive-dark: #1d5039;
+      --olive-soft: #e6f0ea;
       --text: #16202b;
       --muted: #5f6975;
       --line: rgba(18, 28, 45, 0.10);
@@ -41,7 +41,7 @@
       font-family: 'Barlow', Arial, Helvetica, sans-serif;
       color: var(--text);
       background:
-        radial-gradient(circle at top left, rgba(151, 0, 10, 0.08), transparent 25%),
+        radial-gradient(circle at top left, rgba(18, 61, 42, 0.09), transparent 25%),
         linear-gradient(180deg, #fafbfc, #eef2f5);
       display: flex;
       justify-content: center;
@@ -142,44 +142,49 @@
 
     .button {
       width: 100%;
-      height: 58px;
+      min-height: 52px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border-radius: 18px;
+      padding: 11px 18px;
+      border-radius: 9px;
       border: 1px solid var(--line);
-      font: 800 14px 'Barlow', Arial, Helvetica, sans-serif;
-      letter-spacing: 1px;
+      font: 850 13px 'Barlow', Arial, Helvetica, sans-serif;
+      letter-spacing: 0;
       transition:
-        transform 0.18s ease,
-        box-shadow 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease,
         background 0.18s ease;
     }
 
-    .button:hover {
-      transform: translateY(-2px);
+    .button:focus-visible {
+      outline: 3px solid rgba(18, 61, 42, 0.3);
+      outline-offset: 3px;
     }
 
     .button-primary {
       color: #fff;
-      background: linear-gradient(180deg, var(--red-bright), var(--red));
-      border: none;
-      box-shadow: 0 12px 30px rgba(151, 0, 10, 0.25);
+      background: var(--olive);
+      border-color: var(--olive);
+      box-shadow: none;
     }
 
     .button-primary:hover {
-      background: linear-gradient(180deg, #b90e18, var(--red-deep));
-      box-shadow: 0 14px 30px rgba(151, 0, 10, 0.30);
+      border-color: var(--olive-dark);
+      background: var(--olive-dark);
     }
 
     .button-light {
       background: #ffffff;
       color: var(--text);
-      box-shadow: var(--shadow);
+      border-color: #cfd9d6;
+      box-shadow: none;
     }
 
     .button-light:hover {
-      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.12);
+      border-color: var(--olive);
+      background: var(--olive-soft);
+      color: var(--olive-dark);
     }
 
     .location {
@@ -198,7 +203,7 @@
     }
 
     .powered-by a {
-      color: var(--red);
+      color: var(--olive);
       font-weight: 700;
       text-decoration: none;
     }

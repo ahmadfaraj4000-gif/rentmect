@@ -93,7 +93,8 @@
       "cars2Thumbnails", "cars2VehicleName", "cars2VehicleMeta",
       "cars2VehicleDescription", "cars2Features", "cars2DailyRate",
       "cars2DetailAvailability", "cars2RentalDays", "cars2RentalSubtotal",
-      "cars2BookVehicle", "cars2DetailError", "cars2InsuranceModal",
+      "cars2BookVehicle", "cars2AvailabilityForm", "cars2CheckAvailability", "cars2TripSummary",
+      "cars2DetailError", "cars2InsuranceModal",
       "cars2InsuranceContinue", "cars2InsuranceReview",
     ].forEach((id) => { elements[id] = document.getElementById(id); });
   }
@@ -105,6 +106,7 @@
     ["cars2DetailPickupDate", "cars2DetailReturnDate", "cars2DetailPickupTime", "cars2DetailReturnTime"].forEach((id) => {
       elements[id].addEventListener("change", () => updateTripFromField(id));
     });
+    elements.cars2AvailabilityForm.addEventListener("submit", runAvailabilityCheck);
     elements.cars2Search.addEventListener("input", (event) => {
       state.search = event.target.value.trim().toLowerCase();
       renderVehicles();
@@ -437,6 +439,18 @@
     availabilityTimer = window.setTimeout(checkAvailability, 180);
   }
 
+  async function runAvailabilityCheck(event) {
+    event?.preventDefault();
+    elements.cars2CheckAvailability.disabled = true;
+    elements.cars2CheckAvailability.textContent = "Checking…";
+    try {
+      await checkAvailability();
+    } finally {
+      elements.cars2CheckAvailability.disabled = false;
+      elements.cars2CheckAvailability.textContent = "Check Availability";
+    }
+  }
+
   async function checkAvailability() {
     if (!validTrip()) {
       state.availability.clear();
@@ -606,6 +620,18 @@
     elements.cars2DetailPickupDate.min = today;
     elements.cars2ReturnDate.min = state.trip.pickupDate;
     elements.cars2DetailReturnDate.min = state.trip.pickupDate;
+    renderTripSummary();
+  }
+
+  function renderTripSummary() {
+    if (!elements.cars2TripSummary) return;
+    const days = rentalDays(state.trip.pickupDate, state.trip.returnDate);
+    const shortDate = (value) => new Date(`${value}T12:00:00`).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+    elements.cars2TripSummary.textContent = `${days} rental day${days === 1 ? "" : "s"} · ${shortDate(state.trip.pickupDate)} at ${state.trip.pickupTime} → ${shortDate(state.trip.returnDate)} at ${state.trip.returnTime}`;
+    elements.cars2TripSummary.classList.add("valid");
   }
 
   function normalizeInitialTrip() {
