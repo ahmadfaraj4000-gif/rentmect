@@ -24,22 +24,6 @@
   animation: none !important;
 }
 
-.cars2-skip-link {
-  position: fixed;
-  top: 8px;
-  left: 8px;
-  z-index: 1000;
-  padding: 10px 14px;
-  border-radius: 8px;
-  background: #fff;
-  color: var(--cars2-ink);
-  transform: translateY(-150%);
-}
-
-.cars2-skip-link:focus {
-  transform: translateY(0);
-}
-
 .cars-v2-page main {
   min-height: 70vh;
 }
