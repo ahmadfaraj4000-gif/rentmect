@@ -105,7 +105,7 @@
       "cars2VehicleDescription", "cars2Features", "cars2DailyRate",
       "cars2DetailAvailability", "cars2RentalDays", "cars2RentalSubtotal",
       "cars2BookVehicle", "cars2AvailabilityForm", "cars2CheckAvailability", "cars2TripSummary",
-      "cars2PolicyNote", "cars2DetailError", "cars2InsuranceModal",
+      "cars2DetailError", "cars2InsuranceModal",
       "cars2InsuranceContinue", "cars2InsuranceReview",
     ].forEach((id) => { elements[id] = document.getElementById(id); });
   }
@@ -685,12 +685,6 @@
     elements.cars2DetailPickupDate.min = today;
     elements.cars2ReturnDate.min = state.trip.pickupDate;
     elements.cars2DetailReturnDate.min = state.trip.pickupDate;
-    if (elements.cars2PolicyNote) {
-      const advance = state.policy.advanceNoticeMinutes === 0
-        ? "Same-day pickup is available."
-        : `Pickup requires ${formatMinutes(state.policy.advanceNoticeMinutes)} advance notice.`;
-      elements.cars2PolicyNote.textContent = `${advance} Every rental must be at least ${state.policy.minimumRentalHours} hours.`;
-    }
     renderTripSummary();
   }
 
