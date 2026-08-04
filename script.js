@@ -808,7 +808,10 @@ function normalizeRentalTimeInputs(options = {}) {
     }
   }
 
-  if (!returnTime.value) returnTime.value = "9:00 AM";
+  if (!returnTime.value) returnTime.value = pickupTime.value || "9:00 AM";
+  if (!quickBookingReturnTimeCustomized && pickupTime.value) {
+    returnTime.value = pickupTime.value;
+  }
   updatePickupTimeAvailability();
   if (!timeWasAdjusted) updateQuickBookingSummary();
   window.syncVehicleAvailability?.();
@@ -1001,8 +1004,18 @@ function loadBookingDatesIntoForm() {
   const pickupDate = params.get("pickupDate") || bookingData.pickupDate || bookingData.pickup_date || "";
   const returnDate = params.get("returnDate") || bookingData.returnDate || bookingData.return_date || "";
   const formDefaultTime = document.querySelector("[data-booking-widget]")?.dataset.defaultTime || "";
-  const pickupTime = params.get("pickupTime") || formDefaultTime || bookingData.pickupTime || bookingData.pickup_time || "9:00 AM";
-  const returnTime = params.get("returnTime") || formDefaultTime || bookingData.returnTime || bookingData.return_time || "9:00 AM";
+  const requestedPickupTime = params.get("pickupTime");
+  const requestedReturnTime = params.get("returnTime");
+  const savedPickupTime = bookingData.pickupTime || bookingData.pickup_time || "";
+  const savedReturnTime = bookingData.returnTime || bookingData.return_time || "";
+  const pickupTime = requestedPickupTime || savedPickupTime || formDefaultTime || "9:00 AM";
+  const returnTime = requestedReturnTime || savedReturnTime || pickupTime;
+
+  quickBookingReturnTimeCustomized =
+    params.get("returnTimeCustomized") === "1"
+    || bookingData.returnTimeCustomized === true
+    || Boolean(requestedReturnTime && requestedReturnTime !== pickupTime)
+    || Boolean(!requestedReturnTime && savedReturnTime && savedReturnTime !== pickupTime);
 
   const pickupInput = document.getElementById("pickupDate");
   const returnInput = document.getElementById("returnDate");
@@ -1051,6 +1064,7 @@ function startBooking(event) {
     returnDate,
     pickupTime,
     returnTime,
+    returnTimeCustomized: quickBookingReturnTimeCustomized,
     selectedVehicle: existingVehicle
   };
 
