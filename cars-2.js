@@ -45,12 +45,13 @@
   const url = new URL(window.location.href);
   const requestedPickupDate = validDateParam(url.searchParams.get("pickupDate"));
   const requestedPickupTime = validTimeParam(url.searchParams.get("pickupTime"));
+  const requestedReturnTime = validTimeParam(url.searchParams.get("returnTime"));
   const state = {
     trip: {
       pickupDate: requestedPickupDate || dateInput(0),
       returnDate: validDateParam(url.searchParams.get("returnDate")) || dateInput(1),
       pickupTime: requestedPickupTime || "9:00 AM",
-      returnTime: validTimeParam(url.searchParams.get("returnTime")) || "9:00 AM",
+      returnTime: requestedReturnTime || requestedPickupTime || "9:00 AM",
     },
     policy: {
       minimumRentalDays: 1,
@@ -79,6 +80,9 @@
   let detailSwipeStartX = null;
   let insuranceModalTrigger = null;
   let initialTripNormalized = false;
+  let returnTimeCustomized =
+    url.searchParams.get("returnTimeCustomized") === "1"
+    || Boolean(requestedReturnTime && requestedReturnTime !== state.trip.pickupTime);
 
   document.addEventListener("DOMContentLoaded", initialize);
 
@@ -455,6 +459,10 @@
     };
     const key = mapping[id];
     state.trip[key] = elements[id].value;
+    if (key === "returnTime") returnTimeCustomized = true;
+    if (key === "pickupTime" && !returnTimeCustomized) {
+      state.trip.returnTime = state.trip.pickupTime;
+    }
     state.quote = null;
     if (key === "pickupDate" && state.trip.returnDate <= state.trip.pickupDate) {
       state.trip.returnDate = addDays(state.trip.pickupDate, 1);
@@ -719,7 +727,9 @@
     if (!validDateParam(state.trip.returnDate) || rentalMinutes() < state.policy.minimumRentalHours * 60) {
       state.trip.returnDate = addDays(state.trip.pickupDate, state.policy.minimumRentalDays);
       state.trip.returnTime = state.trip.pickupTime;
+      returnTimeCustomized = false;
     }
+    if (!returnTimeCustomized) state.trip.returnTime = state.trip.pickupTime;
     initialTripNormalized = true;
   }
 
@@ -739,6 +749,7 @@
 
   function syncTripToUrl(targetUrl) {
     Object.entries(state.trip).forEach(([key, value]) => targetUrl.searchParams.set(key, value));
+    targetUrl.searchParams.set("returnTimeCustomized", returnTimeCustomized ? "1" : "0");
   }
 
   function selectedVehicle() {

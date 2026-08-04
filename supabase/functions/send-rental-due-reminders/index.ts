@@ -80,10 +80,15 @@ function returnReminderBody(reminder: ReminderRow) {
   const customer = reminder.customer_name?.trim().split(/\s+/)[0];
   const greeting = customer ? `Hi ${customer}, ` : "";
   const vehicle = reminder.vehicle_name || "your rental";
+  const stagedLateCharge =
+    "If it is not returned within 3 hours of the scheduled time without an activated extension, one additional full rental day plus a $25 late-return fee will be prepared for administrator review.";
+  if (reminder.reminder_type === "return_overdue_3h_sms") {
+    return `${greeting}Rent Me CT: ${vehicle} is now more than 3 hours past its scheduled return (${formatReturnDate(reminder.return_date, reminder.return_time)}). A charge for one additional full rental day plus a $25 late-return fee has been prepared for administrator review. Call ${rentmectPhone} immediately; additional recovery charges may apply. Reply STOP to unsubscribe or HELP for help.`;
+  }
   const timing = reminder.reminder_type === "return_due_3h_sms"
-    ? "due in 3 hours"
-    : "is due soon";
-  return `${greeting}Rent Me CT: ${vehicle} ${timing}, ${formatReturnDate(reminder.return_date, reminder.return_time)}. Reply STOP to unsubscribe or HELP for help.`;
+    ? "Final return reminder:"
+    : "Day-before return reminder:";
+  return `${greeting}Rent Me CT: ${timing} ${vehicle} is due ${formatReturnDate(reminder.return_date, reminder.return_time)}. ${stagedLateCharge} Call ${rentmectPhone} before the due time if you need help. Reply STOP to unsubscribe or HELP for help.`;
 }
 
 function paidRentalAdminAlertBody(alert: AdminAlertRow) {

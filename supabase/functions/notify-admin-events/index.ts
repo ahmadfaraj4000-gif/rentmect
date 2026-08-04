@@ -8,7 +8,7 @@ const corsHeaders = {
 
 type NotificationEvent = {
   event_id: string;
-  event_type: "new_booking" | "document_pending_review" | "return_due_today" | "maintenance_due" | "maintenance_due_soon" | "maintenance_override" | "extension_requested" | "extension_approved" | "emergency_exception_created";
+  event_type: "new_booking" | "document_pending_review" | "return_due_today" | "maintenance_due" | "maintenance_due_soon" | "maintenance_override" | "extension_requested" | "extension_approved" | "emergency_exception_created" | "rental_overdue";
   source_id: string;
   rental_id: string | null;
   attempts: number;
@@ -131,6 +131,31 @@ async function deliver(event: NotificationEvent) {
     return await sendPushover(
       "Rental return due today",
       `${customer} is due to return ${vehicle} ${readableDate(rental.return_date, rental.return_time)}.`,
+      "1",
+    );
+  }
+
+  if (event.event_type === "rental_overdue") {
+    const { rental, customer, vehicle } = await rentalDetails(event.rental_id || event.source_id);
+    const { data: nextRentals, error } = await adminClient
+      .from("rentals")
+      .select("id, pickup_date, pickup_time, status")
+      .eq("vehicle_id", rental.vehicle_id)
+      .neq("id", rental.id)
+      .not("status", "in", "(completed,cancelled)")
+      .gte("pickup_date", rental.return_date)
+      .order("pickup_date", { ascending: true })
+      .order("pickup_time", { ascending: true })
+      .limit(1);
+    if (error) throw new Error(error.message);
+
+    const nextRental = nextRentals?.[0];
+    const nextBookingWarning = nextRental
+      ? ` NEXT BOOKING AT RISK: ${readableDate(nextRental.pickup_date, nextRental.pickup_time)}.`
+      : "";
+    return await sendPushover(
+      "LATE RETURN — VEHICLE HARD-LOCKED",
+      `${customer}'s ${vehicle} rental is more than 3 hours past its scheduled return (${readableDate(rental.return_date, rental.return_time)}). The vehicle cannot be booked until physical return and admin inspection. A pending late-return charge is ready under Charge customer.${nextBookingWarning}`,
       "1",
     );
   }
