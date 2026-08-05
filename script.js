@@ -714,8 +714,9 @@ function populateTimeSelects() {
     });
   });
 
-  pickup.value = currentPickupValue || "9:00 AM";
-  dropoff.value = currentReturnValue || "9:00 AM";
+  const defaultTime = getDefaultRentalSlot().time;
+  pickup.value = currentPickupValue || defaultTime;
+  dropoff.value = currentReturnValue || defaultTime;
   normalizeRentalTimeInputs();
 }
 
@@ -729,6 +730,25 @@ function getRentalTimeOptions() {
     times.push(`${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`);
   }
   return times;
+}
+
+function getDefaultRentalSlot(now = new Date()) {
+  const rounded = new Date(now);
+  const roundUpOneHour = rounded.getMinutes() > 0;
+  rounded.setHours(rounded.getHours() + 3 + (roundUpOneHour ? 1 : 0), 0, 0, 0);
+
+  let date = getLocalDateInputValue(rounded);
+  let time = getRentalTimeOptions().find((option) => {
+    const optionDateTime = getRentalDateTime(date, option);
+    return optionDateTime && optionDateTime >= rounded;
+  }) || "";
+
+  if (!time) {
+    date = getNextDateInputValue(date);
+    time = getRentalTimeOptions()[0];
+  }
+
+  return { date, time };
 }
 
 function getRentalDateTime(dateValue, timeLabel) {
@@ -1001,14 +1021,15 @@ function loadBookingDatesIntoForm() {
 
   const params = new URLSearchParams(window.location.search);
 
-  const pickupDate = params.get("pickupDate") || bookingData.pickupDate || bookingData.pickup_date || "";
-  const returnDate = params.get("returnDate") || bookingData.returnDate || bookingData.return_date || "";
+  const defaultSlot = getDefaultRentalSlot();
+  const pickupDate = params.get("pickupDate") || bookingData.pickupDate || bookingData.pickup_date || defaultSlot.date;
+  const returnDate = params.get("returnDate") || bookingData.returnDate || bookingData.return_date || getNextDateInputValue(pickupDate);
   const formDefaultTime = document.querySelector("[data-booking-widget]")?.dataset.defaultTime || "";
   const requestedPickupTime = params.get("pickupTime");
   const requestedReturnTime = params.get("returnTime");
   const savedPickupTime = bookingData.pickupTime || bookingData.pickup_time || "";
   const savedReturnTime = bookingData.returnTime || bookingData.return_time || "";
-  const pickupTime = requestedPickupTime || savedPickupTime || formDefaultTime || "9:00 AM";
+  const pickupTime = requestedPickupTime || savedPickupTime || formDefaultTime || defaultSlot.time;
   const returnTime = requestedReturnTime || savedReturnTime || pickupTime;
 
   quickBookingReturnTimeCustomized =
