@@ -718,8 +718,8 @@
     const today = dateInput(0);
     const earliestSlot = earliestPickupSlot();
     if (!validDateParam(state.trip.pickupDate) || state.trip.pickupDate < today) state.trip.pickupDate = earliestSlot.date;
-    if (!initialTripNormalized && !requestedPickupDate && !requestedPickupTime) {
-      state.trip.pickupDate = earliestSlot.date;
+    if (!initialTripNormalized && !requestedPickupTime) {
+      if (!requestedPickupDate || state.trip.pickupDate < earliestSlot.date) state.trip.pickupDate = earliestSlot.date;
       state.trip.pickupTime = earliestSlot.time;
     }
     if (!validTimeParam(state.trip.pickupTime)) state.trip.pickupTime = "9:00 AM";
@@ -924,13 +924,14 @@
   }
 
   function earliestPickupSlot() {
-    const earliest = new Date(new Date(state.policy.serverNow).getTime() + state.policy.advanceNoticeMinutes * 60000);
+    const advanceNoticeMinutes = Math.max(180, state.policy.advanceNoticeMinutes);
+    const earliest = new Date(new Date(state.policy.serverNow).getTime() + advanceNoticeMinutes * 60000);
     const eastern = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
       timeZone: "America/New_York",
       year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
     }).formatToParts(earliest).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
     let date = `${eastern.year}-${eastern.month}-${eastern.day}`;
-    const minuteOfDay = Number(eastern.hour) * 60 + Number(eastern.minute) + (Number(eastern.second) > 0 ? 1 : 0);
+    const minuteOfDay = Math.ceil((Number(eastern.hour) * 60 + Number(eastern.minute)) / 60) * 60;
     let time = TIME_OPTIONS.find((option) => timeToMinutes(option) >= minuteOfDay) || "";
     if (!time) {
       date = addDays(date, 1);
