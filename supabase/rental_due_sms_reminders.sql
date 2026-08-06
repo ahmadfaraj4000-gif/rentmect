@@ -188,6 +188,47 @@ $$;
 revoke all on function public.claim_due_rental_return_sms_reminders(timestamptz, timestamptz, integer) from public;
 grant execute on function public.claim_due_rental_return_sms_reminders(timestamptz, timestamptz, integer) to service_role;
 
+-- Automated customer return SMS remains disabled until messaging approval is
+-- received. Keep this override in the bootstrap source as well as the release
+-- migration so rebuilding the database cannot silently re-enable it.
+create or replace function public.claim_due_rental_return_sms_reminders(
+  p_send_after timestamptz default now() - interval '15 minutes',
+  p_send_before timestamptz default now() + interval '15 minutes',
+  p_limit integer default 100
+) returns table (
+  reminder_id uuid,
+  reminder_type text,
+  rental_id uuid,
+  user_id uuid,
+  customer_phone text,
+  customer_name text,
+  vehicle_name text,
+  return_date date,
+  return_time text
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    null::uuid,
+    null::text,
+    null::uuid,
+    null::uuid,
+    null::text,
+    null::text,
+    null::text,
+    null::date,
+    null::text
+  where false;
+$$;
+
+comment on function public.claim_due_rental_return_sms_reminders(timestamptz, timestamptz, integer)
+  is 'Automated customer return SMS is disabled pending messaging approval. This function intentionally returns no rows.';
+
+revoke all on function public.claim_due_rental_return_sms_reminders(timestamptz, timestamptz, integer) from public;
+grant execute on function public.claim_due_rental_return_sms_reminders(timestamptz, timestamptz, integer) to service_role;
+
 drop function if exists public.claim_paid_rental_admin_sms_alerts(integer);
 
 create or replace function public.claim_paid_rental_admin_sms_alerts(

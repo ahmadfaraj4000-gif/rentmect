@@ -170,6 +170,12 @@ async function processOutbox(limit = 25) {
   return results;
 }
 
+async function queueReturnReminderEmails() {
+  const { data, error } = await adminClient!.rpc("queue_due_rental_return_email_reminders");
+  if (error) throw error;
+  return data || [];
+}
+
 async function campaignAudience(campaign: Json): Promise<Recipient[]> {
   const { data: profiles, error } = await adminClient!
     .from("profiles")
@@ -462,7 +468,12 @@ Deno.serve(async (req) => {
     if (pathname.endsWith("/campaign")) return await handleCampaign(req);
     if (pathname.endsWith("/process")) {
       requireWorker(req);
-      return json({ outbox: await processOutbox(), campaigns: await processDueCampaigns() });
+      const returnReminders = await queueReturnReminderEmails();
+      return json({
+        returnRemindersQueued: returnReminders.length,
+        outbox: await processOutbox(),
+        campaigns: await processDueCampaigns(),
+      });
     }
     return json({ error: "Unknown email action." }, 404);
   } catch (error) {
