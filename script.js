@@ -38,7 +38,7 @@ const BOOKING_PAGE_SETTING_API_URL = SITE_PROMOTIONS_API_URL.replace(
 );
 const BOOKING_PAGE_PATHS = new Set(["cars.html", "cars-2.html"]);
 const PUBLIC_REQUEST_DEADLINE_MS = 9000;
-let activeBookingPagePath = "cars.html";
+let activeBookingPagePath = "cars-2.html";
 let bookingPageRefreshTimer = 0;
 let bookingPagePollingTimer = 0;
 let bookingPageLinkObserver = null;
@@ -60,13 +60,13 @@ async function setupBookingPageRouting() {
     });
     if (!response.ok) throw new Error(`Booking page setting request failed (${response.status})`);
     const [setting] = await response.json();
-    activeBookingPagePath = BOOKING_PAGE_PATHS.has(setting?.page_path) ? setting.page_path : "cars.html";
+    activeBookingPagePath = BOOKING_PAGE_PATHS.has(setting?.page_path) ? setting.page_path : "cars-2.html";
     applyBookingPageRouting();
     scheduleBookingPageRefresh(setting);
   } catch (error) {
-    activeBookingPagePath = "cars.html";
+    activeBookingPagePath = "cars-2.html";
     applyBookingPageRouting();
-    console.warn("Using Wheelbase booking-page fallback.", error);
+    console.warn("Using Supabase booking-page fallback.", error);
   }
 }
 
@@ -149,14 +149,14 @@ const DEFAULT_SITE_PROMOTION = {
   banner_title: "Weekend special ends Monday at midnight",
   banner_body: "Use code",
   cta_label: "Choose Your Car",
-  cta_url: "cars.html",
+  cta_url: "cars-2.html",
   fine_print: "Ends at 12:00 AM Tuesday, July 21, 2026 (Eastern)—the end of Monday night. Terms may apply.",
   starts_at: "2026-07-17T00:00:00-04:00",
   ends_at: "2026-07-21T00:00:00-04:00",
   popup_enabled: true,
   banner_enabled: true,
   popup_pages: ["index.html"],
-  banner_pages: ["cars.html"],
+  banner_pages: ["cars-2.html"],
   active: true,
 };
 let activeSitePromotion = null;
@@ -489,8 +489,8 @@ function setPromotionText(container, selector, value) {
 }
 
 function safePromotionUrl(value) {
-  const url = String(value || "cars.html").trim();
-  return /^(?:https?:\/\/|\/|\.\/|\.\.\/|[a-z0-9][a-z0-9._/-]*\.html(?:[?#].*)?$)/i.test(url) ? url : "cars.html";
+  const url = String(value || "cars-2.html").trim();
+  return /^(?:https?:\/\/|\/|\.\/|\.\.\/|[a-z0-9][a-z0-9._/-]*\.html(?:[?#].*)?$)/i.test(url) ? url : "cars-2.html";
 }
 
 function formatPromotionEnd(value) {

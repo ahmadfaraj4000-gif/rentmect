@@ -126,7 +126,7 @@
   },
   "potentialAction": {
     "@type": "SearchAction",
-    "target": "https://rentmect.com/cars.html?search={search_term_string}",
+    "target": "https://rentmect.com/cars-2.html?search={search_term_string}",
     "query-input": "required name=search_term_string"
   }
 }
@@ -204,11 +204,11 @@
 
     <nav id="mainNav">
       <a href="index.html">Home</a>
-      <a href="cars.html">Cars</a>
+      <a href="cars-2.html">Cars</a>
       <a href="requirements.html">Requirements</a>
       <a href="agreement.html">Agreement</a>
       <a href="tel:+18605586031" data-contact-modal>Contact</a>
-      <a class="nav-cta reserve-btn" href="cars.html">Reserve Now</a>
+      <a class="nav-cta reserve-btn" href="cars-2.html">Reserve Now</a>
     </nav>
   </header>
 
@@ -229,7 +229,7 @@
         <p>Offer ends in</p>
         <div class="promo-countdown" data-promo-countdown aria-label="Time remaining in promotion"></div>
       </div>
-      <a class="promo-cta" href="cars.html" data-promo-cta><span data-promo-cta-label>Choose Your Car</span> <span aria-hidden="true">→</span></a>
+      <a class="promo-cta" href="cars-2.html" data-promo-cta><span data-promo-cta-label>Choose Your Car</span> <span aria-hidden="true">→</span></a>
       <p class="promo-fine-print" data-promo-fine-print>Ends at 12:00 AM Tuesday, July 21, 2026 (Eastern)—the end of Monday night. Terms may apply.</p>
     </div>
   </div>
@@ -330,7 +330,7 @@
   </div>
 
       <div class="center">
-        <a href="cars.html" class="btn-primary">See All Rentals</a>
+        <a href="cars-2.html" class="btn-primary">See All Rentals</a>
       </div>
     </section>
 
@@ -344,7 +344,7 @@
             travelers, and nearby Connecticut communities. Vehicle pickup is in Farmington, minutes
             from the greater Hartford area.
           </p>
-          <a class="btn-primary" href="cars.html">View Cars</a>
+          <a class="btn-primary" href="cars-2.html">View Cars</a>
         </div>
 
         <div class="stats-grid">
@@ -478,7 +478,7 @@
     <section class="section cta-section">
       <h2>Ready to stop depending on someone else’s ride?</h2>
       <p>Reserve your rental with Rent Me CT today.</p>
-      <a class="btn-light" href="cars.html">Reserve Your Rental</a>
+      <a class="btn-light" href="cars-2.html">Reserve Your Rental</a>
     </section>
   </main>
 
@@ -496,11 +496,11 @@
 
     <div class="footer-links">
       <h3>Quick Links</h3>
-      <a href="cars.html">Cars</a>
+      <a href="cars-2.html">Cars</a>
       <a href="requirements.html">Requirements</a>
       <a href="agreement.html">Rental Agreement</a>
       <a href="tel:+18605586031" data-contact-modal>Contact</a>
-      <a href="cars.html">Reserve Now</a>
+      <a href="cars-2.html">Reserve Now</a>
     </div>
 
     <div class="footer-bottom">
@@ -513,7 +513,7 @@
     </div>
   </footer>
 
-  <script src="script.js?v=20260806-eastern-booking-defaults"></script>
+  <script src="script.js?v=20260806-cars2-cutover"></script>
 
   <script>
     const WHEELBASE_RENTAL_API_URL = "https://api.outdoorsy.co/v0/rentals";
@@ -608,7 +608,7 @@
       const params = new URLSearchParams(bookingData);
 
       updateQuickBookingSummary("Loading vehicles available for your dates…", "valid");
-      const bookingPage = window.getActiveBookingPage?.() || "cars.html";
+      const bookingPage = window.getActiveBookingPage?.() || "cars-2.html";
       window.location.href = `${bookingPage}?${params.toString()}`;
     }
   </script>

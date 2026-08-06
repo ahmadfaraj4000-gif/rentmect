@@ -7,16 +7,10 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://rentmect.com/cars.html</loc>
-    <lastmod>2026-07-28</lastmod>
+    <loc>https://rentmect.com/cars-2.html</loc>
+    <lastmod>2026-08-06</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.95</priority>
-  </url>
-  <url>
-    <loc>https://rentmect.com/cars-2.html</loc>
-    <lastmod>2026-07-30</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.90</priority>
   </url>
   <url>
     <loc>https://rentmect.com/car-rental-farmington-ct.html</loc>
