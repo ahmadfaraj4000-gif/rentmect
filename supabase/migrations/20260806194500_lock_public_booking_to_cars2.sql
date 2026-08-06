@@ -16,6 +16,10 @@ do $$
 begin
   if to_regclass('public.site_promotions') is not null then
     alter table public.site_promotions
+      drop constraint if exists site_promotions_popup_pages_check,
+      drop constraint if exists site_promotions_banner_pages_check;
+
+    alter table public.site_promotions
       alter column cta_url set default 'cars-2.html',
       alter column banner_pages set default array['cars-2.html']::text[];
 
@@ -26,10 +30,6 @@ begin
     where cta_url like '%cars.html%'
        or 'cars.html' = any(popup_pages)
        or 'cars.html' = any(banner_pages);
-
-    alter table public.site_promotions
-      drop constraint if exists site_promotions_popup_pages_check,
-      drop constraint if exists site_promotions_banner_pages_check;
 
     alter table public.site_promotions
       add constraint site_promotions_popup_pages_check
