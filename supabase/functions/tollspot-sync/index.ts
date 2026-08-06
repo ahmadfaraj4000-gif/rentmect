@@ -546,17 +546,19 @@ async function runTollSync(api: TollSpotClient, fromDate: Date, toDate: Date) {
   let matched = 0;
   let chargesCreated = 0;
   let needsReview = 0;
-  for (const row of rowsToMatch) {
-    const { data, error } = await adminClient!.rpc("service_match_tollspot_transaction", {
-      p_transaction_id: row.id,
+  if (rowsToMatch.length) {
+    const { data, error } = await adminClient!.rpc("service_match_tollspot_transactions", {
+      p_transaction_ids: rowsToMatch.map((row) => row.id),
     });
     if (error) throw error;
-    if (data?.status === "matched") matched += 1;
-    if (data?.status === "charge_created") {
-      matched += 1;
-      chargesCreated += 1;
+    for (const result of data || []) {
+      if (result.status === "matched") matched += 1;
+      if (result.status === "charge_created") {
+        matched += 1;
+        chargesCreated += 1;
+      }
+      if (result.status === "needs_review") needsReview += 1;
     }
-    if (data?.status === "needs_review") needsReview += 1;
   }
   return {
     total: response.total,
