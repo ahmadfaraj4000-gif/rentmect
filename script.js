@@ -32,42 +32,16 @@ document.addEventListener("DOMContentLoaded", function () {
 const SITE_PROMOTIONS_API_URL = "https://gqmiktepthaafupwdmcl.supabase.co/rest/v1/site_promotions";
 const SITE_PROMOTIONS_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxbWlrdGVwdGhhYWZ1cHdkbWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1ODgxNzgsImV4cCI6MjA5MzE2NDE3OH0.dDM6SSAwd03FLWcdOc8OemcFmZ7yOxKsuPq3qpmqoWI";
 const SITE_VEHICLES_API_URL = SITE_PROMOTIONS_API_URL.replace(/site_promotions$/, "vehicles");
-const BOOKING_PAGE_SETTING_API_URL = SITE_PROMOTIONS_API_URL.replace(
-  /rest\/v1\/site_promotions$/,
-  "rest/v1/rpc/get_public_booking_page_setting"
-);
-const BOOKING_PAGE_PATHS = new Set(["cars.html", "cars-2.html"]);
+const ACTIVE_BOOKING_PAGE_PATH = "cars-2.html";
+const BOOKING_PAGE_PATHS = new Set(["cars.html", "cars-wheelbase.html", ACTIVE_BOOKING_PAGE_PATH]);
 const PUBLIC_REQUEST_DEADLINE_MS = 9000;
-let activeBookingPagePath = "cars-2.html";
-let bookingPageRefreshTimer = 0;
-let bookingPagePollingTimer = 0;
 let bookingPageLinkObserver = null;
 
-window.getActiveBookingPage = () => activeBookingPagePath;
+window.getActiveBookingPage = () => ACTIVE_BOOKING_PAGE_PATH;
 window.resolveBookingPageUrl = (value) => resolveBookingPageUrl(value);
 
-async function setupBookingPageRouting() {
-  try {
-    const response = await fetchWithDeadline(BOOKING_PAGE_SETTING_API_URL, {
-      method: "POST",
-      cache: "no-store",
-      headers: {
-        apikey: SITE_PROMOTIONS_ANON_KEY,
-        Authorization: `Bearer ${SITE_PROMOTIONS_ANON_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: "{}",
-    });
-    if (!response.ok) throw new Error(`Booking page setting request failed (${response.status})`);
-    const [setting] = await response.json();
-    activeBookingPagePath = BOOKING_PAGE_PATHS.has(setting?.page_path) ? setting.page_path : "cars-2.html";
-    applyBookingPageRouting();
-    scheduleBookingPageRefresh(setting);
-  } catch (error) {
-    activeBookingPagePath = "cars-2.html";
-    applyBookingPageRouting();
-    console.warn("Using Supabase booking-page fallback.", error);
-  }
+function setupBookingPageRouting() {
+  applyBookingPageRouting();
 }
 
 function observeBookingPageLinks() {
@@ -80,29 +54,14 @@ function observeBookingPageLinks() {
     });
   });
   bookingPageLinkObserver.observe(document.body, { childList: true, subtree: true });
-  if (!bookingPagePollingTimer) {
-    bookingPagePollingTimer = window.setInterval(setupBookingPageRouting, 60000);
-  }
-}
-
-function scheduleBookingPageRefresh(setting) {
-  window.clearTimeout(bookingPageRefreshTimer);
-  if (!setting?.scheduled_at) return;
-  const scheduledAt = new Date(setting.scheduled_at).getTime();
-  const serverNow = new Date(setting.server_now || Date.now()).getTime();
-  if (!Number.isFinite(scheduledAt) || !Number.isFinite(serverNow)) return;
-  const delay = Math.max(250, Math.min(scheduledAt - serverNow + 250, 2147483000));
-  bookingPageRefreshTimer = window.setTimeout(setupBookingPageRouting, delay);
 }
 
 function applyBookingPageRouting(root = document) {
-  document.body?.setAttribute("data-booking-provider", activeBookingPagePath === "cars-2.html" ? "supabase" : "wheelbase");
+  document.body?.setAttribute("data-booking-provider", "supabase");
   const previewLink = document.getElementById("bookingPreviewLink");
   if (previewLink) {
-    const previewIsAvailable = activeBookingPagePath === "cars.html";
-    previewLink.hidden = !previewIsAvailable;
-    previewLink.setAttribute("aria-hidden", String(!previewIsAvailable));
-    if (previewIsAvailable) previewLink.setAttribute("href", "cars-2.html");
+    previewLink.hidden = true;
+    previewLink.setAttribute("aria-hidden", "true");
   }
 
   const anchors = [];
@@ -122,10 +81,10 @@ function resolveBookingPageUrl(value) {
     const url = new URL(href, window.location.href);
     const currentPage = url.pathname.split("/").pop()?.toLowerCase();
     if (!BOOKING_PAGE_PATHS.has(currentPage)) return href;
-    url.pathname = url.pathname.replace(/[^/]+$/, activeBookingPagePath);
+    url.pathname = url.pathname.replace(/[^/]+$/, ACTIVE_BOOKING_PAGE_PATH);
     if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return url.toString();
     if (href.startsWith("/")) return `${url.pathname}${url.search}${url.hash}`;
-    return `${activeBookingPagePath}${url.search}${url.hash}`;
+    return `${ACTIVE_BOOKING_PAGE_PATH}${url.search}${url.hash}`;
   } catch {
     return href;
   }

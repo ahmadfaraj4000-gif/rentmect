@@ -88,6 +88,23 @@
     availabilityRequest: 0,
   };
 
+  const REQUIRED_ELEMENT_IDS = [
+    "cars2FleetView", "cars2DetailView", "cars2PickupDate", "cars2ReturnDate",
+    "cars2PickupTime", "cars2ReturnTime", "cars2DetailPickupDate",
+    "cars2DetailReturnDate", "cars2DetailPickupTime", "cars2DetailReturnTime",
+    "cars2Search", "cars2AvailableOnly", "cars2Filters", "cars2RentalLength", "cars2Status",
+    "cars2Error", "cars2Grid", "cars2PreviewHeader", "cars2HeaderBack", "cars2FeaturedImage",
+    "cars2FeaturedFrame", "cars2GalleryPrevious", "cars2GalleryNext", "cars2GalleryCounter",
+    "cars2Thumbnails", "cars2VehicleName", "cars2VehicleMeta",
+    "cars2VehicleDescription", "cars2Features", "cars2DailyRate",
+    "cars2DetailAvailability", "cars2RentalDays", "cars2RentalSubtotal",
+    "cars2QuoteStatus", "cars2ServiceFeeRow", "cars2ServiceFees", "cars2TaxAmount",
+    "cars2SecurityDeposit", "cars2TotalDueToday", "cars2Under25Quote",
+    "cars2Under25Rental", "cars2Under25Tax", "cars2Under25Deposit", "cars2Under25Total",
+    "cars2BookVehicle", "cars2AvailabilityForm", "cars2CheckAvailability", "cars2TripSummary",
+    "cars2DetailError", "cars2InsuranceModal",
+    "cars2InsuranceContinue", "cars2InsuranceReview",
+  ];
   const elements = {};
   let availabilityTimer = 0;
   let cardSwipeStartX = null;
@@ -98,7 +115,9 @@
     requestedReturnTimeCustomized
     && Boolean(requestedReturnTime && requestedReturnTime !== state.trip.pickupTime);
 
-  document.addEventListener("DOMContentLoaded", initialize);
+  document.addEventListener("DOMContentLoaded", () => {
+    initialize().catch((error) => renderFatalLoadFailure(error));
+  });
 
   async function initialize() {
     cacheElements();
@@ -117,23 +136,22 @@
   }
 
   function cacheElements() {
-    [
-      "cars2FleetView", "cars2DetailView", "cars2PickupDate", "cars2ReturnDate",
-      "cars2PickupTime", "cars2ReturnTime", "cars2DetailPickupDate",
-      "cars2DetailReturnDate", "cars2DetailPickupTime", "cars2DetailReturnTime",
-      "cars2Search", "cars2AvailableOnly", "cars2Filters", "cars2RentalLength", "cars2Status",
-      "cars2Error", "cars2Grid", "cars2PreviewHeader", "cars2HeaderBack", "cars2FeaturedImage",
-      "cars2FeaturedFrame", "cars2GalleryPrevious", "cars2GalleryNext", "cars2GalleryCounter",
-      "cars2Thumbnails", "cars2VehicleName", "cars2VehicleMeta",
-      "cars2VehicleDescription", "cars2Features", "cars2DailyRate",
-      "cars2DetailAvailability", "cars2RentalDays", "cars2RentalSubtotal",
-      "cars2QuoteStatus", "cars2ServiceFeeRow", "cars2ServiceFees", "cars2TaxAmount",
-      "cars2SecurityDeposit", "cars2TotalDueToday", "cars2Under25Quote",
-      "cars2Under25Rental", "cars2Under25Tax", "cars2Under25Deposit", "cars2Under25Total",
-      "cars2BookVehicle", "cars2AvailabilityForm", "cars2CheckAvailability", "cars2TripSummary",
-      "cars2DetailError", "cars2InsuranceModal",
-      "cars2InsuranceContinue", "cars2InsuranceReview",
-    ].forEach((id) => { elements[id] = document.getElementById(id); });
+    REQUIRED_ELEMENT_IDS.forEach((id) => { elements[id] = document.getElementById(id); });
+    const missing = REQUIRED_ELEMENT_IDS.filter((id) => !elements[id]);
+    if (missing.length) throw new Error(`Cars-2 document contract is incomplete: ${missing.join(", ")}`);
+  }
+
+  function renderFatalLoadFailure(error) {
+    console.error("Cars-2 could not initialize.", error);
+    const main = document.querySelector("main");
+    if (!main) return;
+    main.innerHTML = `
+      <section class="section" style="max-width: 760px; margin: 48px auto; text-align: center;">
+        <p class="eyebrow">Live availability</p>
+        <h1>We could not load the vehicles.</h1>
+        <p>Please refresh this page. If it still does not load, call or text <a href="tel:+18605586031">860-558-6031</a>.</p>
+        <p><button class="btn-primary" type="button" onclick="window.location.reload()">Refresh vehicles</button></p>
+      </section>`;
   }
 
   async function loadBookingPolicy() {
