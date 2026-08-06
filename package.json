@@ -7,6 +7,7 @@
     "portals:build": "npm --prefix rentmect-client-portal run build && npm --prefix rentmect-admin-portal run build",
     "perf:check": "npm run portals:build && node tools/check-performance.mjs",
     "audit:booking": "npm run portals:build && node tools/audit-booking-contracts.mjs",
+    "audit:canonical-booking": "node tools/audit-canonical-booking.mjs",
     "audit:cars-v2": "node tools/audit-cars-v2.mjs",
     "audit:wheelbase-live": "node tools/audit-wheelbase-live.mjs",
     "sync:vehicle-galleries": "node tools/sync-wheelbase-gallery.mjs",
