@@ -16,6 +16,7 @@ type ManualBookingPayload = {
   paymentCollectionPreference?: "customer_link" | "admin_stripe" | "external" | "later";
   customerMode?: "existing" | "new";
   customerId?: string;
+  customerFullName?: string;
   customerDateOfBirth?: string;
   customerPhone?: string;
   driverInfo?: {
@@ -347,6 +348,29 @@ Deno.serve(async (req) => {
     }
 
     if (!customerId) return json({ error: "Choose a customer." }, 400);
+    if (payload.customerMode !== "new") {
+      const suppliedFullName = String(payload.customerFullName || "").trim().replace(/\s+/g, " ");
+      const { data: existingProfile, error: existingProfileError } = await adminClient
+        .from("profiles")
+        .select("full_name")
+        .eq("id", customerId)
+        .single();
+      if (existingProfileError) throw existingProfileError;
+      if (!String(existingProfile?.full_name || "").trim()) {
+        if (suppliedFullName.split(" ").filter(Boolean).length < 2) {
+          return json({ error: "Enter the customer’s legal first and last name." }, 400);
+        }
+        const { error: nameError } = await adminClient
+          .from("profiles")
+          .update({ full_name: suppliedFullName })
+          .eq("id", customerId);
+        if (nameError) throw nameError;
+        const { error: authNameError } = await adminClient.auth.admin.updateUserById(customerId, {
+          user_metadata: { full_name: suppliedFullName },
+        });
+        if (authNameError) throw authNameError;
+      }
+    }
     if (payload.customerMode !== "new" && payload.customerPhone) {
       const normalizedPhone = normalizeUSPhone(payload.customerPhone);
       if (!normalizedPhone) return json({ error: "Enter a valid 10-digit US mobile number for secure texts." }, 400);
