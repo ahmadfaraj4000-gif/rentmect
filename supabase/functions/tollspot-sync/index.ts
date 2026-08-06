@@ -149,6 +149,27 @@ function parseRequestedDate(value: unknown, fallback: Date) {
   return parsed;
 }
 
+async function defaultTollStartDate(action: Action, now: Date) {
+  const maximumLookback = new Date(now);
+  maximumLookback.setUTCDate(maximumLookback.getUTCDate() - 30);
+  if (action === "backfill_tolls") return maximumLookback;
+
+  const { data } = await adminClient!
+    .from("tollspot_sync_runs")
+    .select("to_date")
+    .in("action", ["sync_tolls", "backfill_tolls", "run_all"])
+    .in("status", ["succeeded", "partial"])
+    .not("to_date", "is", null)
+    .order("completed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const watermark = data?.to_date ? new Date(`${data.to_date}T00:00:00Z`) : new Date(now);
+  if (Number.isNaN(watermark.getTime())) return maximumLookback;
+  watermark.setUTCDate(watermark.getUTCDate() - 3);
+  if (watermark < maximumLookback) return maximumLookback;
+  return watermark > now ? now : watermark;
+}
+
 function providerVehicleStatus(localStatus: string | null) {
   const status = String(localStatus || "").toLowerCase();
   if (["reserved", "rented", "active", "on_the_road"].includes(status)) return "IN_USE";
@@ -414,9 +435,53 @@ function normalizedCharge(charge: TollSpotCharge) {
     admin_fee: 0,
     currency: "usd",
     raw_transaction: charge,
-    provider_updated_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
   };
+}
+
+const stableTollFields = [
+  "tollspot_vehicle_id",
+  "occurred_at",
+  "posted_at",
+  "entry_at",
+  "entry_location",
+  "exit_location",
+  "agency",
+  "road_or_plaza",
+  "transaction_type",
+  "license_plate",
+  "license_plate_state",
+  "license_plate_country",
+  "transponder_number",
+  "transponder_or_plate",
+  "host_id",
+  "partner_vehicle_id",
+  "vin_snapshot",
+  "toll_amount",
+  "admin_fee",
+  "currency",
+] as const;
+
+function sameStableTollRecord(
+  next: ReturnType<typeof normalizedCharge>,
+  existing: Record<string, unknown>,
+) {
+  return stableTollFields.every((field) => {
+    const nextValue = next[field];
+    const existingValue = existing[field];
+    if (nextValue === null || nextValue === undefined) {
+      return existingValue === null || existingValue === undefined || existingValue === "";
+    }
+    if (typeof nextValue === "number") return Number(existingValue) === nextValue;
+    return String(existingValue) === String(nextValue);
+  });
+}
+
+function shouldRetryUnchangedMatch(existing: Record<string, unknown>, now: Date) {
+  const status = String(existing.status || "received").toLowerCase();
+  if (status === "received") return true;
+  if (status !== "needs_review") return false;
+  const lastAttempt = new Date(String(existing.updated_at || ""));
+  return Number.isNaN(lastAttempt.getTime()) || now.getTime() - lastAttempt.getTime() >= 86_400_000;
 }
 
 async function runTollSync(api: TollSpotClient, fromDate: Date, toDate: Date) {
@@ -429,31 +494,59 @@ async function runTollSync(api: TollSpotClient, fromDate: Date, toDate: Date) {
   const { data: existing, error: existingError } = ids.length
     ? await adminClient!
       .from("tollspot_transactions")
-      .select("tollspot_transaction_id")
+      .select(`
+        id,tollspot_transaction_id,status,updated_at,
+        tollspot_vehicle_id,occurred_at,posted_at,entry_at,entry_location,exit_location,
+        agency,road_or_plaza,transaction_type,license_plate,license_plate_state,
+        license_plate_country,transponder_number,transponder_or_plate,host_id,
+        partner_vehicle_id,vin_snapshot,toll_amount,admin_fee,currency
+      `)
       .in("tollspot_transaction_id", ids)
     : { data: [], error: null };
   if (existingError) throw existingError;
-  const existingIds = new Set((existing || []).map((item) => item.tollspot_transaction_id));
+  const existingByProviderId = new Map(
+    (existing || []).map((item) => [String(item.tollspot_transaction_id), item as Record<string, unknown>]),
+  );
+  const created = normalized.filter((charge) => !existingByProviderId.has(charge.tollspot_transaction_id));
+  const changed = normalized.filter((charge) => {
+    const prior = existingByProviderId.get(charge.tollspot_transaction_id);
+    return Boolean(prior) && !sameStableTollRecord(charge, prior!);
+  });
+  const unchanged = normalized.filter((charge) => {
+    const prior = existingByProviderId.get(charge.tollspot_transaction_id);
+    return Boolean(prior) && sameStableTollRecord(charge, prior!);
+  });
+  const now = new Date();
+  const rowsToWrite = [...created, ...changed].map((charge) => ({
+    ...charge,
+    provider_updated_at: now.toISOString(),
+    updated_at: now.toISOString(),
+  }));
 
-  if (normalized.length) {
-    const { error: upsertError } = await adminClient!
+  let writtenRows: Array<Record<string, unknown>> = [];
+  if (rowsToWrite.length) {
+    const { data: upserted, error: upsertError } = await adminClient!
       .from("tollspot_transactions")
-      .upsert(normalized, { onConflict: "tollspot_transaction_id" });
+      .upsert(rowsToWrite, { onConflict: "tollspot_transaction_id" })
+      .select("id,tollspot_transaction_id,status,updated_at");
     if (upsertError) throw upsertError;
+    writtenRows = (upserted || []) as Array<Record<string, unknown>>;
   }
 
-  const { data: rows, error: rowsError } = ids.length
-    ? await adminClient!
-      .from("tollspot_transactions")
-      .select("id,tollspot_transaction_id")
-      .in("tollspot_transaction_id", ids)
-    : { data: [], error: null };
-  if (rowsError) throw rowsError;
+  const writtenIds = new Set(writtenRows.map((row) => String(row.tollspot_transaction_id)));
+  const rowsToMatch = [
+    ...writtenRows,
+    ...unchanged
+      .map((charge) => existingByProviderId.get(charge.tollspot_transaction_id))
+      .filter((row): row is Record<string, unknown> => Boolean(row))
+      .filter((row) => !writtenIds.has(String(row.tollspot_transaction_id)))
+      .filter((row) => shouldRetryUnchangedMatch(row, now)),
+  ];
 
   let matched = 0;
   let chargesCreated = 0;
   let needsReview = 0;
-  for (const row of rows || []) {
+  for (const row of rowsToMatch) {
     const { data, error } = await adminClient!.rpc("service_match_tollspot_transaction", {
       p_transaction_id: row.id,
     });
@@ -468,8 +561,10 @@ async function runTollSync(api: TollSpotClient, fromDate: Date, toDate: Date) {
   return {
     total: response.total,
     received: normalized.length,
-    created: ids.filter((id) => !existingIds.has(id)).length,
-    updated: ids.filter((id) => existingIds.has(id)).length,
+    created: created.length,
+    updated: changed.length,
+    unchanged: unchanged.length,
+    matchAttempts: rowsToMatch.length,
     matched,
     chargesCreated,
     needsReview,
@@ -519,8 +614,9 @@ Deno.serve(async (req) => {
   try {
     const api = client();
     const now = new Date();
-    const defaultFrom = new Date(now);
-    defaultFrom.setUTCDate(defaultFrom.getUTCDate() - 30);
+    const defaultFrom = body.fromDate
+      ? new Date(now)
+      : await defaultTollStartDate(action, now);
     const fromDate = parseRequestedDate(body.fromDate, defaultFrom);
     const toDate = parseRequestedDate(body.toDate, now);
     if (toDate < fromDate) return json({ error: "toDate must be on or after fromDate." }, 400);

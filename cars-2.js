@@ -60,6 +60,8 @@
       serverNow: new Date().toISOString(),
     },
     quote: null,
+    quoteLoading: false,
+    quoteRequest: 0,
     vehicles: [],
     availability: new Map(),
     selectedId: "",
@@ -108,6 +110,9 @@
       "cars2Thumbnails", "cars2VehicleName", "cars2VehicleMeta",
       "cars2VehicleDescription", "cars2Features", "cars2DailyRate",
       "cars2DetailAvailability", "cars2RentalDays", "cars2RentalSubtotal",
+      "cars2QuoteStatus", "cars2ServiceFeeRow", "cars2ServiceFees", "cars2TaxAmount",
+      "cars2SecurityDeposit", "cars2TotalDueToday", "cars2Under25Quote",
+      "cars2Under25Rental", "cars2Under25Tax", "cars2Under25Deposit", "cars2Under25Total",
       "cars2BookVehicle", "cars2AvailabilityForm", "cars2CheckAvailability", "cars2TripSummary",
       "cars2DetailError", "cars2InsuranceModal",
       "cars2InsuranceContinue", "cars2InsuranceReview",
@@ -415,6 +420,7 @@
       .join("");
     syncTripFields();
     renderDetailAvailability();
+    if (state.quote?.vehicle_id !== vehicle.id) refreshSelectedQuote(vehicle.id);
   }
 
   function renderDetailAvailability() {
@@ -433,17 +439,55 @@
           : "Unavailable for these dates";
     elements.cars2DetailAvailability.textContent = message;
     elements.cars2DetailAvailability.className = `cars2-availability ${state.checking ? "" : available ? "available" : "unavailable"}`;
-    const days = state.quote?.valid ? Number(state.quote.billable_days || 0) : rentalDays();
+    const selectedQuote = state.quote?.vehicle_id === vehicle.id ? state.quote : null;
+    const quoteReady = Boolean(selectedQuote?.valid && !state.quoteLoading);
+    const days = selectedQuote?.valid ? Number(selectedQuote.billable_days || 0) : rentalDays();
     elements.cars2RentalDays.textContent = `${days} rental day${days === 1 ? "" : "s"}`;
-    elements.cars2RentalSubtotal.textContent = money(Number(vehicle.daily_rate || 0) * days);
-    elements.cars2BookVehicle.disabled = state.checking || state.starting || !available || state.quote?.valid === false;
+    elements.cars2QuoteStatus.textContent = state.quoteLoading ? "Calculating…" : quoteReady ? "Price confirmed" : "Price unavailable";
+    elements.cars2QuoteStatus.classList.toggle("ready", quoteReady);
+    elements.cars2RentalSubtotal.textContent = quoteReady ? money(selectedQuote.base_rental_total) : "—";
+    const serviceFeeTotal = Number(selectedQuote?.service_fee_total || 0);
+    elements.cars2ServiceFeeRow.hidden = !quoteReady || serviceFeeTotal <= 0;
+    elements.cars2ServiceFees.textContent = money(serviceFeeTotal);
+    elements.cars2TaxAmount.textContent = quoteReady ? money(selectedQuote.tax_amount) : "—";
+    elements.cars2SecurityDeposit.textContent = quoteReady ? money(selectedQuote.security_deposit) : "—";
+    elements.cars2TotalDueToday.textContent = quoteReady ? money(selectedQuote.total_due_today) : "—";
+    elements.cars2Under25Quote.hidden = !quoteReady;
+    if (quoteReady) {
+      elements.cars2Under25Rental.textContent = money(selectedQuote.under_25_rental_total);
+      elements.cars2Under25Tax.textContent = money(selectedQuote.under_25_tax_amount);
+      elements.cars2Under25Deposit.textContent = money(selectedQuote.under_25_security_deposit);
+      elements.cars2Under25Total.textContent = money(selectedQuote.under_25_total_due_today);
+    }
+    elements.cars2BookVehicle.disabled = state.checking || state.starting || !available || !quoteReady;
     elements.cars2BookVehicle.textContent = state.starting
       ? "Starting secure checkout…"
         : state.checking
         ? "Checking dates…"
         : available
-          ? "Start checkout"
+          ? quoteReady ? "Start checkout" : "Calculating full price…"
           : "Unavailable";
+  }
+
+  async function refreshSelectedQuote(vehicleId) {
+    if (!vehicleId || !validTrip()) return;
+    const requestId = ++state.quoteRequest;
+    state.quoteLoading = true;
+    renderDetailAvailability();
+    try {
+      const quote = await fetchBookingQuote(vehicleId);
+      if (requestId !== state.quoteRequest || state.selectedId !== vehicleId) return;
+      state.quote = quote;
+      if (!quote?.valid) showError(elements.cars2DetailError, quote?.error || "The complete price could not be calculated.");
+    } catch (error) {
+      if (requestId !== state.quoteRequest || state.selectedId !== vehicleId) return;
+      showError(elements.cars2DetailError, friendlyError(error, "The complete price could not be calculated. Please retry."));
+    } finally {
+      if (requestId === state.quoteRequest) {
+        state.quoteLoading = false;
+        renderDetailAvailability();
+      }
+    }
   }
 
   function updateTripFromField(id) {
@@ -464,6 +508,8 @@
       state.trip.returnTime = state.trip.pickupTime;
     }
     state.quote = null;
+    state.quoteRequest += 1;
+    state.quoteLoading = Boolean(state.selectedId);
     if (key === "pickupDate" && state.trip.returnDate <= state.trip.pickupDate) {
       state.trip.returnDate = addDays(state.trip.pickupDate, 1);
     }
@@ -502,7 +548,9 @@
       return false;
     }
     const requestId = ++state.availabilityRequest;
+    const quoteRequestId = ++state.quoteRequest;
     state.checking = true;
+    state.quoteLoading = Boolean(state.selectedId);
     hideError(elements.cars2Error);
     hideError(elements.cars2DetailError);
     renderVehicles();
@@ -514,6 +562,7 @@
       if (!quote?.valid) {
         state.availability.clear();
         state.checking = false;
+        if (quoteRequestId === state.quoteRequest) state.quoteLoading = false;
         renderVehicles();
         renderDetailAvailability();
         if (state.selectedId) {
@@ -535,7 +584,13 @@
       const data = await response.json();
       if (requestId !== state.availabilityRequest) return false;
       state.availability = new Map((Array.isArray(data) ? data : []).map((item) => [item.vehicle_id, item]));
+      if (state.selectedId) {
+        const selectedQuote = await fetchBookingQuote(state.selectedId);
+        if (requestId !== state.availabilityRequest) return false;
+        if (quoteRequestId === state.quoteRequest) state.quote = selectedQuote;
+      }
       state.checking = false;
+      if (quoteRequestId === state.quoteRequest) state.quoteLoading = false;
       renderVehicles();
       renderDetailAvailability();
       return true;
@@ -543,6 +598,7 @@
       if (requestId !== state.availabilityRequest) return false;
       state.availability.clear();
       state.checking = false;
+      if (quoteRequestId === state.quoteRequest) state.quoteLoading = false;
       renderVehicles();
       renderDetailAvailability();
       const message = friendlyError(error, "Live availability could not be verified. Please try again.");
