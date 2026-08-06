@@ -227,6 +227,16 @@ check('Wheelbase and cars-2 fleet pages include all four insurance-provider link
     .every((link) => productionCars.includes(link) && cars2Html.includes(link)));
 check('Cars-2 checkout visibly repeats the insurance requirement',
   cars2Html.includes('class="cars2-checkout-insurance-note"'));
+check('Cars-2 checkout includes every price element required by its renderer',
+  [
+    'cars2QuoteStatus', 'cars2ServiceFeeRow', 'cars2ServiceFees',
+    'cars2TaxAmount', 'cars2SecurityDeposit', 'cars2TotalDueToday',
+    'cars2Under25Quote', 'cars2Under25Rental', 'cars2Under25Tax',
+    'cars2Under25Deposit', 'cars2Under25Total',
+  ].every((id) => cars2Html.includes(`id="${id}"`)));
+check('Cars-2 checkout script and styles use a cache-busting recovery version',
+  cars2Html.includes('cars-2.js?v=20260806-checkout-recovery')
+  && cars2Html.includes('cars-2.css?v=20260806-checkout-recovery'));
 check('Cars-2 insurance reminder intercepts checkout before the hold is created',
   cars2Js.includes('elements.cars2BookVehicle.addEventListener("click", openInsuranceReminder)')
   && cars2Html.includes('I understand — start checkout')
