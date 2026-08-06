@@ -91,12 +91,17 @@
   async function initialize() {
     cacheElements();
     populateTimeOptions();
-    await loadBookingPolicy();
+    const bookingPolicyRequest = loadBookingPolicy();
+    const vehicleRequest = fetchPublishedVehicles()
+      .then((vehicles) => ({ vehicles, error: null }))
+      .catch((error) => ({ vehicles: [], error }));
+    const abandonRequest = abandonReturnedCheckout();
+    await bookingPolicyRequest;
     normalizeInitialTrip();
     syncTripFields();
     bindEvents();
-    await abandonReturnedCheckout();
-    loadVehicles();
+    await abandonRequest;
+    await loadVehicles(vehicleRequest);
   }
 
   function cacheElements() {
@@ -246,21 +251,29 @@
     });
   }
 
-  async function loadVehicles() {
+  async function fetchPublishedVehicles() {
+    const query = new URLSearchParams({
+      select: "*",
+      published: "eq.true",
+      id: `neq.${TEST_VEHICLE_ID}`,
+      order: "daily_rate.asc.nullslast",
+    });
+    const response = await apiFetch(`/rest/v1/vehicles?${query}`, { method: "GET" });
+    const vehicles = await response.json();
+    return Array.isArray(vehicles)
+      ? vehicles.filter((vehicle) => vehicle?.id && vehicle.id !== TEST_VEHICLE_ID)
+      : [];
+  }
+
+  async function loadVehicles(pendingRequest = null) {
     setStatus("Loading live fleet…");
     hideError(elements.cars2Error);
     try {
-      const query = new URLSearchParams({
-        select: "*",
-        published: "eq.true",
-        id: `neq.${TEST_VEHICLE_ID}`,
-        order: "daily_rate.asc.nullslast",
-      });
-      const response = await apiFetch(`/rest/v1/vehicles?${query}`, { method: "GET" });
-      const vehicles = await response.json();
-      state.vehicles = Array.isArray(vehicles)
-        ? vehicles.filter((vehicle) => vehicle?.id && vehicle.id !== TEST_VEHICLE_ID)
-        : [];
+      const result = pendingRequest
+        ? await pendingRequest
+        : { vehicles: await fetchPublishedVehicles(), error: null };
+      if (result.error) throw result.error;
+      state.vehicles = result.vehicles;
       state.loading = false;
       renderFilters();
       const requestedVehicle = url.searchParams.get("vehicle");
@@ -335,7 +348,7 @@
     return `
       <article class="cars2-vehicle-card" data-gallery-vehicle-id="${escapeHtml(vehicle.id)}" data-gallery-index="0">
         <div class="cars2-card-image">
-          <img data-card-image src="${escapeHtml(images[0])}" alt="${escapeHtml(vehicle.name || "Rent Me CT vehicle")} photo 1 of ${images.length}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'" />
+          <img data-card-image src="${escapeHtml(images[0])}" alt="${escapeHtml(vehicle.name || "Rent Me CT vehicle")} photo 1 of ${images.length}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'" />
           <button class="cars2-card-gallery-arrow previous" type="button" data-gallery-direction="-1" aria-label="Show previous photo of ${escapeHtml(vehicle.name || "vehicle")}">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg>
           </button>
@@ -406,7 +419,7 @@
     state.galleryIndex = 0;
     elements.cars2Thumbnails.innerHTML = images.map((image, index) => `
       <button type="button" class="${index === 0 ? "active" : ""}" data-image-index="${index}" aria-label="Show ${escapeHtml(vehicle.name || "vehicle")} photo ${index + 1}">
-        <img src="${escapeHtml(image)}" alt="" onerror="this.closest('button').hidden=true" />
+        <img src="${escapeHtml(image)}" alt="" loading="lazy" decoding="async" onerror="this.closest('button').hidden=true" />
       </button>`).join("");
     elements.cars2Thumbnails.querySelectorAll("[data-image-index]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -701,16 +714,33 @@
   }
 
   async function apiFetch(path, options = {}) {
-    const response = await fetch(`${SUPABASE_URL}${path}`, {
-      cache: "no-store",
-      ...options,
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
-      },
-    });
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(new DOMException("Request deadline exceeded", "TimeoutError")), 9000);
+    const suppliedSignal = options.signal;
+    const abortFromCaller = () => controller.abort(suppliedSignal?.reason);
+    suppliedSignal?.addEventListener("abort", abortFromCaller, { once: true });
+    let response;
+    try {
+      response = await fetch(`${SUPABASE_URL}${path}`, {
+        cache: "no-store",
+        ...options,
+        signal: controller.signal,
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          "Content-Type": "application/json",
+          ...(options.headers || {}),
+        },
+      });
+    } catch (error) {
+      if (controller.signal.aborted && !suppliedSignal?.aborted) {
+        throw new Error("Request timed out. Please retry this section.");
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timeout);
+      suppliedSignal?.removeEventListener("abort", abortFromCaller);
+    }
     if (!response.ok) {
       let detail = "";
       try {

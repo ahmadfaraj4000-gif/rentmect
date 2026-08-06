@@ -30,6 +30,14 @@ requireText('rentmect-client-portal/src/main.jsx', 'Promotion or discount code',
 requireText('rentmect-client-portal/src/main.jsx', "cars2BookingHandoff ? 'checkout' : 'details'", 'Cars-2 handoff skips the redundant portal vehicle page');
 requireText('rentmect-client-portal/src/main.jsx', '<PreviewVehicleGallery vehicle={displayVehicle} compact />', 'Checkout summary preserves the vehicle gallery');
 requireText('rentmect-client-portal/src/main.jsx', 'getVehicleFeatures(displayVehicle)', 'Checkout preserves the vehicle feature list');
+requireText('rentmect-client-portal/src/requestDeadline.js', 'PORTAL_REQUEST_DEADLINE_MS = 9000', 'Customer requests have an explicit deadline');
+requireText('rentmect-client-portal/src/main.jsx', "loadPortalSection('messages'", 'Customer messages load only when their section is needed');
+requireText('rentmect-client-portal/src/main.jsx', 'reconcilePaymentTarget(data?.targetType, data?.targetId', 'Stripe returns reconcile only the affected payment target');
+requireText('rentmect-admin-portal/src/main.jsx', 'get_admin_dashboard_snapshot', 'Admin login begins with a compact dashboard snapshot');
+requireText('rentmect-admin-portal/src/main.jsx', 'onMouseEnter={() => prefetchAdminTab(key)}', 'Admin tabs prefetch on navigation hover');
+requireText('rentmect-admin-portal/src/requestDeadline.js', 'PORTAL_REQUEST_DEADLINE_MS = 9000', 'Admin requests have an explicit deadline');
+requireText('supabase/functions/tollspot-sync/index.ts', 'service_match_tollspot_transactions', 'TollSpot matching uses one batch RPC');
+requireText('supabase/migrations/20260806030000_stage_portals_batch_tolls_and_lifecycle.sql', 'rentmect-rental-lifecycle-recovery', 'Every-minute rental lifecycle recovery is consolidated');
 
 const cars = read('cars.html');
 const fleetCards = [...cars.matchAll(/class="vehicle-card car-item"/g)].length;

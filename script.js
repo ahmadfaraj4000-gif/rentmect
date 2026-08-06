@@ -31,6 +31,7 @@ const BOOKING_PAGE_SETTING_API_URL = SITE_PROMOTIONS_API_URL.replace(
   "rest/v1/rpc/get_public_booking_page_setting"
 );
 const BOOKING_PAGE_PATHS = new Set(["cars.html", "cars-2.html"]);
+const PUBLIC_REQUEST_DEADLINE_MS = 9000;
 let activeBookingPagePath = "cars.html";
 let bookingPageRefreshTimer = 0;
 let bookingPagePollingTimer = 0;
@@ -41,7 +42,7 @@ window.resolveBookingPageUrl = (value) => resolveBookingPageUrl(value);
 
 async function setupBookingPageRouting() {
   try {
-    const response = await fetch(BOOKING_PAGE_SETTING_API_URL, {
+    const response = await fetchWithDeadline(BOOKING_PAGE_SETTING_API_URL, {
       method: "POST",
       cache: "no-store",
       headers: {
@@ -219,7 +220,7 @@ async function fetchSitePromotions() {
       active: "eq.true",
       order: "updated_at.desc",
     });
-    const response = await fetch(`${SITE_PROMOTIONS_API_URL}?${query}`, {
+    const response = await fetchWithDeadline(`${SITE_PROMOTIONS_API_URL}?${query}`, {
       cache: "no-store",
       headers: {
         apikey: SITE_PROMOTIONS_ANON_KEY,
@@ -241,7 +242,7 @@ async function loadAdminVehicleImages() {
 
   try {
     const query = new URLSearchParams({ select: "id,image_urls,published" });
-    const response = await fetch(`${SITE_VEHICLES_API_URL}?${query}`, {
+    const response = await fetchWithDeadline(`${SITE_VEHICLES_API_URL}?${query}`, {
       headers: {
         apikey: SITE_PROMOTIONS_ANON_KEY,
         Authorization: `Bearer ${SITE_PROMOTIONS_ANON_KEY}`,
@@ -285,6 +286,25 @@ async function loadAdminVehicleImages() {
     });
   } catch (error) {
     console.warn("Using built-in optimized vehicle pictures because admin pictures are unavailable.", error);
+  }
+}
+
+async function fetchWithDeadline(url, options = {}, deadlineMs = PUBLIC_REQUEST_DEADLINE_MS) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(new DOMException("Request deadline exceeded", "TimeoutError")), deadlineMs);
+  const suppliedSignal = options.signal;
+  const abortFromCaller = () => controller.abort(suppliedSignal?.reason);
+  suppliedSignal?.addEventListener("abort", abortFromCaller, { once: true });
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted && !suppliedSignal?.aborted) {
+      throw new Error("Public data request timed out.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+    suppliedSignal?.removeEventListener("abort", abortFromCaller);
   }
 }
 
