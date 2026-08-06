@@ -11,10 +11,10 @@
   <link rel="icon" type="image/png" href="assets/favicon.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="site-v2.css" />
-  <link rel="stylesheet" href="cars-2.css?v=20260806-out-the-door-pricing-v2" />
+  <link rel="stylesheet" href="cars-2.css?v=20260803-booking-alignment" />
   <script src="fleet-gallery-data.js" defer></script>
   <script src="script.js?v=20260806-cars2-cutover" defer></script>
-  <script src="cars-2.js?v=20260806-eastern-booking-defaults" defer></script>
+  <script src="cars-2.js" defer></script>
 </head>
 <body class="site-v2 cars-v2-page">
   <a class="skip-link" href="#cars2Main">Skip to main content</a>
@@ -223,37 +223,9 @@
             <label><span>Return time</span><select id="cars2DetailReturnTime" required></select></label>
           </div>
           <p id="cars2DetailAvailability" class="cars2-availability">Checking calendar…</p>
-          <section class="cars2-price-summary" aria-labelledby="cars2PriceSummaryTitle" aria-live="polite">
-            <div class="cars2-price-summary-heading">
-              <div><span>Complete price</span><strong id="cars2PriceSummaryTitle">Estimated amount due today</strong></div>
-              <span id="cars2QuoteStatus">Calculating…</span>
-            </div>
-            <div class="cars2-price-row">
-              <span id="cars2RentalDays">0 rental days</span>
-              <strong id="cars2RentalSubtotal">—</strong>
-            </div>
-            <div id="cars2ServiceFeeRow" class="cars2-price-row" hidden>
-              <span>Booking fees</span>
-              <strong id="cars2ServiceFees">$0.00</strong>
-            </div>
-            <div class="cars2-price-row">
-              <span>CT sales tax</span>
-              <strong id="cars2TaxAmount">—</strong>
-            </div>
-            <div class="cars2-price-row cars2-deposit-row">
-              <span>Refundable security deposit <small>Included in today’s payment</small></span>
-              <strong id="cars2SecurityDeposit">—</strong>
-            </div>
-            <div class="cars2-price-row cars2-price-due">
-              <span>Total due today</span>
-              <strong id="cars2TotalDueToday">—</strong>
-            </div>
-            <p class="cars2-price-scope">Includes the selected rental, active booking fees, CT sales tax, and refundable deposit. Mileage, tolls, tickets, fuel, late return, cleaning, smoking, or damage charges are not included.</p>
-          </section>
-          <div id="cars2Under25Quote" class="cars2-under25-quote" hidden>
-            <strong>Driver age 21–24?</strong>
-            <span>Your date of birth is confirmed during checkout. For this vehicle, age 21–24 pricing would be <b id="cars2Under25Rental">—</b> rental, <b id="cars2Under25Tax">—</b> tax, and a <b id="cars2Under25Deposit">—</b> refundable deposit.</span>
-            <span class="cars2-under25-total">Age 21–24 total due today: <b id="cars2Under25Total">—</b></span>
+          <div class="cars2-total">
+            <span id="cars2RentalDays">0 rental days</span>
+            <strong id="cars2RentalSubtotal">$0.00</strong>
           </div>
           <div class="cars2-checkout-insurance-note">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.7 2.9 8.4 7 10 4.1-1.6 7-5.3 7-10V6l-7-3Z"></path><path d="m9 12 2 2 4-4"></path></svg>
