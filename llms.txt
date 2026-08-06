@@ -15,7 +15,7 @@ Insurance: Renters must provide active auto insurance and upload the insurance d
 ## Primary Pages
 
 - Homepage: https://rentmect.com/
-- Browse cars: https://rentmect.com/cars.html
+- Browse cars: https://rentmect.com/cars-2.html
 - Requirements: https://rentmect.com/requirements.html
 - Rental agreement summary: https://rentmect.com/agreement.html
 - Contact: https://rentmect.com/contact.html
