@@ -11,7 +11,8 @@
     "audit:wheelbase-live": "node tools/audit-wheelbase-live.mjs",
     "sync:vehicle-galleries": "node tools/sync-wheelbase-gallery.mjs",
     "audit:sms-compliance": "npm --prefix rentmect-client-portal run build && node tools/audit-sms-compliance.mjs",
-    "audit:return-reminder-email": "node tools/audit-return-reminder-email.mjs"
+    "audit:return-reminder-email": "node tools/audit-return-reminder-email.mjs",
+    "audit:booking-default-time": "node tools/audit-booking-default-time.mjs"
   },
   "devDependencies": {
     "supabase": "^2.109.1"

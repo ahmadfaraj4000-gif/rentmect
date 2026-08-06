@@ -1954,7 +1954,7 @@
   </script>
 
   <script src="fleet-gallery-data.js"></script>
-  <script src="script.js"></script>
+  <script src="script.js?v=20260806-eastern-booking-defaults"></script>
 
   <script>
     window.filterCars = wheelbaseCustomFilter;
@@ -2096,6 +2096,8 @@
       if (dates.returnDate) portalUrl.searchParams.set("returnDate", dates.returnDate);
       if (dates.pickupTime) portalUrl.searchParams.set("pickupTime", dates.pickupTime);
       if (dates.returnTime) portalUrl.searchParams.set("returnTime", dates.returnTime);
+      portalUrl.searchParams.set("pickupTimeCustomized", String(quickBookingPickupTimeCustomized));
+      portalUrl.searchParams.set("returnTimeCustomized", String(quickBookingReturnTimeCustomized));
       const promoCode = new URL(window.location.href).searchParams.get("promo") || activeSitePromotion?.coupon_code || "";
       if (promoCode) portalUrl.searchParams.set("promo", promoCode);
       window.location.href = portalUrl.toString();

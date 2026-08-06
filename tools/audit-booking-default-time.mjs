@@ -1,0 +1,111 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+
+const read = (file) => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+
+function functionSource(source, name) {
+  const start = source.indexOf(`function ${name}(`);
+  if (start < 0) throw new Error(`Missing ${name}`);
+  const bodyStart = source.indexOf('{', start);
+  let depth = 0;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    if (source[index] === '{') depth += 1;
+    if (source[index] === '}') depth -= 1;
+    if (depth === 0) return source.slice(start, index + 1);
+  }
+  throw new Error(`Unbalanced ${name}`);
+}
+
+function constantSource(source, name) {
+  const match = source.match(new RegExp(`const ${name} = [^;]+;`));
+  if (!match) throw new Error(`Missing ${name}`);
+  return match[0];
+}
+
+const constants = [
+  'RENT_ME_CT_TIME_ZONE',
+  'RENTAL_OPENING_MINUTES',
+  'RENTAL_LAST_SLOT_MINUTES',
+  'RENTAL_DEFAULT_NOTICE_MINUTES',
+  'RENTAL_SLOT_MINUTES',
+];
+const cases = [
+  ['12:55 AM ET opens at 9:00 AM', '2026-08-06T04:55:00Z', { date: '2026-08-06', time: '9:00 AM' }],
+  ['8:59 AM ET opens at 9:00 AM', '2026-08-06T12:59:00Z', { date: '2026-08-06', time: '9:00 AM' }],
+  ['9:00 AM ET adds three hours', '2026-08-06T13:00:00Z', { date: '2026-08-06', time: '12:00 PM' }],
+  ['9:01 AM ET rounds to the next half-hour', '2026-08-06T13:01:00Z', { date: '2026-08-06', time: '12:30 PM' }],
+  ['12:55 PM ET becomes 4:00 PM', '2026-08-06T16:55:00Z', { date: '2026-08-06', time: '4:00 PM' }],
+  ['8:31 PM ET rolls overnight to 9:00 AM', '2026-08-07T00:31:00Z', { date: '2026-08-07', time: '9:00 AM' }],
+  ['Winter midnight still uses Eastern Time', '2026-12-15T05:55:00Z', { date: '2026-12-15', time: '9:00 AM' }],
+];
+
+const shared = read('script.js');
+const sharedContext = vm.createContext({ Date, Intl, Math, Number, Object, String });
+vm.runInContext([
+  ...constants.map((name) => constantSource(shared, name)),
+  functionSource(shared, 'getDefaultRentalSlot'),
+  functionSource(shared, 'getEasternDateTimeParts'),
+  functionSource(shared, 'minutesToRentalTime'),
+  functionSource(shared, 'getNextDateInputValue'),
+  functionSource(shared, 'getRentalDateTime'),
+  'globalThis.calculate = getDefaultRentalSlot;',
+  'globalThis.toInstant = getRentalDateTime;',
+].join('\n'), sharedContext);
+
+const cars2 = read('cars-2.js');
+const wheelbasePage = read('cars.html');
+if (!shared.includes('pickupTimeCustomized: quickBookingPickupTimeCustomized')) {
+  throw new Error('Homepage handoff must label a customer-selected pickup time.');
+}
+if (!cars2.includes('requestedPickupTime && requestedPickupTimeCustomized')) {
+  throw new Error('Cars-2 must ignore an inherited legacy default unless the customer selected it.');
+}
+if (!cars2.includes('requestedReturnTimeCustomized && requestedReturnTime')) {
+  throw new Error('Cars-2 must ignore an inherited legacy return default unless the customer selected it.');
+}
+if (!wheelbasePage.includes('String(quickBookingPickupTimeCustomized)')) {
+  throw new Error('The Wheelbase preview handoff must label whether the customer selected the pickup time.');
+}
+const timeOptionsStart = cars2.indexOf('const TIME_OPTIONS =');
+const timeOptionsEnd = cars2.indexOf('  const RENT_ME_CT_TIME_ZONE', timeOptionsStart);
+const cars2Context = vm.createContext({ Date, Intl, Math, Number, Object, String });
+vm.runInContext([
+  cars2.slice(timeOptionsStart, timeOptionsEnd),
+  ...constants.map((name) => constantSource(cars2, name)),
+  'const state = { policy: { serverNow: "", advanceNoticeMinutes: 0 } };',
+  functionSource(cars2, 'addDays'),
+  functionSource(cars2, 'earliestPickupSlot'),
+  functionSource(cars2, 'easternDateTimeParts'),
+  functionSource(cars2, 'minutesToTime'),
+  functionSource(cars2, 'timeToMinutes'),
+  'globalThis.calculate = (serverNow) => { state.policy.serverNow = serverNow; return earliestPickupSlot(); };',
+].join('\n'), cars2Context);
+
+let failures = 0;
+for (const [label, instant, expected] of cases) {
+  for (const [surface, actual] of [
+    ['Homepage', sharedContext.calculate(new Date(instant))],
+    ['Cars-2', cars2Context.calculate(instant)],
+  ]) {
+    const passed = actual.date === expected.date && actual.time === expected.time;
+    console.log(`${passed ? 'PASS' : 'FAIL'} ${surface}: ${label} -> ${actual.date} ${actual.time}`);
+    if (!passed) failures += 1;
+  }
+}
+
+if (failures) process.exit(1);
+
+const wallClockCases = [
+  ['Summer 9:00 AM ET', '2026-08-06', '9:00 AM', '2026-08-06T13:00:00.000Z'],
+  ['Winter 9:00 AM ET', '2026-12-15', '9:00 AM', '2026-12-15T14:00:00.000Z'],
+  ['Summer 11:30 PM ET', '2026-08-06', '11:30 PM', '2026-08-07T03:30:00.000Z'],
+];
+for (const [label, date, time, expected] of wallClockCases) {
+  const actual = sharedContext.toInstant(date, time).toISOString();
+  const passed = actual === expected;
+  console.log(`${passed ? 'PASS' : 'FAIL'} ${label} -> ${actual}`);
+  if (!passed) failures += 1;
+}
+
+if (failures) process.exit(1);
+console.log(`\nAll ${cases.length * 2 + wallClockCases.length} Eastern-time booking checks passed.`);

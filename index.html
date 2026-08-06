@@ -513,7 +513,7 @@
     </div>
   </footer>
 
-  <script src="script.js"></script>
+  <script src="script.js?v=20260806-eastern-booking-defaults"></script>
 
   <script>
     const WHEELBASE_RENTAL_API_URL = "https://api.outdoorsy.co/v0/rentals";
@@ -598,7 +598,9 @@
         pickupDate,
         returnDate,
         pickupTime,
-        returnTime
+        pickupTimeCustomized: quickBookingPickupTimeCustomized,
+        returnTime,
+        returnTimeCustomized: quickBookingReturnTimeCustomized
       };
 
       localStorage.setItem("rentmect_pending_booking", JSON.stringify(bookingData));
