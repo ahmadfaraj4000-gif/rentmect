@@ -41,17 +41,29 @@
     const displayHour = hour % 12 || 12;
     return `${displayHour}:${String(minute).padStart(2, "0")} ${period}`;
   });
+  const RENT_ME_CT_TIME_ZONE = "America/New_York";
+  const RENTAL_OPENING_MINUTES = 9 * 60;
+  const RENTAL_LAST_SLOT_MINUTES = 23 * 60 + 30;
+  const RENTAL_DEFAULT_NOTICE_MINUTES = 3 * 60;
+  const RENTAL_SLOT_MINUTES = 30;
 
   const url = new URL(window.location.href);
   const requestedPickupDate = validDateParam(url.searchParams.get("pickupDate"));
   const requestedPickupTime = validTimeParam(url.searchParams.get("pickupTime"));
+  const requestedPickupTimeCustomized =
+    url.searchParams.get("pickupTimeCustomized") === "1"
+    || url.searchParams.get("pickupTimeCustomized") === "true";
   const requestedReturnTime = validTimeParam(url.searchParams.get("returnTime"));
+  const requestedReturnTimeCustomized =
+    url.searchParams.get("returnTimeCustomized") === "1"
+    || url.searchParams.get("returnTimeCustomized") === "true";
+  const initialPickupTime = requestedPickupTimeCustomized && requestedPickupTime ? requestedPickupTime : "9:00 AM";
   const state = {
     trip: {
       pickupDate: requestedPickupDate || dateInput(0),
       returnDate: validDateParam(url.searchParams.get("returnDate")) || dateInput(1),
-      pickupTime: requestedPickupTime || "9:00 AM",
-      returnTime: requestedReturnTime || requestedPickupTime || "9:00 AM",
+      pickupTime: initialPickupTime,
+      returnTime: requestedReturnTimeCustomized && requestedReturnTime ? requestedReturnTime : initialPickupTime,
     },
     policy: {
       minimumRentalDays: 1,
@@ -83,8 +95,8 @@
   let insuranceModalTrigger = null;
   let initialTripNormalized = false;
   let returnTimeCustomized =
-    url.searchParams.get("returnTimeCustomized") === "1"
-    || Boolean(requestedReturnTime && requestedReturnTime !== state.trip.pickupTime);
+    requestedReturnTimeCustomized
+    && Boolean(requestedReturnTime && requestedReturnTime !== state.trip.pickupTime);
 
   document.addEventListener("DOMContentLoaded", initialize);
 
@@ -804,7 +816,7 @@
     const today = dateInput(0);
     const earliestSlot = earliestPickupSlot();
     if (!validDateParam(state.trip.pickupDate) || state.trip.pickupDate < today) state.trip.pickupDate = earliestSlot.date;
-    if (!initialTripNormalized && !requestedPickupTime) {
+    if (!initialTripNormalized && !(requestedPickupTime && requestedPickupTimeCustomized)) {
       if (!requestedPickupDate || state.trip.pickupDate < earliestSlot.date) state.trip.pickupDate = earliestSlot.date;
       state.trip.pickupTime = earliestSlot.time;
     }
@@ -948,14 +960,8 @@
   }
 
   function dateInput(offsetDays = 0) {
-    const date = new Date();
-    date.setHours(12, 0, 0, 0);
-    date.setDate(date.getDate() + offsetDays);
-    return [
-      date.getFullYear(),
-      String(date.getMonth() + 1).padStart(2, "0"),
-      String(date.getDate()).padStart(2, "0"),
-    ].join("-");
+    const eastern = easternDateTimeParts(new Date());
+    return addDays(eastern.date, offsetDays);
   }
 
   function addDays(dateValue, days) {
@@ -1010,20 +1016,39 @@
   }
 
   function earliestPickupSlot() {
-    const advanceNoticeMinutes = Math.max(180, state.policy.advanceNoticeMinutes);
-    const earliest = new Date(new Date(state.policy.serverNow).getTime() + advanceNoticeMinutes * 60000);
-    const eastern = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/New_York",
-      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
-    }).formatToParts(earliest).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
-    let date = `${eastern.year}-${eastern.month}-${eastern.day}`;
-    const minuteOfDay = Math.ceil((Number(eastern.hour) * 60 + Number(eastern.minute)) / 60) * 60;
-    let time = TIME_OPTIONS.find((option) => timeToMinutes(option) >= minuteOfDay) || "";
-    if (!time) {
+    const eastern = easternDateTimeParts(new Date(state.policy.serverNow));
+    let date = eastern.date;
+    const requestedNotice = Math.max(0, Number(state.policy.advanceNoticeMinutes) || 0);
+    const standardTarget = eastern.minutes < RENTAL_OPENING_MINUTES
+      ? RENTAL_OPENING_MINUTES
+      : eastern.minutes + RENTAL_DEFAULT_NOTICE_MINUTES;
+    const targetMinutes = Math.max(standardTarget, eastern.minutes + requestedNotice);
+    const roundedMinutes = Math.ceil(targetMinutes / RENTAL_SLOT_MINUTES) * RENTAL_SLOT_MINUTES;
+    if (roundedMinutes > RENTAL_LAST_SLOT_MINUTES) {
       date = addDays(date, 1);
-      time = TIME_OPTIONS[0];
+      return { date, time: minutesToTime(RENTAL_OPENING_MINUTES) };
     }
-    return { date, time };
+    return { date, time: minutesToTime(roundedMinutes) };
+  }
+
+  function easternDateTimeParts(value) {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+      timeZone: RENT_ME_CT_TIME_ZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(value).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+    return {
+      date: `${parts.year}-${parts.month}-${parts.day}`,
+      minutes: Number(parts.hour) * 60 + Number(parts.minute),
+    };
+  }
+
+  function minutesToTime(minutes) {
+    return TIME_OPTIONS.find((option) => timeToMinutes(option) === minutes) || TIME_OPTIONS[0];
   }
 
   function timeToMinutes(value) {

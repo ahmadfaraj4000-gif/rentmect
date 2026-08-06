@@ -3,7 +3,13 @@ const RENT_ME_CT_ADDRESS = "12 Holmes Circle, Farmington, CT";
 let selectedVehicleName = "";
 let selectedRentalPeriod = "";
 let lastRentalTimeNotice = "";
+let quickBookingPickupTimeCustomized = false;
 let quickBookingReturnTimeCustomized = false;
+const RENT_ME_CT_TIME_ZONE = "America/New_York";
+const RENTAL_OPENING_MINUTES = 9 * 60;
+const RENTAL_LAST_SLOT_MINUTES = 23 * 60 + 30;
+const RENTAL_DEFAULT_NOTICE_MINUTES = 3 * 60;
+const RENTAL_SLOT_MINUTES = 30;
 
 document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".chatbot-toggle, .chatbot").forEach((element) => element.remove());
@@ -753,22 +759,42 @@ function getRentalTimeOptions() {
 }
 
 function getDefaultRentalSlot(now = new Date()) {
-  const rounded = new Date(now);
-  const roundUpOneHour = rounded.getMinutes() > 0;
-  rounded.setHours(rounded.getHours() + 3 + (roundUpOneHour ? 1 : 0), 0, 0, 0);
+  const eastern = getEasternDateTimeParts(now);
+  let date = eastern.date;
+  const targetMinutes = eastern.minutes < RENTAL_OPENING_MINUTES
+    ? RENTAL_OPENING_MINUTES
+    : eastern.minutes + RENTAL_DEFAULT_NOTICE_MINUTES;
+  const roundedMinutes = Math.ceil(targetMinutes / RENTAL_SLOT_MINUTES) * RENTAL_SLOT_MINUTES;
 
-  let date = getLocalDateInputValue(rounded);
-  let time = getRentalTimeOptions().find((option) => {
-    const optionDateTime = getRentalDateTime(date, option);
-    return optionDateTime && optionDateTime >= rounded;
-  }) || "";
-
-  if (!time) {
+  if (roundedMinutes > RENTAL_LAST_SLOT_MINUTES) {
     date = getNextDateInputValue(date);
-    time = getRentalTimeOptions()[0];
+    return { date, time: minutesToRentalTime(RENTAL_OPENING_MINUTES) };
   }
 
-  return { date, time };
+  return { date, time: minutesToRentalTime(roundedMinutes) };
+}
+
+function getEasternDateTimeParts(value = new Date()) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: RENT_ME_CT_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(value).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    minutes: Number(parts.hour) * 60 + Number(parts.minute),
+  };
+}
+
+function minutesToRentalTime(minutes) {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  const suffix = hour >= 12 && hour < 24 ? "PM" : "AM";
+  return `${hour % 12 || 12}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
 function getRentalDateTime(dateValue, timeLabel) {
@@ -782,7 +808,31 @@ function getRentalDateTime(dateValue, timeLabel) {
   if (period === "AM" && hours === 12) hours = 0;
   if (period === "PM" && hours !== 12) hours += 12;
 
-  return new Date(`${dateValue}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const targetWallClock = Date.UTC(year, month - 1, day, hours, minutes, 0);
+  let instant = targetWallClock;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const eastern = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+      timeZone: RENT_ME_CT_TIME_ZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date(instant)).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+    const observedWallClock = Date.UTC(
+      Number(eastern.year),
+      Number(eastern.month) - 1,
+      Number(eastern.day),
+      Number(eastern.hour),
+      Number(eastern.minute),
+      Number(eastern.second),
+    );
+    instant += targetWallClock - observedWallClock;
+  }
+  return new Date(instant);
 }
 
 function getFirstFutureRentalTime(dateValue) {
@@ -958,6 +1008,7 @@ function setMinDates() {
   });
 
   document.getElementById("pickupTime")?.addEventListener("change", () => {
+    if (document.querySelector("[data-booking-widget]")) quickBookingPickupTimeCustomized = true;
     const returnTime = document.getElementById("returnTime");
     if (document.querySelector("[data-booking-widget]") && returnTime && !quickBookingReturnTimeCustomized) {
       returnTime.value = document.getElementById("pickupTime").value;
@@ -979,16 +1030,17 @@ function setMinDates() {
 }
 
 function getLocalDateInputValue(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return getEasternDateTimeParts(date).date;
 }
 
 function getNextDateInputValue(value) {
-  const date = new Date(`${value}T00:00:00`);
-  date.setDate(date.getDate() + 1);
-  return getLocalDateInputValue(date);
+  const [year, month, day] = String(value).split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + 1, 12));
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCDate()).padStart(2, "0"),
+  ].join("-");
 }
 
 function normalizeRentalDateInputs() {
@@ -1049,11 +1101,18 @@ function loadBookingDatesIntoForm() {
   const requestedReturnTime = params.get("returnTime");
   const savedPickupTime = bookingData.pickupTime || bookingData.pickup_time || "";
   const savedReturnTime = bookingData.returnTime || bookingData.return_time || "";
-  const pickupTime = requestedPickupTime || savedPickupTime || formDefaultTime || defaultSlot.time;
+  quickBookingPickupTimeCustomized =
+    params.get("pickupTimeCustomized") === "1"
+    || params.get("pickupTimeCustomized") === "true"
+    || bookingData.pickupTimeCustomized === true;
+  const pickupTime = quickBookingPickupTimeCustomized
+    ? requestedPickupTime || savedPickupTime || formDefaultTime || defaultSlot.time
+    : defaultSlot.time;
   const returnTime = requestedReturnTime || savedReturnTime || pickupTime;
 
   quickBookingReturnTimeCustomized =
     params.get("returnTimeCustomized") === "1"
+    || params.get("returnTimeCustomized") === "true"
     || bookingData.returnTimeCustomized === true
     || Boolean(requestedReturnTime && requestedReturnTime !== pickupTime)
     || Boolean(!requestedReturnTime && savedReturnTime && savedReturnTime !== pickupTime);
@@ -1104,6 +1163,7 @@ function startBooking(event) {
     pickupDate,
     returnDate,
     pickupTime,
+    pickupTimeCustomized: quickBookingPickupTimeCustomized,
     returnTime,
     returnTimeCustomized: quickBookingReturnTimeCustomized,
     selectedVehicle: existingVehicle
