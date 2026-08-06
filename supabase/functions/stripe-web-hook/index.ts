@@ -526,7 +526,7 @@ async function releaseDueSecurityDeposits() {
   return { pending, released };
 }
 
-async function createRentalCheckout(req: Request, payload: CheckoutPayload, userId: string) {
+async function createRentalCheckout(req: Request, payload: CheckoutPayload, userId: string, adminAssisted = false) {
   assertPaymentCreationEnabled();
   if (!payload.rentalId) throw new Error("Rental id is required.");
 
@@ -562,13 +562,13 @@ async function createRentalCheckout(req: Request, payload: CheckoutPayload, user
   if (profileError || !renterProfile?.date_of_birth) {
     throw new Error("Add a valid date of birth to your profile before payment.");
   }
-  if (!renterProfile.phone_verified) {
+  if (!adminAssisted && !renterProfile.phone_verified) {
     throw new Error("Verify your phone number before payment.");
   }
-  if (String(renterProfile.identity_verification_status || "").toLowerCase() !== "verified") {
+  if (!adminAssisted && String(renterProfile.identity_verification_status || "").toLowerCase() !== "verified") {
     throw new Error("Complete Stripe Identity verification before payment.");
   }
-  if (!rental.agreement_signed) {
+  if (!adminAssisted && !rental.agreement_signed) {
     throw new Error("Sign the rental agreement before payment.");
   }
 
@@ -586,7 +586,7 @@ async function createRentalCheckout(req: Request, payload: CheckoutPayload, user
     document.rental_id === rental.id &&
     String(document.status || "").toLowerCase() !== "rejected"
   );
-  if (!hasLicense || !hasInsurance) {
+  if (!adminAssisted && (!hasLicense || !hasInsurance)) {
     throw new Error("Upload your driver license and insurance paperwork before payment.");
   }
 
@@ -1065,7 +1065,7 @@ async function handleApiAction(req: Request) {
     if (error || !rental?.user_id) return json({ error: error?.message || "Rental customer not found." }, 404);
     const { data: customerAuth, error: customerAuthError } = await adminClient.auth.admin.getUserById(rental.user_id);
     if (customerAuthError || !customerAuth.user) return json({ error: "Payment cannot be started for a deleted customer account." }, 409);
-    return json(await createRentalCheckout(req, payload, rental.user_id));
+    return json(await createRentalCheckout(req, payload, rental.user_id, true));
   }
 
   if (payload.action === "create_identity_verification") {
