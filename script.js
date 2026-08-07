@@ -13,17 +13,20 @@ const RENTAL_SLOT_MINUTES = 30;
 
 document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".chatbot-toggle, .chatbot").forEach((element) => element.remove());
+  // Booking controls are critical: initialize them before optional promotions,
+  // galleries, and remote image enhancements so those features can never leave
+  // homepage dates or time options blank.
+  populateTimeSelects();
+  setMinDates();
+  loadBookingDatesIntoForm();
+  normalizeRentalDateInputs();
+  normalizeRentalTimeInputs({ notify: true });
   setupBookingPageRouting();
   observeBookingPageLinks();
   setupMobileNavigation();
   setupSitePromotion();
   setupVehicleGalleries();
   loadAdminVehicleImages();
-  populateTimeSelects();
-  setMinDates();
-  loadBookingDatesIntoForm();
-  normalizeRentalDateInputs();
-  normalizeRentalTimeInputs({ notify: true });
   restoreBookingPreview();
   setupContactModal();
   window.syncVehicleAvailability?.();

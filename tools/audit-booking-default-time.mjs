@@ -40,6 +40,7 @@ const cases = [
 ];
 
 const shared = read('script.js');
+const homepage = read('index.html');
 const sharedContext = vm.createContext({ Date, Intl, Math, Number, Object, String });
 vm.runInContext([
   ...constants.map((name) => constantSource(shared, name)),
@@ -53,9 +54,15 @@ vm.runInContext([
 ].join('\n'), sharedContext);
 
 const cars2 = read('cars-2.js');
-const wheelbasePage = read('cars.html');
 if (!shared.includes('pickupTimeCustomized: quickBookingPickupTimeCustomized')) {
   throw new Error('Homepage handoff must label a customer-selected pickup time.');
+}
+const homepageStartBooking = functionSource(homepage, 'startBooking');
+if (!homepageStartBooking.includes('pickupTimeCustomized: quickBookingPickupTimeCustomized')) {
+  throw new Error('The visible homepage handler must label a customer-selected pickup time.');
+}
+if (!homepageStartBooking.includes('returnTimeCustomized: quickBookingReturnTimeCustomized')) {
+  throw new Error('The visible homepage handler must label a customer-selected return time.');
 }
 if (!cars2.includes('requestedPickupTime && requestedPickupTimeCustomized')) {
   throw new Error('Cars-2 must ignore an inherited legacy default unless the customer selected it.');
@@ -63,8 +70,55 @@ if (!cars2.includes('requestedPickupTime && requestedPickupTimeCustomized')) {
 if (!cars2.includes('requestedReturnTimeCustomized && requestedReturnTime')) {
   throw new Error('Cars-2 must ignore an inherited legacy return default unless the customer selected it.');
 }
-if (!wheelbasePage.includes('String(quickBookingPickupTimeCustomized)')) {
-  throw new Error('The Wheelbase preview handoff must label whether the customer selected the pickup time.');
+function homepageHandoff(pickupCustomized, returnCustomized) {
+  const saved = new Map();
+  const controls = {
+    pickupDate: { value: '2099-08-06' },
+    returnDate: { value: '2099-08-07' },
+    pickupTime: { value: '4:00 PM' },
+    returnTime: { value: '5:30 PM' },
+  };
+  const context = vm.createContext({
+    Date,
+    URLSearchParams,
+    quickBookingPickupTimeCustomized: pickupCustomized,
+    quickBookingReturnTimeCustomized: returnCustomized,
+    document: { getElementById: (id) => controls[id] || null },
+    getRentalDateTime: (date) => new Date(`${date}T12:00:00Z`),
+    updateQuickBookingSummary: () => {},
+    localStorage: { setItem: (key, value) => saved.set(key, value) },
+    window: {
+      getActiveBookingPage: () => 'cars-2.html',
+      location: { href: '' },
+    },
+  });
+  vm.runInContext(`${homepageStartBooking}\nglobalThis.submitHomepage = startBooking;`, context);
+  context.submitHomepage({ preventDefault() {} });
+  return {
+    stored: JSON.parse(saved.get('rentmect_pending_booking')),
+    destination: new URL(context.window.location.href, 'https://rentmect.com/'),
+  };
+}
+
+const customizedHandoff = homepageHandoff(true, true);
+if (customizedHandoff.stored.pickupTimeCustomized !== true || customizedHandoff.stored.returnTimeCustomized !== true) {
+  throw new Error('Homepage local storage must preserve both customer-selected time flags.');
+}
+if (customizedHandoff.destination.searchParams.get('pickupTimeCustomized') !== 'true'
+  || customizedHandoff.destination.searchParams.get('returnTimeCustomized') !== 'true') {
+  throw new Error('Homepage Cars-2 URL must preserve both customer-selected time flags.');
+}
+const defaultHandoff = homepageHandoff(false, false);
+if (defaultHandoff.destination.searchParams.get('pickupTimeCustomized') !== 'false'
+  || defaultHandoff.destination.searchParams.get('returnTimeCustomized') !== 'false') {
+  throw new Error('Untouched homepage defaults must remain explicitly recalculable by Cars-2.');
+}
+
+const domReadyStart = shared.indexOf('document.addEventListener("DOMContentLoaded"');
+const bookingInitPosition = shared.indexOf('populateTimeSelects();', domReadyStart);
+const optionalPromotionPosition = shared.indexOf('setupSitePromotion();', domReadyStart);
+if (bookingInitPosition < 0 || optionalPromotionPosition < 0 || bookingInitPosition > optionalPromotionPosition) {
+  throw new Error('Critical booking controls must initialize before optional homepage enhancements.');
 }
 const timeOptionsStart = cars2.indexOf('const TIME_OPTIONS =');
 const timeOptionsEnd = cars2.indexOf('  const RENT_ME_CT_TIME_ZONE', timeOptionsStart);
