@@ -24,3 +24,5 @@ jobs:
         run: npm run audit:booking-default-time
       - name: Verify phone profile-save guard
         run: npm run audit:phone-profile-save
+      - name: Verify late-return and mileage policy
+        run: npm run audit:late-fee-mileage

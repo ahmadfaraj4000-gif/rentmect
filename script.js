@@ -1210,12 +1210,12 @@ const RENT_ME_CT_CHATBOT_TOPICS = [
     response: "Renters must be at least 21 years old. Renters under 25 may be subject to a young driver fee. Only approved drivers listed on the rental may operate the vehicle."
   },
   {
-    keywords: ["miles", "mileage", "extra miles", "unlimited", "per mile", "200 miles"],
-    response: "Rentals include 200 miles per day. Extra mileage is billed at $0.35 per mile unless another mileage option is purchased or agreed to."
+    keywords: ["miles", "mileage", "extra miles", "unlimited", "per mile", "250 miles"],
+    response: "Rentals include 250 miles per day. Extra mileage is billed at $0.35 per mile unless another mileage option is purchased or agreed to."
   },
   {
-    keywords: ["late", "late return", "return late", "after return", "4 hours", "miss return"],
-    response: "Vehicles must be returned by the scheduled date and time. If a vehicle is not returned within 4 hours of the scheduled return time without approval, the renter may be charged one additional rental day plus a $25 late fee. Recovery, towing, storage, transportation, and administrative fees may also apply."
+    keywords: ["late", "late return", "return late", "after return", "30 minutes", "2 hours", "miss return"],
+    response: "Vehicles must be returned by the scheduled date and time. At 30 minutes late without approval, a $25 late-return fee applies. If the vehicle remains unreturned for more than 2 hours, one additional rental day is also assessed at the applicable daily rate. Recovery, towing, storage, transportation, and administrative fees may also apply."
   },
   {
     keywords: ["damage", "accident", "crash", "collision", "scratch", "dent", "theft", "stolen", "police"],
