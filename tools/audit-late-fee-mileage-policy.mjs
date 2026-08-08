@@ -21,6 +21,7 @@ const migration = read('supabase/migrations/20260808233000_late_fee_and_250_mile
 
 check('public policy has no legacy 200-mile allowance', !/200\s+miles|200\s+miles\/day/i.test(publicPolicy));
 check('public policy publishes the 250-mile allowance', /250\s+miles/i.test(publicPolicy));
+check('homepage daily-mileage stat displays 250', /<strong>250<\/strong>\s*<span>Miles Included Daily<\/span>/.test(read('index.html')));
 check('public agreement publishes the 30-minute fee', /At 30 minutes after the scheduled return time/.test(read('agreement.html')));
 check('public agreement publishes the more-than-two-hour daily charge', /more than 2 hours after the scheduled return time/.test(read('agreement.html')));
 check('backend stages the fee at 30 minutes', /p_as_of >= late_rentals\.due_at \+ interval '30 minutes'/.test(migration));
