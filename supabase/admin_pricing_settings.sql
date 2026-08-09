@@ -122,11 +122,6 @@ to authenticated
 using (public.is_admin());
 
 drop policy if exists "Authenticated users can read active service fees" on public.service_fees;
-create policy "Authenticated users can read active service fees"
-on public.service_fees
-for select
-to authenticated
-using (active = true);
 
 drop policy if exists "Admins can create service fees" on public.service_fees;
 create policy "Admins can create service fees"

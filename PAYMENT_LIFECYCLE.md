@@ -23,10 +23,9 @@ release follows the same server-enforced rule and cannot bypass a balance due.
 - Current fleet deposits may differ by vehicle. The supplied configuration
   uses $300, $400, and $500 base deposits; the under-25 adjustment is applied
   to that vehicle-specific amount.
-- Active booking fees/add-ons that are configured as initial service fees are
-  snapshotted onto the rental.
-- Connecticut tax is calculated from the taxable rental price and taxable
-  booking fees.
+- Internal charge templates never affect public quotes or new reservations.
+  An admin must deliberately apply a template to one existing rental.
+- Connecticut tax at booking is calculated from the taxable rental price.
 
 The exact quoted total is:
 
@@ -34,7 +33,6 @@ The exact quoted total is:
 rental price
 + age markup, when applicable
 - valid promotion discount
-+ booking fees
 + Connecticut tax
 + refundable security deposit
 = amount due at booking
@@ -78,7 +76,7 @@ of being reused at the wrong amount.
 
 ## 4. Initial Stripe payment and deposit
 
-Stripe Checkout collects the rental, initial booking fees, tax, and security
+Stripe Checkout collects the rental, tax, and security
 deposit in one card payment. The security deposit is captured money, not only a
 temporary card authorization. It is tracked separately in the rental's deposit
 allocation ledger so it can later be refunded accurately.

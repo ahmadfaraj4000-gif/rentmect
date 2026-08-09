@@ -1,4 +1,4 @@
--- Server-owned booking fees, post-booking charges, manual-booking completion
+-- Internal charge templates, post-booking charges, manual-booking completion
 -- emails, and extension notification/calendar holds.
 -- Run after vehicle_deposits_and_under25_pricing.sql,
 -- local_payment_and_extensions.sql, email_automation_and_campaigns.sql,
@@ -76,8 +76,6 @@ declare
   v_base_rental numeric;
   v_under_25 boolean := false;
   v_settings public.under_25_pricing_settings%rowtype;
-  v_fee_total numeric := 0;
-  v_taxable_fee_total numeric := 0;
 begin
   if tg_op = 'UPDATE' and lower(coalesce(old.payment_status, 'pending')) = 'paid' then
     return new;
@@ -96,18 +94,6 @@ begin
     and age((now() at time zone 'America/New_York')::date, v_birth_date) < interval '25 years';
   select * into v_settings from public.under_25_pricing_settings where id = true;
 
-  if tg_op = 'INSERT' then
-    select
-      coalesce(sum(amount), 0),
-      coalesce(sum(amount) filter (where taxable), 0)
-    into v_fee_total, v_taxable_fee_total
-    from public.service_fees
-    where active;
-  else
-    v_fee_total := coalesce(old.service_fee_total, 0);
-    v_taxable_fee_total := coalesce(old.taxable_service_fee_total, 0);
-  end if;
-
   new.base_rental_total := v_base_rental;
   new.rental_total := case when v_under_25
     then public.rentmect_calculate_under25_rental(v_base_rental)
@@ -115,10 +101,10 @@ begin
   new.under_25_markup_percentage := case when v_under_25
     then coalesce(v_settings.rental_markup_percentage, 10) else 0 end;
   new.under_25_markup_amount := round(new.rental_total - v_base_rental, 2);
-  new.service_fee_total := round(v_fee_total, 2);
-  new.taxable_service_fee_total := round(v_taxable_fee_total, 2);
-  new.service_fee_tax_amount := round(v_taxable_fee_total * 0.0635, 2);
-  new.tax_amount := round((new.rental_total + v_taxable_fee_total) * 0.0635, 2);
+  new.service_fee_total := 0;
+  new.taxable_service_fee_total := 0;
+  new.service_fee_tax_amount := 0;
+  new.tax_amount := round(new.rental_total * 0.0635, 2);
   new.base_security_deposit := v_vehicle_deposit;
   new.security_deposit := case when v_under_25
     then public.rentmect_calculate_under25_deposit(v_vehicle_deposit)
@@ -140,27 +126,11 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.rental_charge_items (
-    rental_id, user_id, service_fee_id, name, charge_type, description,
-    amount, taxable, tax_amount, total_amount,
-    included_in_initial_payment, status, created_by
-  )
-  select
-    new.id, new.user_id, fee.id, fee.name, fee.service_type, fee.description,
-    fee.amount, fee.taxable,
-    case when fee.taxable then round(fee.amount * 0.0635, 2) else 0 end,
-    fee.amount + case when fee.taxable then round(fee.amount * 0.0635, 2) else 0 end,
-    true, 'pending', auth.uid()
-  from public.service_fees fee
-  where fee.active;
   return new;
 end;
 $$;
 
 drop trigger if exists rentals_snapshot_service_fees on public.rentals;
-create trigger rentals_snapshot_service_fees
-after insert on public.rentals
-for each row execute function public.snapshot_rental_service_fees();
 
 create or replace function public.rentmect_rental_amount_due_cents(p_rental_id uuid)
 returns integer
