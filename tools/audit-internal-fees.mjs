@@ -12,6 +12,7 @@ const checks = [
   ['new rental pricing clears template totals', /new\.service_fee_total := 0;[\s\S]*new\.taxable_service_fee_total := 0;/.test(billingSource)],
   ['new rentals do not snapshot active templates', !/create trigger rentals_snapshot_service_fees[\s\S]*execute function public\.snapshot_rental_service_fees/i.test(billingSource)],
   ['customer-facing summary excludes active booking fees', !/active booking fees/i.test(publicPrice)],
+  ['customer-facing price card has no booking-fee row', !/Booking fees|cars2ServiceFee/i.test(`${publicPrice}\n${read('cars-2.js')}`)],
   ['customer-facing summary explains later admin-applied charges', /Admin-applied rental charges/i.test(publicPrice)],
   ['non-admin active-template read policy is removed', /drop policy if exists "Authenticated users can read active service fees"/.test(migration)],
   ['unpaid leaked fee totals are repaired', /update public\.rentals[\s\S]*service_fee_total = 0[\s\S]*payment_status/.test(migration)],
