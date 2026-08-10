@@ -17,7 +17,8 @@
     "audit:phone-profile-save": "node tools/audit-phone-profile-save.mjs",
     "audit:late-fee-mileage": "node tools/audit-late-fee-mileage-policy.mjs",
     "audit:internal-fees": "node tools/audit-internal-fees.mjs",
-    "audit:deposit-refund": "node tools/audit-deposit-refund-toll-reconcile.mjs"
+    "audit:deposit-refund": "node tools/audit-deposit-refund-toll-reconcile.mjs",
+    "audit:manual-discounts": "node tools/audit-manual-rental-discounts.mjs"
   },
   "devDependencies": {
     "supabase": "^2.109.1"

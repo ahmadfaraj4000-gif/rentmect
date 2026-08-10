@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 type CheckoutPayload = {
-  action?: "create_checkout" | "admin_create_checkout" | "admin_charge_saved_card" | "release_deposit" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
+  action?: "create_checkout" | "admin_create_checkout" | "admin_charge_saved_card" | "admin_apply_manual_discount" | "release_deposit" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
   targetType?: "rental" | "extension" | "charge";
   rentalId?: string;
   extensionRequestId?: string;
@@ -18,6 +18,9 @@ type CheckoutPayload = {
   cancelUrl?: string;
   reason?: string;
   returnUrl?: string;
+  discountMode?: "fixed" | "percentage" | "remove";
+  discountValue?: number;
+  idempotencyKey?: string;
 };
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
@@ -176,6 +179,49 @@ async function requireAdmin(req: Request) {
     .single();
   if (error || profile?.role !== "admin") throw new Error("Admin access is required.");
   return { user, profile };
+}
+
+async function applyAdminManualDiscount(req: Request, payload: CheckoutPayload) {
+  const admin = await requireAdmin(req);
+  if (!payload.rentalId) throw new HttpError("Rental id is required.", 400);
+  if (!payload.discountMode || !["fixed", "percentage", "remove"].includes(payload.discountMode)) {
+    throw new HttpError("Choose a valid discount mode.", 400);
+  }
+  if (!payload.idempotencyKey) throw new HttpError("Idempotency key is required.", 400);
+
+  const { data, error } = await adminClient!.rpc("admin_apply_manual_rental_discount", {
+    p_rental_id: payload.rentalId,
+    p_mode: payload.discountMode,
+    p_value: Number(payload.discountValue || 0),
+    p_reason: String(payload.reason || ""),
+    p_idempotency_key: payload.idempotencyKey,
+    p_actor_id: admin.user.id,
+  });
+  if (error || !data) throw new HttpError(error?.message || "The discount could not be applied.", 400);
+
+  const checkoutSessionId = String(data.checkout_session_id || "");
+  let checkoutExpired = false;
+  let checkoutWarning = "";
+  if (checkoutSessionId) {
+    try {
+      const checkout = await stripe!.checkout.sessions.retrieve(checkoutSessionId);
+      if (checkout.status === "open") {
+        await stripe!.checkout.sessions.expire(checkout.id);
+        checkoutExpired = true;
+      }
+      if (checkout.status !== "complete" && checkout.payment_status !== "paid") {
+        await adminClient!.from("rentals").update({ stripe_checkout_session_id: null }).eq("id", payload.rentalId).eq("stripe_checkout_session_id", checkoutSessionId);
+      }
+    } catch (checkoutError) {
+      if ((checkoutError as { code?: string })?.code === "resource_missing") {
+        await adminClient!.from("rentals").update({ stripe_checkout_session_id: null }).eq("id", payload.rentalId).eq("stripe_checkout_session_id", checkoutSessionId);
+      } else {
+        checkoutWarning = "The reservation was repriced, but its earlier Stripe link could not be expired automatically. Create a new payment link before sending checkout.";
+      }
+    }
+  }
+
+  return { ...data, checkoutExpired, checkoutWarning };
 }
 
 async function writeDepositAudit(params: {
@@ -532,7 +578,7 @@ async function createRentalCheckout(req: Request, payload: CheckoutPayload, user
 
   const { data: rental, error } = await adminClient
     .from("rentals")
-    .select("id, user_id, vehicle_id, status, payment_status, rental_total, pre_discount_rental_total, discount_code, discount_amount, service_fee_total, tax_amount, security_deposit, agreement_signed, checkout_expires_at, payment_due_at, stripe_checkout_session_id, vehicles(name, security_deposit)")
+    .select("id, user_id, vehicle_id, status, payment_status, rental_total, pre_discount_rental_total, discount_code, discount_amount, manual_discount_amount, manual_discount_type, manual_discount_value, service_fee_total, tax_amount, security_deposit, agreement_signed, checkout_expires_at, payment_due_at, stripe_checkout_session_id, vehicles(name, security_deposit)")
     .eq("id", payload.rentalId)
     .single();
 
@@ -617,6 +663,9 @@ async function createRentalCheckout(req: Request, payload: CheckoutPayload, user
     user_id: userId,
     discount_code: rental.discount_code || "",
     discount_amount: String(Number(rental.discount_amount || 0)),
+    manual_discount_amount: String(Number(rental.manual_discount_amount || 0)),
+    manual_discount_type: rental.manual_discount_type || "",
+    manual_discount_value: String(Number(rental.manual_discount_value || 0)),
   };
 
   const session = await stripe!.checkout.sessions.create({
@@ -638,8 +687,8 @@ async function createRentalCheckout(req: Request, payload: CheckoutPayload, user
         unit_amount: amountCents,
         product_data: {
           name: `Rent Me CT - ${vehicle?.name || "Vehicle rental"}`,
-          description: rental.discount_code
-            ? `Rental with ${rental.discount_code} savings, CT tax, and refundable security deposit: ${moneyDescription(amountCents)}`
+          description: rental.discount_code || Number(rental.manual_discount_amount || 0) > 0
+            ? `Rental with reservation savings, CT tax, and refundable security deposit: ${moneyDescription(amountCents)}`
             : `Rental, CT tax, and refundable security deposit: ${moneyDescription(amountCents)}`,
         },
       },
@@ -1052,6 +1101,10 @@ async function handleApiAction(req: Request) {
 
   if (payload.action === "admin_charge_saved_card") {
     return json(await chargeSavedCard(req, payload));
+  }
+
+  if (payload.action === "admin_apply_manual_discount") {
+    return json(await applyAdminManualDiscount(req, payload));
   }
 
   if (payload.action === "admin_create_checkout") {
