@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 type CheckoutPayload = {
-  action?: "create_checkout" | "admin_create_checkout" | "admin_charge_saved_card" | "admin_apply_manual_discount" | "release_deposit" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
+  action?: "create_checkout" | "admin_create_checkout" | "admin_charge_saved_card" | "admin_apply_manual_discount" | "admin_apply_rental_amendment" | "admin_record_external_balance" | "release_deposit" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
   targetType?: "rental" | "extension" | "charge";
   rentalId?: string;
   extensionRequestId?: string;
@@ -21,9 +21,21 @@ type CheckoutPayload = {
   discountMode?: "fixed" | "percentage" | "remove";
   discountValue?: number;
   idempotencyKey?: string;
+  paymentMethod?: string;
+  paymentReference?: string;
+  amountCents?: number;
+  vehicleId?: string;
+  pickupDate?: string;
+  pickupTime?: string;
+  returnDate?: string;
+  returnTime?: string;
+  dailyRate?: number | null;
+  securityDeposit?: number | null;
+  adminNotes?: string;
 };
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
 const stripeWebhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "";
@@ -181,6 +193,123 @@ async function requireAdmin(req: Request) {
   return { user, profile };
 }
 
+function authenticatedClient(req: Request) {
+  const authorization = req.headers.get("authorization") || "";
+  if (!supabaseUrl || !supabaseAnonKey || !authorization) {
+    throw new Error("Authenticated Supabase client is not configured.");
+  }
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authorization } },
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
+async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload) {
+  const admin = await requireAdmin(req);
+  if (!payload.rentalId || !payload.vehicleId) {
+    throw new HttpError("Rental and vehicle are required.", 400);
+  }
+  if (!payload.pickupDate || !payload.returnDate || !payload.idempotencyKey) {
+    throw new HttpError("Rental dates and idempotency key are required.", 400);
+  }
+
+  const { data: openCharge, error: openChargeError } = await adminClient!
+    .from("rental_charge_items")
+    .select("id, status, stripe_checkout_session_id, stripe_payment_intent_id")
+    .eq("rental_id", payload.rentalId)
+    .eq("charge_type", "rental_amendment")
+    .in("status", ["pending", "checkout_open", "failed"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (openChargeError) throw openChargeError;
+
+  if (
+    openCharge?.status === "checkout_open"
+    && !openCharge.stripe_checkout_session_id
+    && !openCharge.stripe_payment_intent_id
+  ) {
+    throw new HttpError("A balance payment attempt is starting. Refresh before editing the rental.", 409);
+  }
+
+  if (openCharge?.stripe_payment_intent_id?.startsWith("pi_")) {
+    const intent = await stripe!.paymentIntents.retrieve(openCharge.stripe_payment_intent_id);
+    if (["succeeded", "processing", "requires_capture"].includes(intent.status)) {
+      throw new HttpError(
+        "A Stripe balance payment is already processing or captured. Refresh and reconcile it before editing the rental.",
+        409,
+      );
+    }
+    if (["requires_payment_method", "requires_confirmation", "requires_action"].includes(intent.status)) {
+      await stripe!.paymentIntents.cancel(intent.id);
+    }
+  }
+
+  if (openCharge?.stripe_checkout_session_id?.startsWith("cs_")) {
+    const checkout = await stripe!.checkout.sessions.retrieve(openCharge.stripe_checkout_session_id);
+    if (checkout.status === "complete" || checkout.payment_status === "paid") {
+      throw new HttpError(
+        "Stripe already received this balance payment. Refresh and reconcile it before editing the rental.",
+        409,
+      );
+    }
+    if (checkout.status === "open") await stripe!.checkout.sessions.expire(checkout.id);
+  }
+
+  const userClient = authenticatedClient(req);
+  const { data, error } = await userClient.rpc("admin_apply_rental_amendment", {
+    p_rental_id: payload.rentalId,
+    p_vehicle_id: payload.vehicleId,
+    p_pickup_date: payload.pickupDate,
+    p_pickup_time: payload.pickupTime || "9:00 AM",
+    p_return_date: payload.returnDate,
+    p_return_time: payload.returnTime || "9:00 AM",
+    p_daily_rate: payload.dailyRate ?? null,
+    p_security_deposit: payload.securityDeposit ?? null,
+    p_reason: String(payload.reason || "").trim(),
+    p_admin_notes: payload.adminNotes || null,
+    p_idempotency_key: payload.idempotencyKey,
+  });
+  if (error || !data) throw new HttpError(error?.message || "The rental changes could not be applied.", 400);
+
+  const { data: settlement, error: settlementError } = await adminClient!.rpc(
+    "sync_rental_remaining_balance",
+    { p_rental_id: payload.rentalId, p_actor_id: admin.user.id },
+  );
+  if (settlementError) throw settlementError;
+
+  const balanceChargeId = settlement?.balance_charge_id || null;
+  let balanceCharge = null;
+  if (balanceChargeId) {
+    const { data: resetCharge, error: resetError } = await adminClient!
+      .from("rental_charge_items")
+      .update({
+        status: "pending",
+        stripe_checkout_session_id: null,
+        stripe_payment_intent_id: null,
+        payment_provider: null,
+        payment_amount_cents: Math.round(Number(settlement.balance_due || 0) * 100),
+        last_admin_charge_error: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", balanceChargeId)
+      .in("status", ["pending", "checkout_open", "failed"])
+      .select("*")
+      .maybeSingle();
+    if (resetError) throw resetError;
+    balanceCharge = resetCharge;
+  }
+
+  return {
+    ...data,
+    settlement,
+    balanceCharge,
+    staleStripePaymentExpired: Boolean(
+      openCharge?.stripe_checkout_session_id || openCharge?.stripe_payment_intent_id
+    ),
+  };
+}
+
 async function applyAdminManualDiscount(req: Request, payload: CheckoutPayload) {
   const admin = await requireAdmin(req);
   if (!payload.rentalId) throw new HttpError("Rental id is required.", 400);
@@ -222,6 +351,65 @@ async function applyAdminManualDiscount(req: Request, payload: CheckoutPayload) 
   }
 
   return { ...data, checkoutExpired, checkoutWarning };
+}
+
+async function recordAdminExternalBalance(req: Request, payload: CheckoutPayload) {
+  const admin = await requireAdmin(req);
+  if (!payload.rentalId) throw new HttpError("Rental id is required.", 400);
+  const amountCents = Math.trunc(Number(payload.amountCents || 0));
+  if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+    throw new HttpError("Enter the external payment amount received.", 400);
+  }
+  const paymentMethod = String(payload.paymentMethod || "").trim();
+  if (!paymentMethod) throw new HttpError("Choose the external payment method.", 400);
+
+  const { data: balanceCharge, error: chargeError } = await adminClient!
+    .from("rental_charge_items")
+    .select("id, status, stripe_checkout_session_id, stripe_payment_intent_id")
+    .eq("rental_id", payload.rentalId)
+    .eq("charge_type", "rental_amendment")
+    .in("status", ["pending", "checkout_open", "failed"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (chargeError) throw chargeError;
+  if (!balanceCharge?.id) throw new HttpError("This rental has no remaining balance.", 409);
+
+  if (
+    balanceCharge.status === "checkout_open"
+    && !balanceCharge.stripe_checkout_session_id
+    && !balanceCharge.stripe_payment_intent_id
+  ) {
+    throw new HttpError("A Stripe payment attempt is starting. Refresh before recording an external payment.", 409);
+  }
+
+  if (balanceCharge.stripe_payment_intent_id?.startsWith("pi_")) {
+    const intent = await stripe!.paymentIntents.retrieve(balanceCharge.stripe_payment_intent_id);
+    if (["succeeded", "processing", "requires_capture"].includes(intent.status)) {
+      throw new HttpError("Stripe is already processing or has captured this balance. Refresh before recording an external payment.", 409);
+    }
+    if (["requires_payment_method", "requires_confirmation", "requires_action"].includes(intent.status)) {
+      await stripe!.paymentIntents.cancel(intent.id);
+    }
+  }
+
+  if (balanceCharge.stripe_checkout_session_id?.startsWith("cs_")) {
+    const checkout = await stripe!.checkout.sessions.retrieve(balanceCharge.stripe_checkout_session_id);
+    if (checkout.status === "open") await stripe!.checkout.sessions.expire(checkout.id);
+    if (checkout.status === "complete" || checkout.payment_status === "paid") {
+      throw new HttpError("Stripe already received this balance payment. Refresh before recording an external payment.", 409);
+    }
+  }
+
+  const { data, error } = await adminClient!.rpc("record_admin_rental_balance_payment", {
+    p_rental_id: payload.rentalId,
+    p_amount: amountCents / 100,
+    p_payment_method: paymentMethod,
+    p_reference: String(payload.paymentReference || "").trim() || null,
+    p_actor_id: admin.user.id,
+  });
+  if (error || !data) throw new HttpError(error?.message || "The external balance payment could not be recorded.", 400);
+  return data;
 }
 
 async function writeDepositAudit(params: {
@@ -590,6 +778,29 @@ async function createRentalCheckout(req: Request, payload: CheckoutPayload, user
   if (String(rental.status || "").toLowerCase() === "cancelled") {
     throw new Error("Cancelled rentals cannot be paid.");
   }
+  if (["partially_paid", "partial"].includes(String(rental.payment_status || "").toLowerCase())) {
+    if (!adminAssisted && !rental.agreement_signed) {
+      throw new Error("Sign the revised rental agreement before paying the remaining balance.");
+    }
+    const { data: balanceCharge, error: balanceError } = await adminClient!
+      .from("rental_charge_items")
+      .select("id")
+      .eq("rental_id", rental.id)
+      .eq("charge_type", "rental_amendment")
+      .in("status", ["pending", "checkout_open", "failed"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (balanceError) throw balanceError;
+    if (!balanceCharge?.id) {
+      throw new Error("The remaining rental balance is still being recalculated. Refresh and try again.");
+    }
+    return await createRentalChargeCheckout(
+      req,
+      { ...payload, targetType: "charge", chargeId: balanceCharge.id },
+      userId,
+    );
+  }
   if (
     (rental.payment_due_at || rental.checkout_expires_at) &&
     new Date(rental.payment_due_at || rental.checkout_expires_at).getTime() <= Date.now()
@@ -722,10 +933,23 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
   if (charge.included_in_initial_payment) throw new Error("This fee is included in the original booking payment.");
   if (charge.status === "paid") throw new Error("This charge is already paid.");
   if (charge.status === "waived") throw new Error("This charge was waived.");
-  const priorChargeCheckout = await reusableCheckout(charge.stripe_checkout_session_id, "charge", charge.id);
-  if (priorChargeCheckout.url) return { url: priorChargeCheckout.url, sessionId: priorChargeCheckout.sessionId };
   const amountCents = cents(Number(charge.total_amount || 0));
   if (amountCents < 50) throw new Error("Charge amount is too small for Stripe Checkout.");
+  const priorChargeCheckout = await reusableCheckout(
+    charge.stripe_checkout_session_id,
+    "charge",
+    charge.id,
+    amountCents,
+  );
+  if (priorChargeCheckout.url) {
+    return {
+      url: priorChargeCheckout.url,
+      sessionId: priorChargeCheckout.sessionId,
+      targetType: "charge",
+      targetId: charge.id,
+      rentalId: charge.rental_id,
+    };
+  }
   const { successUrl, cancelUrl } = checkoutUrls(req, payload);
   const metadata = {
     target_type: "charge",
@@ -748,7 +972,7 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
         unit_amount: amountCents,
         product_data: {
           name: `Rent Me CT - ${charge.name}`,
-          description: charge.description || "Additional rental charge",
+          description: charge.description || "Rental payment",
         },
       },
     }],
@@ -765,7 +989,13 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
     })
     .eq("id", charge.id);
   if (updateError) throw updateError;
-  return { url: session.url, sessionId: session.id };
+  return {
+    url: session.url,
+    sessionId: session.id,
+    targetType: "charge",
+    targetId: charge.id,
+    rentalId: charge.rental_id,
+  };
 }
 
 async function createExtensionCheckout(req: Request, payload: CheckoutPayload, userId: string) {
@@ -895,7 +1125,9 @@ async function chargeSavedCard(req: Request, payload: CheckoutPayload) {
     .single();
   if (chargeError || !charge) throw new Error(chargeError?.message || "Rental charge not found.");
   if (charge.included_in_initial_payment) throw new Error("This fee is included in the original booking payment.");
-  if (charge.status === "paid") return { status: "paid", charge };
+  if (charge.status === "paid") {
+    return { status: "already_settled", charge, reason: "This balance is already paid." };
+  }
   if (charge.status === "waived") throw new Error("A waived charge cannot be collected.");
 
   // Recover safely if Stripe succeeded but the prior request stopped before the
@@ -1029,14 +1261,26 @@ async function chargeSavedCard(req: Request, payload: CheckoutPayload) {
       },
     }, { idempotencyKey: `admin-charge-${charge.id}-attempt-${nextAttempt}` });
 
-    await adminClient!.from("rental_charge_items").update({
+    const { data: intentClaim, error: intentClaimError } = await adminClient!
+      .from("rental_charge_items")
+      .update({
       payment_provider: "stripe",
       stripe_customer_id: stripeCustomerId,
       stripe_payment_intent_id: paymentIntent.id,
       payment_amount_cents: amountCents,
       payment_currency: "usd",
       updated_at: new Date().toISOString(),
-    }).eq("id", charge.id);
+      })
+      .eq("id", charge.id)
+      .eq("status", "checkout_open")
+      .eq("admin_charge_attempts", nextAttempt)
+      .select("id")
+      .maybeSingle();
+    if (intentClaimError) throw intentClaimError;
+    if (!intentClaim) {
+      await stripe!.paymentIntents.cancel(paymentIntent.id);
+      return { status: "already_settled", reason: "The balance was settled through another payment method before Stripe confirmation." };
+    }
 
     paymentIntent = await stripe!.paymentIntents.confirm(paymentIntent.id, {
       payment_method: paymentMethodId,
@@ -1054,12 +1298,23 @@ async function chargeSavedCard(req: Request, payload: CheckoutPayload) {
     const stripeError = error as { message?: string; payment_intent?: Stripe.PaymentIntent; raw?: { payment_intent?: Stripe.PaymentIntent } };
     const failedIntent = stripeError.payment_intent || stripeError.raw?.payment_intent || paymentIntent;
     const reason = stripeError.message || "The saved card charge failed.";
+    const { data: latestCharge } = await adminClient!
+      .from("rental_charge_items")
+      .select("status, payment_provider, external_payment_method")
+      .eq("id", charge.id)
+      .maybeSingle();
+    if (latestCharge?.status === "paid" && latestCharge.payment_provider !== "stripe") {
+      return {
+        status: "already_settled",
+        reason: `The balance was recorded through ${latestCharge.external_payment_method || latestCharge.payment_provider || "another payment method"}.`,
+      };
+    }
     await adminClient!.from("rental_charge_items").update({
       status: "failed",
       stripe_payment_intent_id: failedIntent?.id || paymentIntent?.id || null,
       last_admin_charge_error: reason.slice(0, 1000),
       updated_at: new Date().toISOString(),
-    }).eq("id", charge.id);
+    }).eq("id", charge.id).neq("status", "paid");
     await adminClient!.from("rental_audit_events").insert({
       rental_id: charge.rental_id,
       user_id: charge.user_id,
@@ -1105,6 +1360,14 @@ async function handleApiAction(req: Request) {
 
   if (payload.action === "admin_apply_manual_discount") {
     return json(await applyAdminManualDiscount(req, payload));
+  }
+
+  if (payload.action === "admin_apply_rental_amendment") {
+    return json(await applyAdminRentalAmendment(req, payload));
+  }
+
+  if (payload.action === "admin_record_external_balance") {
+    return json(await recordAdminExternalBalance(req, payload));
   }
 
   if (payload.action === "admin_create_checkout") {
