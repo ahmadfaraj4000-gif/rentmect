@@ -9,6 +9,10 @@ const hardeningMigration = readFileSync(
   new URL('../supabase/migrations/20260811180000_air_tight_rental_amendments.sql', import.meta.url),
   'utf8',
 );
+const discountSnapshotMigration = readFileSync(
+  new URL('../supabase/migrations/20260811193000_sync_manual_discount_snapshots_after_rental_edits.sql', import.meta.url),
+  'utf8',
+);
 const stripeFunction = readFileSync(
   new URL('../supabase/functions/stripe-web-hook/index.ts', import.meta.url),
   'utf8',
@@ -47,5 +51,9 @@ assert.match(hardeningMigration, /The captured deposit must stay at/);
 assert.match(hardeningMigration, /This Stripe Checkout is stale because the rental balance changed/);
 assert.match(hardeningMigration, /already recorded through/);
 assert.match(hardeningMigration, /use_canonical_rental_amendment_email_balance/);
+assert.match(discountSnapshotMigration, /sync_manual_discount_snapshots_on_rental/);
+assert.match(discountSnapshotMigration, /pre_manual_discount_rental_total/);
+assert.match(discountSnapshotMigration, /manual_discount_tax_savings/);
+assert.match(discountSnapshotMigration, /rental_total, tax_amount, manual_discount_amount/);
 
 console.log('Partial rental balance settlement audit passed.');
