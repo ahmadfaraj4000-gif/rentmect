@@ -269,10 +269,14 @@ Deno.serve(async (req) => {
 
     const { data: adminProfile } = await adminClient
       .from("profiles")
-      .select("role")
+      .select("role,staff_role")
       .eq("id", authData.user.id)
       .single();
-    if (adminProfile?.role !== "admin") return json({ error: "Only an admin can create a manual booking." }, 403);
+    if (adminProfile?.role !== "admin" || adminProfile?.staff_role === "customer") return json({ error: "Only staff can create a manual booking." }, 403);
+    if (adminProfile?.staff_role === "employee") {
+      const { data: permission } = await adminClient.from("employee_permissions").select("enabled").eq("permission_key", "booking.create").single();
+      if (permission?.enabled !== true) return json({ error: "Your Employee role cannot create bookings." }, 403);
+    }
 
     const payload = await req.json() as ManualBookingPayload;
     if (payload.action === "sms_delivery_status") {

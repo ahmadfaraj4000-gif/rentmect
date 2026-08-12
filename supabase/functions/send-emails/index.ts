@@ -62,15 +62,19 @@ function emailShell(content: string, preheader = "", marketing = false) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Rent Me CT</title></head><body style="margin:0;background:#f3f4f6;font-family:Arial,sans-serif;color:#171717"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(preheader)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:24px 12px"><tr><td align="center"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="max-width:620px;width:100%;background:#fff;border:1px solid #ddd"><tr><td style="padding:22px 28px;background:#050505;color:#fff;font-size:22px;font-weight:800">RENT ME CT</td></tr><tr><td style="padding:30px 28px;line-height:1.6">${content}<hr style="border:0;border-top:1px solid #e5e7eb;margin:28px 0 18px"><p style="margin:0;font-size:12px;color:#6b7280">Rent Me CT · 12 Holmes Circle, Farmington, CT</p>${unsubscribe}</td></tr></table></td></tr></table></body></html>`;
 }
 
-async function requireAdmin(req: Request) {
+async function requireAdmin(req: Request, permissionKey?: string) {
   assertConfigured();
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (!token) throw new Response(JSON.stringify({ error: "Admin sign-in required." }), { status: 401 });
   const { data, error } = await adminClient!.auth.getUser(token);
   if (error || !data.user?.id) throw new Response(JSON.stringify({ error: "Admin session expired." }), { status: 401 });
-  const { data: profile } = await adminClient!.from("profiles").select("role").eq("id", data.user.id).single();
-  if (String(profile?.role || "").toLowerCase() !== "admin") {
+  const { data: profile } = await adminClient!.from("profiles").select("role,staff_role").eq("id", data.user.id).single();
+  if (String(profile?.role || "").toLowerCase() !== "admin" || String(profile?.staff_role || "customer") === "customer") {
     throw new Response(JSON.stringify({ error: "Admin access required." }), { status: 403 });
+  }
+  if (permissionKey && profile?.staff_role === "employee") {
+    const { data: permission } = await adminClient!.from("employee_permissions").select("enabled").eq("permission_key", permissionKey).single();
+    if (permission?.enabled !== true) throw new Response(JSON.stringify({ error: "Your Employee role does not have permission for this action." }), { status: 403 });
   }
   return data.user;
 }
@@ -298,7 +302,7 @@ async function processDueCampaigns() {
 }
 
 async function handleCampaign(req: Request) {
-  const user = await requireAdmin(req);
+  const user = await requireAdmin(req, "communications.templates");
   const payload = await req.json();
   const scheduledFor = payload.scheduledFor ? new Date(payload.scheduledFor) : null;
   if (!payload.name || !payload.subject || !payload.htmlBody) return json({ error: "Campaign name, subject, and email body are required." }, 400);
@@ -323,11 +327,11 @@ async function handleCampaign(req: Request) {
 }
 
 async function handleTest(req: Request) {
-  await requireAdmin(req);
+  await requireAdmin(req, "communications.templates");
   const payload = await req.json();
   const to = String(payload.to || "").trim().toLowerCase();
   if (!/^\S+@\S+\.\S+$/.test(to)) return json({ error: "Enter a valid test email address." }, 400);
-  const variables = { customer_name: "Test Customer", customer_first_name: "Test", booking_number: "TEST123456", vehicle_name: "Rent Me CT Test Vehicle", pickup_date: "Jul 25, 2026", pickup_time: "9:00 AM", return_date: "Jul 27, 2026", return_time: "9:00 AM", rental_total: "$200.00", tax_amount: "$12.70", deposit_amount: "$300.00", manage_booking_url: "https://login.rentmect.com", business_address: "12 Holmes Circle, Farmington, CT" };
+  const variables = { customer_name: "Test Customer", customer_first_name: "Test", booking_number: "TEST123456", vehicle_name: "Rent Me CT Test Vehicle", pickup_date: "Jul 25, 2026", pickup_time: "9:00 AM", return_date: "Jul 27, 2026", return_time: "9:00 AM", rental_total: "$200.00", tax_amount: "$12.70", deposit_amount: "$300.00", manage_booking_url: "https://login.rentmect.com", agreement_signing_url: "https://login.rentmect.com?agreement=1&rental=test", business_address: "12 Holmes Circle, Farmington, CT" };
   const messageId = await sendMail({
     to,
     subject: `[TEST] ${render(payload.subject, variables)}`,
@@ -348,7 +352,7 @@ function dateLabel(value: unknown) {
 }
 
 async function handleCustomerEmail(req: Request) {
-  const admin = await requireAdmin(req);
+  const admin = await requireAdmin(req, "communications.send");
   const payload = await req.json();
   const customerId = String(payload.customerId || "").trim();
   const templateId = String(payload.emailTemplateId || "").trim();
@@ -367,7 +371,7 @@ async function handleCustomerEmail(req: Request) {
 
   let rental: Record<string, unknown> | null = null;
   if (rentalId) {
-    const rentalResult = await adminClient!.from("rentals").select("id,user_id,pickup_date,pickup_time,return_date,return_time,vehicles(name)").eq("id", rentalId).eq("user_id", customerId).single();
+    const rentalResult = await adminClient!.from("rentals").select("id,user_id,agreement_signed,pickup_date,pickup_time,return_date,return_time,vehicles(name)").eq("id", rentalId).eq("user_id", customerId).single();
     if (rentalResult.error) return json({ error: "The selected rental does not belong to this customer." }, 400);
     rental = rentalResult.data;
   }
@@ -379,6 +383,13 @@ async function handleCustomerEmail(req: Request) {
   }
   const vehicleRelation = rental?.vehicles;
   const vehicle = Array.isArray(vehicleRelation) ? vehicleRelation[0] : vehicleRelation as Record<string, unknown> | null;
+  if (template.template_key === "manual_agreement_signature_required") {
+    if (!rentalId || !rental) return json({ error: "Choose the unsigned rental before sending this agreement email." }, 400);
+    if (rental.agreement_signed === true) return json({ error: "This rental agreement is already signed. Nothing was sent." }, 409);
+  }
+  const agreementSigningUrl = rentalId
+    ? `${clientPortalUrl}?agreement=1&rental=${encodeURIComponent(rentalId)}`
+    : clientPortalUrl;
   const variables: Json = {
     customer_name: profile.full_name || "Customer",
     customer_first_name: String(profile.full_name || "Customer").trim().split(/\s+/)[0],
@@ -388,6 +399,7 @@ async function handleCustomerEmail(req: Request) {
     return_date: dateLabel(rental?.return_date),
     return_time: rental?.return_time || "your scheduled time",
     manage_booking_url: charge ? `${clientPortalUrl}?billing=1` : clientPortalUrl,
+    agreement_signing_url: agreementSigningUrl,
     business_phone: businessPhone,
     business_address: "12 Holmes Circle, Farmington, CT",
     charge_name: charge?.name || "additional rental charge",
