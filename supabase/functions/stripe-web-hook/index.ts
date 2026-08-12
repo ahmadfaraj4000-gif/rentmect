@@ -181,15 +181,23 @@ async function getUser(req: Request) {
   return data.user || null;
 }
 
-async function requireAdmin(req: Request) {
+async function requireAdmin(req: Request, permissionKey?: string) {
   const user = await getUser(req);
   if (!user?.id) throw new Error("You must be signed in as an admin.");
   const { data: profile, error } = await adminClient!
     .from("profiles")
-    .select("id, email, role")
+    .select("id, email, role, staff_role")
     .eq("id", user.id)
     .single();
-  if (error || profile?.role !== "admin") throw new Error("Admin access is required.");
+  if (error || profile?.role !== "admin" || profile?.staff_role === "customer") throw new Error("Staff access is required.");
+  if (permissionKey && profile?.staff_role === "employee") {
+    const { data: permission, error: permissionError } = await adminClient!
+      .from("employee_permissions")
+      .select("enabled")
+      .eq("permission_key", permissionKey)
+      .single();
+    if (permissionError || permission?.enabled !== true) throw new Error("Your Employee role does not have permission for this action.");
+  }
   return { user, profile };
 }
 
@@ -205,7 +213,7 @@ function authenticatedClient(req: Request) {
 }
 
 async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload) {
-  const admin = await requireAdmin(req);
+  const admin = await requireAdmin(req, "rental.edit");
   if (!payload.rentalId || !payload.vehicleId) {
     throw new HttpError("Rental and vehicle are required.", 400);
   }
@@ -311,7 +319,7 @@ async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload)
 }
 
 async function applyAdminManualDiscount(req: Request, payload: CheckoutPayload) {
-  const admin = await requireAdmin(req);
+  const admin = await requireAdmin(req, "rental.discount");
   if (!payload.rentalId) throw new HttpError("Rental id is required.", 400);
   if (!payload.discountMode || !["fixed", "percentage", "remove"].includes(payload.discountMode)) {
     throw new HttpError("Choose a valid discount mode.", 400);
@@ -354,7 +362,7 @@ async function applyAdminManualDiscount(req: Request, payload: CheckoutPayload) 
 }
 
 async function recordAdminExternalBalance(req: Request, payload: CheckoutPayload) {
-  const admin = await requireAdmin(req);
+  const admin = await requireAdmin(req, "payment.collect");
   if (!payload.rentalId) throw new HttpError("Rental id is required.", 400);
   const amountCents = Math.trunc(Number(payload.amountCents || 0));
   if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
@@ -1116,7 +1124,7 @@ async function recordAdminSavedCardCharge(
 
 async function chargeSavedCard(req: Request, payload: CheckoutPayload) {
   if (!payload.chargeId) throw new Error("Rental charge id is required.");
-  const admin = await requireAdmin(req);
+  const admin = await requireAdmin(req, "charge.manage");
   assertPaymentCreationEnabled();
   const { data: charge, error: chargeError } = await adminClient!
     .from("rental_charge_items")
@@ -1345,7 +1353,7 @@ async function handleApiAction(req: Request) {
 
   if (payload.action === "release_deposit") {
     if (!payload.rentalId) return json({ error: "Rental id is required." }, 400);
-    const admin = await requireAdmin(req);
+    const admin = await requireAdmin(req, "deposit.resolve");
     const result = await releaseSecurityDeposit(payload.rentalId, "manual", {
       userId: admin.user.id,
       email: admin.profile.email || admin.user.email,
@@ -1372,7 +1380,7 @@ async function handleApiAction(req: Request) {
 
   if (payload.action === "admin_create_checkout") {
     if (!payload.rentalId) return json({ error: "Rental id is required." }, 400);
-    await requireAdmin(req);
+    await requireAdmin(req, "payment.collect");
     const { data: rental, error } = await adminClient
       .from("rentals")
       .select("user_id")
