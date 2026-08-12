@@ -19,7 +19,8 @@
     "audit:internal-fees": "node tools/audit-internal-fees.mjs",
     "audit:deposit-refund": "node tools/audit-deposit-refund-toll-reconcile.mjs",
     "audit:manual-discounts": "node tools/audit-manual-rental-discounts.mjs",
-    "audit:rental-balance": "node tools/audit-rental-balance-settlement.mjs"
+    "audit:rental-balance": "node tools/audit-rental-balance-settlement.mjs",
+    "audit:employee-permissions": "node tools/audit-employee-permission-enforcement.mjs"
   },
   "devDependencies": {
     "supabase": "^2.109.1"
