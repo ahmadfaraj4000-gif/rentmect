@@ -225,6 +225,12 @@ check('Wheelbase and cars-2 fleet pages show the insurance requirement near the 
 check('Wheelbase and cars-2 fleet pages include all four insurance-provider links',
   ['https://bonzah.com/', 'rentalcover.com/', 'withfaye.com/info/rental-car-coverage/', 'capitalone.com/learn-grow/more-than-money/capital-one-rental-car-insurance/']
     .every((link) => productionCars.includes(link) && cars2Html.includes(link)));
+check('RentalCover is the recommended homepage insurance option',
+  /<article class="insurance-card recommended-insurance">[\s\S]*?<h3>RentalCover<\/h3>/.test(home)
+  && !/<article class="insurance-card recommended-insurance">[\s\S]*?<h3>Bonzah Insurance<\/h3>/.test(home));
+check('RentalCover is the recommended cars-2 insurance option',
+  /<a class="recommended" href="https:\/\/rentalcover\.com(?:\/|\?)/.test(cars2Html)
+  && !/<a class="recommended" href="https:\/\/bonzah\.com\//.test(cars2Html));
 check('Cars-2 checkout visibly repeats the insurance requirement',
   cars2Html.includes('class="cars2-checkout-insurance-note"'));
 check('Cars-2 checkout includes every price element required by its renderer',
