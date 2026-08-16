@@ -50,14 +50,11 @@
   const url = new URL(window.location.href);
   const requestedPickupDate = validDateParam(url.searchParams.get("pickupDate"));
   const requestedPickupTime = validTimeParam(url.searchParams.get("pickupTime"));
-  const requestedPickupTimeCustomized =
-    url.searchParams.get("pickupTimeCustomized") === "1"
-    || url.searchParams.get("pickupTimeCustomized") === "true";
   const requestedReturnTime = validTimeParam(url.searchParams.get("returnTime"));
   const requestedReturnTimeCustomized =
     url.searchParams.get("returnTimeCustomized") === "1"
     || url.searchParams.get("returnTimeCustomized") === "true";
-  const initialPickupTime = requestedPickupTimeCustomized && requestedPickupTime ? requestedPickupTime : "9:00 AM";
+  const initialPickupTime = requestedPickupTime || "9:00 AM";
   const state = {
     trip: {
       pickupDate: requestedPickupDate || dateInput(0),
@@ -254,8 +251,17 @@
     });
     window.addEventListener("popstate", applyUrlState);
     window.addEventListener("pageshow", () => {
-      if (!new URL(window.location.href).searchParams.has("abandonBooking")) return;
-      abandonReturnedCheckout().then(() => checkAvailability());
+      if (new URL(window.location.href).searchParams.has("abandonBooking")) {
+        abandonReturnedCheckout().then(() => checkAvailability());
+      } else if (!state.loading && !state.vehicles.length) {
+        retryFleetLoad();
+      }
+    });
+    window.addEventListener("online", () => {
+      if (!state.loading && !state.vehicles.length) retryFleetLoad();
+    });
+    elements.cars2Error.addEventListener("click", (event) => {
+      if (event.target.closest("[data-retry-fleet]")) retryFleetLoad();
     });
   }
 
@@ -290,16 +296,20 @@
     });
     let lastError = null;
 
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         const response = await apiFetch(`/rest/v1/vehicles?${query}`, { method: "GET" });
         const vehicles = await response.json();
-        return Array.isArray(vehicles)
-          ? vehicles.filter((vehicle) => vehicle?.id && vehicle.id !== TEST_VEHICLE_ID)
-          : [];
+        if (!Array.isArray(vehicles)) throw new Error("The fleet response was invalid.");
+        const publishedVehicles = vehicles.filter((vehicle) => vehicle?.id && vehicle.id !== TEST_VEHICLE_ID);
+        if (!publishedVehicles.length) throw new Error("No published vehicles were returned.");
+        return publishedVehicles;
       } catch (error) {
         lastError = error;
-        if (attempt === 0) await new Promise((resolve) => window.setTimeout(resolve, 500));
+        if (attempt < 2) {
+          const delay = attempt === 0 ? 600 : 1600;
+          await new Promise((resolve) => window.setTimeout(resolve, delay));
+        }
       }
     }
 
@@ -307,6 +317,8 @@
   }
 
   async function loadVehicles(pendingRequest = null) {
+    state.loading = true;
+    elements.cars2Grid.setAttribute("aria-busy", "true");
     setStatus("Loading live fleet…");
     hideError(elements.cars2Error);
     try {
@@ -327,8 +339,23 @@
       state.loading = false;
       elements.cars2Grid.setAttribute("aria-busy", "false");
       setStatus("");
-      showError(elements.cars2Error, friendlyError(error, "The fleet could not load. Refresh the page to try again."));
+      showFleetLoadFailure(error);
     }
+  }
+
+  function showFleetLoadFailure(error) {
+    const message = friendlyError(error, "The fleet could not load. Try again in a moment.");
+    showError(elements.cars2Error, `${message} `);
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.dataset.retryFleet = "";
+    retry.textContent = "Try loading the cars again";
+    elements.cars2Error.append(retry);
+  }
+
+  async function retryFleetLoad() {
+    if (state.loading) return;
+    await loadVehicles();
   }
 
   function renderFilters() {
@@ -838,7 +865,7 @@
     const today = dateInput(0);
     const earliestSlot = earliestPickupSlot();
     if (!validDateParam(state.trip.pickupDate) || state.trip.pickupDate < today) state.trip.pickupDate = earliestSlot.date;
-    if (!initialTripNormalized && !(requestedPickupTime && requestedPickupTimeCustomized)) {
+    if (!initialTripNormalized && !requestedPickupTime) {
       if (!requestedPickupDate || state.trip.pickupDate < earliestSlot.date) state.trip.pickupDate = earliestSlot.date;
       state.trip.pickupTime = earliestSlot.time;
     }
@@ -869,6 +896,7 @@
 
   function syncTripToUrl(targetUrl) {
     Object.entries(state.trip).forEach(([key, value]) => targetUrl.searchParams.set(key, value));
+    targetUrl.searchParams.set("pickupTimeCustomized", "1");
     targetUrl.searchParams.set("returnTimeCustomized", returnTimeCustomized ? "1" : "0");
   }
 

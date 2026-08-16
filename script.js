@@ -78,6 +78,36 @@ function applyBookingPageRouting(root = document) {
   });
 }
 
+function getCurrentBookingSelection() {
+  const currentParams = new URLSearchParams(window.location.search);
+  const valueFrom = (...ids) => ids
+    .map((id) => document.getElementById(id)?.value)
+    .find((value) => String(value || "").trim()) || "";
+  const hasHomepageWidget = Boolean(document.querySelector("[data-booking-widget]"));
+  const pickupDate = valueFrom("pickupDate", "cars2PickupDate") || currentParams.get("pickupDate") || "";
+  const returnDate = valueFrom("returnDate", "cars2ReturnDate") || currentParams.get("returnDate") || "";
+  const pickupTime = valueFrom("pickupTime", "cars2PickupTime") || currentParams.get("pickupTime") || "";
+  const returnTime = valueFrom("returnTime", "cars2ReturnTime") || currentParams.get("returnTime") || "";
+
+  if (!pickupDate || !returnDate || !pickupTime || !returnTime) return null;
+
+  const pickupTimeCustomized = hasHomepageWidget
+    ? quickBookingPickupTimeCustomized
+    : currentParams.get("pickupTimeCustomized") === "1" || currentParams.get("pickupTimeCustomized") === "true";
+  const returnTimeCustomized = hasHomepageWidget
+    ? quickBookingReturnTimeCustomized
+    : currentParams.get("returnTimeCustomized") === "1" || currentParams.get("returnTimeCustomized") === "true";
+
+  return {
+    pickupDate,
+    returnDate,
+    pickupTime,
+    pickupTimeCustomized: pickupTimeCustomized ? "1" : "0",
+    returnTime,
+    returnTimeCustomized: returnTimeCustomized ? "1" : "0",
+  };
+}
+
 function resolveBookingPageUrl(value) {
   const href = String(value || "").trim();
   if (!href) return href;
@@ -86,6 +116,10 @@ function resolveBookingPageUrl(value) {
     const currentPage = url.pathname.split("/").pop()?.toLowerCase();
     if (!BOOKING_PAGE_PATHS.has(currentPage)) return href;
     url.pathname = url.pathname.replace(/[^/]+$/, ACTIVE_BOOKING_PAGE_PATH);
+    const selection = getCurrentBookingSelection();
+    if (selection) {
+      Object.entries(selection).forEach(([key, value]) => url.searchParams.set(key, value));
+    }
     if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return url.toString();
     if (href.startsWith("/")) return `${url.pathname}${url.search}${url.hash}`;
     return `${ACTIVE_BOOKING_PAGE_PATH}${url.search}${url.hash}`;
@@ -939,6 +973,7 @@ function normalizeRentalTimeInputs(options = {}) {
   }
   updatePickupTimeAvailability();
   if (!timeWasAdjusted) updateQuickBookingSummary();
+  applyBookingPageRouting();
   window.syncVehicleAvailability?.();
 }
 
@@ -1133,16 +1168,12 @@ function loadBookingDatesIntoForm() {
   const savedReturnTime = bookingData.returnTime || bookingData.return_time || "";
   quickBookingPickupTimeCustomized =
     params.get("pickupTimeCustomized") === "1"
-    || params.get("pickupTimeCustomized") === "true"
-    || bookingData.pickupTimeCustomized === true;
-  const pickupTime = quickBookingPickupTimeCustomized
-    ? requestedPickupTime || savedPickupTime || formDefaultTime || defaultSlot.time
-    : defaultSlot.time;
+    || params.get("pickupTimeCustomized") === "true";
+  const pickupTime = requestedPickupTime || savedPickupTime || formDefaultTime || defaultSlot.time;
 
   quickBookingReturnTimeCustomized =
     params.get("returnTimeCustomized") === "1"
-    || params.get("returnTimeCustomized") === "true"
-    || bookingData.returnTimeCustomized === true;
+    || params.get("returnTimeCustomized") === "true";
   const returnTime = quickBookingReturnTimeCustomized
     ? requestedReturnTime || savedReturnTime || pickupTime
     : pickupTime;
@@ -1159,7 +1190,7 @@ function loadBookingDatesIntoForm() {
 }
 
 function startBooking(event) {
-  event.preventDefault();
+  event?.preventDefault();
 
   const pickupDate = document.getElementById("pickupDate")?.value;
   const returnDate = document.getElementById("returnDate")?.value;
@@ -1167,7 +1198,7 @@ function startBooking(event) {
   const returnTime = document.getElementById("returnTime")?.value;
 
   if (!pickupDate || !returnDate || !pickupTime || !returnTime) {
-    alert("Please choose pickup and return date/time.");
+    updateQuickBookingSummary("Choose your pickup date, return date, pickup time, and return time.", "error");
     return;
   }
 
@@ -1175,13 +1206,13 @@ function startBooking(event) {
   const dropoff = getRentalDateTime(returnDate, returnTime);
 
   if (!pickup || !dropoff || dropoff <= pickup) {
-    alert("Please choose a return date after pickup.");
+    updateQuickBookingSummary("Return must be after pickup.", "error");
     return;
   }
 
   if (pickup <= new Date()) {
-    alert("Please choose a pickup time later than the current time.");
-    normalizeRentalTimeInputs();
+    updateQuickBookingSummary("Pickup must be later than the current time.", "error");
+    normalizeRentalTimeInputs({ notify: true });
     return;
   }
 
@@ -1205,7 +1236,16 @@ function startBooking(event) {
   const selectedPeriod = document.getElementById("selectedPeriod");
   if (selectedPeriod) selectedPeriod.textContent = selectedRentalPeriod;
 
-  window.syncVehicleAvailability?.();
+  const params = new URLSearchParams({
+    pickupDate,
+    returnDate,
+    pickupTime,
+    pickupTimeCustomized: quickBookingPickupTimeCustomized ? "1" : "0",
+    returnTime,
+    returnTimeCustomized: quickBookingReturnTimeCustomized ? "1" : "0",
+  });
+  updateQuickBookingSummary("Loading vehicles available for your dates…", "valid");
+  window.location.href = `${ACTIVE_BOOKING_PAGE_PATH}?${params.toString()}`;
 }
 
 function formatDate(value) {
