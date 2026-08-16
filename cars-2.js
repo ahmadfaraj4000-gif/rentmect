@@ -288,11 +288,22 @@
       id: `neq.${TEST_VEHICLE_ID}`,
       order: "daily_rate.asc.nullslast",
     });
-    const response = await apiFetch(`/rest/v1/vehicles?${query}`, { method: "GET" });
-    const vehicles = await response.json();
-    return Array.isArray(vehicles)
-      ? vehicles.filter((vehicle) => vehicle?.id && vehicle.id !== TEST_VEHICLE_ID)
-      : [];
+    let lastError = null;
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const response = await apiFetch(`/rest/v1/vehicles?${query}`, { method: "GET" });
+        const vehicles = await response.json();
+        return Array.isArray(vehicles)
+          ? vehicles.filter((vehicle) => vehicle?.id && vehicle.id !== TEST_VEHICLE_ID)
+          : [];
+      } catch (error) {
+        lastError = error;
+        if (attempt === 0) await new Promise((resolve) => window.setTimeout(resolve, 500));
+      }
+    }
+
+    throw lastError || new Error("The fleet request failed.");
   }
 
   async function loadVehicles(pendingRequest = null) {
@@ -807,24 +818,20 @@
     elements.cars2ReturnDate.min = state.trip.pickupDate;
     elements.cars2DetailReturnDate.min = state.trip.pickupDate;
     renderTripSummary();
+    window.syncBookingRangePickers?.();
   }
 
   function renderTripSummary() {
     if (!elements.cars2TripSummary) return;
+    elements.cars2TripSummary.hidden = true;
+    elements.cars2TripSummary.textContent = "";
+    elements.cars2TripSummary.classList.remove("valid", "error");
     if (state.quote?.valid === false) {
       elements.cars2TripSummary.textContent = state.quote.error || `Rentals require at least ${state.policy.minimumRentalHours} hours.`;
-      elements.cars2TripSummary.classList.remove("valid");
+      elements.cars2TripSummary.hidden = false;
+      elements.cars2TripSummary.classList.add("error");
       return;
     }
-    const days = state.quote?.valid ? Number(state.quote.billable_days || 0) : rentalDays();
-    const shortDate = (value) => new Date(`${value}T12:00:00`).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
-    const duration = rentalMinutes();
-    const durationText = duration > 0 ? formatMinutes(duration) : "Invalid duration";
-    elements.cars2TripSummary.textContent = `${durationText} · ${days} billed day${days === 1 ? "" : "s"} · ${shortDate(state.trip.pickupDate)} at ${state.trip.pickupTime} → ${shortDate(state.trip.returnDate)} at ${state.trip.returnTime}`;
-    elements.cars2TripSummary.classList.toggle("valid", validTrip());
   }
 
   function normalizeInitialTrip() {
