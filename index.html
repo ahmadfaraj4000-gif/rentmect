@@ -547,7 +547,7 @@
     </div>
   </footer>
 
-  <script src="script.js?v=20260816-calendar-picker-6"></script>
+  <script src="script.js?v=20260816-booking-handoff-1"></script>
 
   <script>
     const WHEELBASE_RENTAL_API_URL = "https://api.outdoorsy.co/v0/rentals";
@@ -604,47 +604,6 @@
 
     document.addEventListener("DOMContentLoaded", syncFeaturedWheelbasePrices);
 
-    function startBooking(event) {
-      event.preventDefault();
-
-      const pickupDate = document.getElementById("pickupDate")?.value;
-      const returnDate = document.getElementById("returnDate")?.value;
-      const pickupTime = document.getElementById("pickupTime")?.value;
-      const returnTime = document.getElementById("returnTime")?.value;
-
-      if (!pickupDate || !returnDate || !pickupTime || !returnTime) {
-        updateQuickBookingSummary("Choose your pickup date, return date, pickup time, and return time.", "error");
-        return;
-      }
-
-      const pickup = getRentalDateTime(pickupDate, pickupTime);
-      const dropoff = getRentalDateTime(returnDate, returnTime);
-      if (dropoff <= pickup) {
-        updateQuickBookingSummary("Return must be after pickup.", "error");
-        return;
-      }
-      if (pickup <= new Date()) {
-        updateQuickBookingSummary("Pickup must be later than the current time.", "error");
-        return;
-      }
-
-      const bookingData = {
-        pickupDate,
-        returnDate,
-        pickupTime,
-        pickupTimeCustomized: quickBookingPickupTimeCustomized,
-        returnTime,
-        returnTimeCustomized: quickBookingReturnTimeCustomized
-      };
-
-      localStorage.setItem("rentmect_pending_booking", JSON.stringify(bookingData));
-
-      const params = new URLSearchParams(bookingData);
-
-      updateQuickBookingSummary("Loading vehicles available for your dates…", "valid");
-      const bookingPage = window.getActiveBookingPage?.() || "cars-2.html";
-      window.location.href = `${bookingPage}?${params.toString()}`;
-    }
   </script>
 </body>
 </html>

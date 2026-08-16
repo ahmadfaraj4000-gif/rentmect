@@ -458,6 +458,24 @@
   font-weight: 700;
 }
 
+.cars2-error [data-retry-fleet] {
+  margin-left: 8px;
+  padding: 7px 10px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cars2-error [data-retry-fleet]:hover,
+.cars2-error [data-retry-fleet]:focus-visible {
+  background: #fff8f8;
+  outline: 2px solid rgba(166, 47, 55, .2);
+  outline-offset: 2px;
+}
+
 .cars2-insurance-top-note {
   display: flex;
   align-items: center;

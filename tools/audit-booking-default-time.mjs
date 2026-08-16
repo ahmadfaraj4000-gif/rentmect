@@ -57,15 +57,18 @@ const cars2 = read('cars-2.js');
 if (!shared.includes('pickupTimeCustomized: quickBookingPickupTimeCustomized')) {
   throw new Error('Homepage handoff must label a customer-selected pickup time.');
 }
-const homepageStartBooking = functionSource(homepage, 'startBooking');
+if (homepage.includes('function startBooking(')) {
+  throw new Error('The homepage must use the single shared booking submit handler.');
+}
+const homepageStartBooking = functionSource(shared, 'startBooking');
 if (!homepageStartBooking.includes('pickupTimeCustomized: quickBookingPickupTimeCustomized')) {
   throw new Error('The visible homepage handler must label a customer-selected pickup time.');
 }
 if (!homepageStartBooking.includes('returnTimeCustomized: quickBookingReturnTimeCustomized')) {
   throw new Error('The visible homepage handler must label a customer-selected return time.');
 }
-if (!cars2.includes('requestedPickupTime && requestedPickupTimeCustomized')) {
-  throw new Error('Cars-2 must ignore an inherited legacy default unless the customer selected it.');
+if (!cars2.includes('const initialPickupTime = requestedPickupTime || "9:00 AM"')) {
+  throw new Error('Cars-2 must honor an explicitly handed-off pickup time.');
 }
 if (!cars2.includes('requestedReturnTimeCustomized && requestedReturnTime')) {
   throw new Error('Cars-2 must ignore an inherited legacy return default unless the customer selected it.');
@@ -86,7 +89,15 @@ function homepageHandoff(pickupCustomized, returnCustomized) {
     document: { getElementById: (id) => controls[id] || null },
     getRentalDateTime: (date) => new Date(`${date}T12:00:00Z`),
     updateQuickBookingSummary: () => {},
-    localStorage: { setItem: (key, value) => saved.set(key, value) },
+    formatDate: (value) => value,
+    normalizeRentalTimeInputs: () => {},
+    selectedRentalPeriod: '',
+    selectedVehicleName: '',
+    ACTIVE_BOOKING_PAGE_PATH: 'cars-2.html',
+    localStorage: {
+      getItem: () => '',
+      setItem: (key, value) => saved.set(key, value),
+    },
     window: {
       getActiveBookingPage: () => 'cars-2.html',
       location: { href: '' },
@@ -104,13 +115,13 @@ const customizedHandoff = homepageHandoff(true, true);
 if (customizedHandoff.stored.pickupTimeCustomized !== true || customizedHandoff.stored.returnTimeCustomized !== true) {
   throw new Error('Homepage local storage must preserve both customer-selected time flags.');
 }
-if (customizedHandoff.destination.searchParams.get('pickupTimeCustomized') !== 'true'
-  || customizedHandoff.destination.searchParams.get('returnTimeCustomized') !== 'true') {
+if (customizedHandoff.destination.searchParams.get('pickupTimeCustomized') !== '1'
+  || customizedHandoff.destination.searchParams.get('returnTimeCustomized') !== '1') {
   throw new Error('Homepage Cars-2 URL must preserve both customer-selected time flags.');
 }
 const defaultHandoff = homepageHandoff(false, false);
-if (defaultHandoff.destination.searchParams.get('pickupTimeCustomized') !== 'false'
-  || defaultHandoff.destination.searchParams.get('returnTimeCustomized') !== 'false') {
+if (defaultHandoff.destination.searchParams.get('pickupTimeCustomized') !== '0'
+  || defaultHandoff.destination.searchParams.get('returnTimeCustomized') !== '0') {
   throw new Error('Untouched homepage defaults must remain explicitly recalculable by Cars-2.');
 }
 
