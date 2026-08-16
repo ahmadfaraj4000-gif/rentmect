@@ -11,6 +11,9 @@ const check = (condition, message) => {
 const carsHtml = read('cars-2.html');
 const carsJs = read('cars-2.js');
 const publicScript = read('script.js');
+const homepageHtml = read('index.html');
+const bookingPickerJs = read('booking-picker.js');
+const bookingPickerCss = read('booking-picker.css');
 
 for (const legacyPage of ['cars.html', 'cars-wheelbase.html']) {
   const source = read(legacyPage);
@@ -44,6 +47,13 @@ check(publicScript.includes('const ACTIVE_BOOKING_PAGE_PATH = "cars-2.html"'), '
 check(!publicScript.includes('get_public_booking_page_setting'), 'Public routing must not be controlled by the legacy provider setting');
 check(!publicScript.includes('setInterval(setupBookingPageRouting'), 'Public routing must not poll for a provider switch');
 
+check(bookingPickerJs.includes('data-calendar-action="close"'), 'The shared date picker must include a mobile close control');
+check(bookingPickerJs.includes('booking-calendar-modal-open'), 'The shared date picker must lock background scrolling while open');
+check(bookingPickerCss.includes('height: 100dvh'), 'The mobile date picker must fit the visible phone viewport');
+check(bookingPickerCss.includes('.booking-calendar-month:nth-child(2)'), 'The mobile date picker must expose the second month');
+check(/booking-picker\.css\?v=20260816-mobile-sheet-1/.test(homepageHtml), 'Homepage must load the current mobile picker stylesheet');
+check(/booking-picker\.js\?v=20260816-mobile-sheet-1/.test(carsHtml), 'Cars-2 must load the current mobile picker JavaScript');
+
 const rootHtmlFiles = fs.readdirSync(root).filter((name) => name.endsWith('.html') && !['cars.html', 'cars-wheelbase.html'].includes(name));
 for (const file of rootHtmlFiles) {
   const source = read(file);
@@ -67,4 +77,4 @@ console.log(`PASS Cars-2 DOM contract: ${requiredIds.length} required elements a
 console.log('PASS Legacy booking URLs are redirect-only and preserve booking parameters');
 console.log('PASS Public and database routing are permanently locked to cars-2.html');
 console.log('PASS Public HTML contains no links to legacy booking pages');
-
+console.log('PASS Shared mobile date picker is a viewport-contained sheet');
