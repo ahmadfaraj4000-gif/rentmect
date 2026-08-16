@@ -105,15 +105,20 @@
       const panel = document.createElement("section");
       panel.id = this.id;
       panel.className = "booking-calendar-panel";
+      panel.setAttribute("role", "dialog");
       panel.setAttribute("aria-label", "Choose pickup and return dates");
       panel.hidden = true;
       panel.innerHTML = `
         <div class="booking-calendar-toolbar">
-          <p class="booking-calendar-instruction" data-calendar-instruction>Select your pickup date.</p>
+          <div class="booking-calendar-heading">
+            <strong>Choose dates</strong>
+            <p class="booking-calendar-instruction" data-calendar-instruction>Select your pickup date.</p>
+          </div>
           <div class="booking-calendar-nav" aria-label="Calendar navigation">
             <button type="button" data-calendar-action="previous" aria-label="Previous month">‹</button>
             <button type="button" data-calendar-action="next" aria-label="Next month">›</button>
           </div>
+          <button class="booking-calendar-close" type="button" data-calendar-action="close" aria-label="Close date picker">×</button>
         </div>
         <div class="booking-calendar-months" data-calendar-months></div>
         <div class="booking-calendar-actions">
@@ -137,8 +142,10 @@
       this.viewMonth = monthStart(focusDate || this.draftPickup || this.minimumPickup);
       this.opened = true;
       this.panel.hidden = false;
+      this.panel.setAttribute("aria-modal", window.matchMedia("(max-width: 620px)").matches ? "true" : "false");
       this.card?.classList.add("booking-calendar-open");
       this.hero?.classList.add("booking-calendar-open");
+      document.body.classList.add("booking-calendar-modal-open");
       this.pickupButton.setAttribute("aria-expanded", "true");
       this.returnButton.setAttribute("aria-expanded", "true");
       this.render();
@@ -149,6 +156,7 @@
       this.panel.hidden = true;
       this.card?.classList.remove("booking-calendar-open");
       this.hero?.classList.remove("booking-calendar-open");
+      document.body.classList.remove("booking-calendar-modal-open");
       this.pickupButton.setAttribute("aria-expanded", "false");
       this.returnButton.setAttribute("aria-expanded", "false");
     }
@@ -177,6 +185,11 @@
         return;
       }
       const action = event.target.closest("[data-calendar-action]")?.dataset.calendarAction;
+      if (action === "close") {
+        this.close();
+        (this.selecting === "return" ? this.returnButton : this.pickupButton).focus();
+        return;
+      }
       if (action === "previous") this.viewMonth = addMonths(this.viewMonth, -1);
       if (action === "next") this.viewMonth = addMonths(this.viewMonth, 1);
       if (action === "reset") {
