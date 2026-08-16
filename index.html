@@ -25,9 +25,11 @@
   <meta name="twitter:description" content="Local car rentals serving Hartford, CT and Bradley International Airport travelers." />
 
   <link rel="canonical" href="https://rentmect.com/" />
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="site-v2.css" />
+  <link rel="stylesheet" href="styles.css?v=20260816-calendar-picker-4" />
+  <link rel="stylesheet" href="site-v2.css?v=20260816-calendar-picker-14" />
+  <link rel="stylesheet" href="booking-picker.css?v=20260816-calendar-picker-2" />
   <link rel="icon" href="assets/logo.png" />
+  <script src="booking-picker.js?v=20260816-calendar-picker-2" defer></script>
 
   <script type="application/ld+json">
 {
@@ -189,7 +191,7 @@
 </script>
 </head>
 
-<body class="site-v2">
+<body class="site-v2 home-page">
   <div class="top-bar">
     <div>Call/Text 24/7: <a href="tel:+18605586031">860-558-6031</a></div>
     <div>Local Car Rentals Serving Hartford, Connecticut</div>
@@ -240,47 +242,44 @@
       <div class="hero-content">
         <p class="script-text">LIV TO DRIVE</p>
         <h1>Luxury &amp; Reliable Car Rentals<br>Hartford, Ct</h1>
-        <p>Luxury vehicles for business, travel, and everyday driving. Reserve in minutes.</p>
 
-        <section class="availability-card" aria-labelledby="homepageAvailabilityTitle">
-          <h2 id="homepageAvailabilityTitle" class="availability-title">Check Availability</h2>
-          <p class="availability-copy">Choose your rental dates to see available vehicles.</p>
-          <form class="availability-form" data-booking-widget onsubmit="startBooking(event)">
-            <label class="availability-field availability-field-date" for="pickupDate">
-              <span class="availability-label">Pickup Date</span>
-              <span class="availability-control">
-                <svg class="availability-calendar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg>
-                <input type="date" id="pickupDate" name="pickupDate" required aria-describedby="bookingSelectionSummary" />
-              </span>
-            </label>
+        <section class="availability-card" aria-label="Check availability">
+          <form class="availability-form availability-range-form" data-booking-widget data-booking-range-picker onsubmit="startBooking(event)">
+            <div class="availability-trip-segment">
+              <button class="availability-date-button" type="button" data-booking-date-button="pickup" aria-expanded="false">
+                <span class="availability-label">Pickup</span>
+                <span class="availability-date-value" data-booking-date-display="pickup">Choose date</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg>
+              </button>
+              <input class="availability-native-date" type="date" id="pickupDate" name="pickupDate" required data-booking-date-input="pickup" aria-describedby="bookingSelectionSummary" />
+              <label class="availability-time-picker" for="pickupTime">
+                <span class="availability-label">Time</span>
+                <span class="availability-time-control">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                  <select id="pickupTime" name="pickupTime" required aria-label="Pickup time" aria-describedby="bookingSelectionSummary"></select>
+                </span>
+              </label>
+            </div>
 
-            <label class="availability-field availability-field-date" for="returnDate">
-              <span class="availability-label">Return Date</span>
-              <span class="availability-control">
-                <svg class="availability-calendar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg>
-                <input type="date" id="returnDate" name="returnDate" required aria-describedby="bookingSelectionSummary" />
-              </span>
-            </label>
-
-            <label class="availability-field availability-field-time" for="pickupTime">
-              <span class="availability-label">Pickup Time</span>
-              <span class="availability-control">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
-                <select id="pickupTime" name="pickupTime" required aria-describedby="bookingSelectionSummary"></select>
-              </span>
-            </label>
-
-            <label class="availability-field availability-field-time" for="returnTime">
-              <span class="availability-label">Return Time</span>
-              <span class="availability-control">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
-                <select id="returnTime" name="returnTime" required aria-describedby="bookingSelectionSummary"></select>
-              </span>
-            </label>
+            <div class="availability-trip-segment">
+              <button class="availability-date-button" type="button" data-booking-date-button="return" aria-expanded="false">
+                <span class="availability-label">Return</span>
+                <span class="availability-date-value" data-booking-date-display="return">Choose date</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg>
+              </button>
+              <input class="availability-native-date" type="date" id="returnDate" name="returnDate" required data-booking-date-input="return" aria-describedby="bookingSelectionSummary" />
+              <label class="availability-time-picker" for="returnTime">
+                <span class="availability-label">Time</span>
+                <span class="availability-time-control">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                  <select id="returnTime" name="returnTime" required aria-label="Return time" aria-describedby="bookingSelectionSummary"></select>
+                </span>
+              </label>
+            </div>
 
             <button class="availability-submit" type="submit" aria-describedby="bookingSelectionSummary">Check Availability</button>
           </form>
-          <p id="bookingSelectionSummary" class="availability-summary" aria-live="polite"></p>
+          <p id="bookingSelectionSummary" class="availability-summary" aria-live="polite" hidden></p>
         </section>
       </div>
     </section>
@@ -319,12 +318,12 @@
       </div>
     </article>
 
-    <article class="vehicle-card featured-price-card" data-wheelbase-rental-id="517467">
-      <div class="vehicle-image placeholder truck" role="img" aria-label="Ford F350 four-wheel-drive truck rental near Hartford, Connecticut"></div>
+    <article class="vehicle-card featured-price-card" data-wheelbase-rental-id="517456">
+      <div class="vehicle-image placeholder q3" role="img" aria-label="Audi Q3 number 100 luxury compact SUV rental near Hartford, Connecticut"></div>
       <div class="vehicle-body">
-        <h3>Ford F350 4X4</h3>
-        <p>Heavy Duty Truck • Work Ready</p>
-        <strong class="featured-rental-price" data-days="4" data-daily-rate="129">From $516 / 4 days</strong>
+        <h3>Audi Q3 #100</h3>
+        <p>Luxury Compact SUV • Quattro AWD</p>
+        <strong class="featured-rental-price" data-days="4" data-daily-rate="84">From $336 / 4 days</strong>
       </div>
     </article>
   </div>
@@ -381,20 +380,20 @@
   <div class="insurance-grid">
     <article class="insurance-card recommended-insurance">
       <div class="insurance-recommended-badge">Recommended</div>
-      <span>Rental Insurance</span>
-      <h3>Bonzah Insurance</h3>
-      <p>Review rental car insurance options through Bonzah before pickup.</p>
-      <a class="btn-primary" href="https://bonzah.com/" target="_blank" rel="noopener">
-        Visit Bonzah
-      </a>
-    </article>
-
-    <article class="insurance-card">
       <span>Rental Protection</span>
       <h3>RentalCover</h3>
       <p>Compare rental car protection options before your reservation.</p>
       <a class="btn-primary" href="https://rentalcover.com/campaign/united-states?utm_source=google&utm_medium=cpc&utm_campaign=EN+%7C+US+%7C+NB+%7C+Generic&targetid=kwd-103285391&adgroupid=137793824364&keyword=rental%20car%20insurance%20coverage&match=b&creative=664769605198&network=g&device=m&loc_interest=&loc_physical=&gad_source=1&gad_campaignid=17076281514&gclid=CjwKCAjwnN3OBhA8EiwAfpTYergtOXAfpu1BPBv9XaEQlj41pA5uNEdy98EOr8pRIDIddil2vgb39hoCwGgQAvD_BwE" target="_blank" rel="noopener">
         Visit RentalCover
+      </a>
+    </article>
+
+    <article class="insurance-card">
+      <span>Rental Insurance</span>
+      <h3>Bonzah Insurance</h3>
+      <p>Review rental car insurance options through Bonzah before pickup.</p>
+      <a class="btn-primary" href="https://bonzah.com/" target="_blank" rel="noopener">
+        Visit Bonzah
       </a>
     </article>
 
@@ -424,21 +423,56 @@
         <h2>What People Say About Us</h2>
       </div>
 
-      <div class="review-grid">
-        <article class="review-card">
-          <p>“Rent Me CT made the whole rental process quick and simple. The booking was easy, the vehicle was ready, and everything was exactly as promised.”</p>
-          <strong>Ashley de Lotz</strong>
-        </article>
+      <div class="review-carousel" data-review-carousel aria-label="Google customer reviews" aria-roledescription="carousel">
+        <div class="review-carousel-viewport" aria-live="off">
+          <article class="review-card review-slide active" data-review-slide aria-hidden="false">
+            <div class="review-stars" aria-label="5 out of 5 stars">★★★★★</div>
+            <p>“Rented from them multiple times. I recommend Rent Me CT to anybody who needs a rental! The car was clean and well taken care of.”</p>
+            <strong>Willie Breyette</strong>
+            <span>Google Review</span>
+          </article>
 
-        <article class="review-card">
-          <p>“I rented a car during my trip to Connecticut. The location near Bradley Airport made pickup easy, and the car was clean and well maintained.”</p>
-          <strong>Rick Gebhardt</strong>
-        </article>
+          <article class="review-card review-slide" data-review-slide aria-hidden="true">
+            <div class="review-stars" aria-label="5 out of 5 stars">★★★★★</div>
+            <p>“Everyone I’ve met there is so friendly, helpful and awesome. I’ve personally had a great experience and would highly recommend anyone to do the same.”</p>
+            <strong>Krystal Diamond</strong>
+            <span>Google Review</span>
+          </article>
 
-        <article class="review-card">
-          <p>“Great experience renting from Rent Me CT. The team was helpful and made sure I had the right car for my trip.”</p>
-          <strong>Adrian Vajas</strong>
-        </article>
+          <article class="review-card review-slide" data-review-slide aria-hidden="true">
+            <div class="review-stars" aria-label="5 out of 5 stars">★★★★★</div>
+            <p>“I had a good experience here. They treated me professionally even though I was under their normal rental age (21). Thanks Mike!”</p>
+            <strong>Darcy Schmidt</strong>
+            <span>Google Review</span>
+          </article>
+
+          <article class="review-card review-slide" data-review-slide aria-hidden="true">
+            <div class="review-stars" aria-label="5 out of 5 stars">★★★★★</div>
+            <p>“What an easy &amp; great experience renting a car. I’ll definitly rent from here again.”</p>
+            <strong>P OB</strong>
+            <span>Google Review</span>
+          </article>
+
+          <article class="review-card review-slide" data-review-slide aria-hidden="true">
+            <div class="review-stars" aria-label="5 out of 5 stars">★★★★★</div>
+            <p>“Awesome cars great service.”</p>
+            <strong>AJ Belanger</strong>
+            <span>Google Review</span>
+          </article>
+        </div>
+
+        <div class="review-carousel-controls">
+          <button type="button" class="review-carousel-arrow" data-review-previous aria-label="Show previous review">←</button>
+          <div class="review-carousel-dots" aria-label="Choose a review">
+            <button type="button" class="active" data-review-dot="0" aria-label="Show review 1" aria-current="true"></button>
+            <button type="button" data-review-dot="1" aria-label="Show review 2"></button>
+            <button type="button" data-review-dot="2" aria-label="Show review 3"></button>
+            <button type="button" data-review-dot="3" aria-label="Show review 4"></button>
+            <button type="button" data-review-dot="4" aria-label="Show review 5"></button>
+          </div>
+          <button type="button" class="review-carousel-toggle" data-review-toggle aria-label="Pause review slideshow">Pause</button>
+          <button type="button" class="review-carousel-arrow" data-review-next aria-label="Show next review">→</button>
+        </div>
       </div>
     </section>
 
@@ -448,30 +482,30 @@
         <h2 id="hartfordRentalFaqs">Renting a car near Hartford, CT</h2>
       </div>
       <div class="seo-faq-grid">
-        <article class="seo-faq-card">
-          <h3>Does Rent Me CT serve Hartford, Connecticut?</h3>
+        <details class="seo-faq-card">
+          <summary><h3>Does Rent Me CT serve Hartford, Connecticut?</h3></summary>
           <p>Yes. Rent Me CT serves Hartford, West Hartford, New Britain, Farmington, Bradley International Airport travelers, and surrounding Connecticut communities. Vehicle pickup is at 12 Holmes Circle in Farmington unless another arrangement is confirmed.</p>
-        </article>
-        <article class="seo-faq-card">
-          <h3>What types of vehicles can I rent from Rent Me CT?</h3>
+        </details>
+        <details class="seo-faq-card">
+          <summary><h3>What types of vehicles can I rent from Rent Me CT?</h3></summary>
           <p>Rent Me CT offers sedans, SUVs, luxury vehicles, trucks, and passenger vans depending on current fleet availability.</p>
-        </article>
-        <article class="seo-faq-card">
-          <h3>Can I book a one-day rental?</h3>
+        </details>
+        <details class="seo-faq-card">
+          <summary><h3>Can I book a one-day rental?</h3></summary>
           <p>Yes. Rental length depends on current vehicle availability.</p>
-        </article>
-        <article class="seo-faq-card">
-          <h3>How many miles are included?</h3>
+        </details>
+        <details class="seo-faq-card">
+          <summary><h3>How many miles are included?</h3></summary>
           <p>Rentals include 250 miles per day. Extra mileage is charged at $0.35 per mile unless another mileage option is purchased or agreed to.</p>
-        </article>
-        <article class="seo-faq-card">
-          <h3>Do I need insurance to rent?</h3>
+        </details>
+        <details class="seo-faq-card">
+          <summary><h3>Do I need insurance to rent?</h3></summary>
           <p>Renters must provide valid auto insurance unless Rent Me CT confirms otherwise in writing. Upload the insurance declaration page showing the policyholder, active dates, and coverage; other insurance documents may be rejected.</p>
-        </article>
-        <article class="seo-faq-card">
-          <h3>How should I enter my name for identity verification?</h3>
+        </details>
+        <details class="seo-faq-card">
+          <summary><h3>How should I enter my name for identity verification?</h3></summary>
           <p>Enter your full legal name exactly as it appears on your government ID. If the ID shows a middle name, type it immediately after your first name so Stripe Identity can match it.</p>
-        </article>
+        </details>
       </div>
     </section>
 
@@ -513,7 +547,7 @@
     </div>
   </footer>
 
-  <script src="script.js?v=20260806-homepage-booking-hotfix"></script>
+  <script src="script.js?v=20260816-calendar-picker-6"></script>
 
   <script>
     const WHEELBASE_RENTAL_API_URL = "https://api.outdoorsy.co/v0/rentals";

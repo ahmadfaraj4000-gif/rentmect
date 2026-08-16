@@ -9,12 +9,14 @@
   <meta name="description" content="Choose a Rent Me CT vehicle, confirm your dates, and start your reservation." />
   <link rel="canonical" href="https://rentmect.com/cars-2.html" />
   <link rel="icon" type="image/png" href="assets/favicon.png" />
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="site-v2.css" />
-  <link rel="stylesheet" href="cars-2.css?v=20260806-checkout-recovery" />
+  <link rel="stylesheet" href="styles.css?v=20260816-calendar-picker-2" />
+  <link rel="stylesheet" href="site-v2.css?v=20260816-calendar-picker-4" />
+  <link rel="stylesheet" href="cars-2.css?v=20260816-calendar-picker-3" />
+  <link rel="stylesheet" href="booking-picker.css?v=20260816-calendar-picker-2" />
   <script src="fleet-gallery-data.js" defer></script>
-  <script src="script.js?v=20260806-cars2-cutover" defer></script>
-  <script src="cars-2.js?v=20260806-checkout-recovery" defer></script>
+  <script src="script.js?v=20260816-calendar-picker-4" defer></script>
+  <script src="cars-2.js?v=20260816-calendar-picker-3" defer></script>
+  <script src="booking-picker.js?v=20260816-calendar-picker-2" defer></script>
 </head>
 <body class="site-v2 cars-v2-page">
   <a class="skip-link" href="#cars2Main">Skip to main content</a>
@@ -53,12 +55,7 @@
 
   <main id="cars2Main">
     <div id="cars2FleetView">
-      <section class="cars2-hero" aria-labelledby="cars2Title">
-        <p class="eyebrow">LIV TO DRIVE</p>
-        <h1 id="cars2Title">Luxury &amp; Reliable Car Rentals<br>Hartford, Ct</h1>
-        <p>Luxury vehicles for business, travel, and everyday driving. Reserve in minutes.</p>
-      </section>
-
+      <h1 class="cars2-visually-hidden">Available rental vehicles</h1>
       <aside class="cars2-insurance-top-note" aria-label="Insurance requirement">
         <div class="cars2-insurance-top-copy">
           <p class="eyebrow">Insurance required</p>
@@ -73,41 +70,43 @@
         </div>
       </aside>
 
-      <section class="availability-card" id="cars2Dates" aria-labelledby="cars2DatesTitle">
-        <h2 id="cars2DatesTitle" class="availability-title">Check Availability</h2>
-        <p class="availability-copy">Choose your rental dates to see available vehicles.</p>
-        <form id="cars2AvailabilityForm" class="availability-form" data-booking-widget>
-          <label class="availability-field availability-field-date" for="cars2PickupDate">
-            <span class="availability-label">Pickup Date</span>
-            <span class="availability-control">
-              <svg class="availability-calendar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg>
-              <input id="cars2PickupDate" type="date" required aria-describedby="cars2TripSummary" />
-            </span>
-          </label>
-          <label class="availability-field availability-field-date" for="cars2ReturnDate">
-            <span class="availability-label">Return Date</span>
-            <span class="availability-control">
-              <svg class="availability-calendar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg>
-              <input id="cars2ReturnDate" type="date" required aria-describedby="cars2TripSummary" />
-            </span>
-          </label>
-          <label class="availability-field availability-field-time" for="cars2PickupTime">
-            <span class="availability-label">Pickup Time</span>
-            <span class="availability-control">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
-              <select id="cars2PickupTime" required aria-describedby="cars2TripSummary"></select>
-            </span>
-          </label>
-          <label class="availability-field availability-field-time" for="cars2ReturnTime">
-            <span class="availability-label">Return Time</span>
-            <span class="availability-control">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
-              <select id="cars2ReturnTime" required aria-describedby="cars2TripSummary"></select>
-            </span>
-          </label>
+      <section class="availability-card" id="cars2Dates" aria-label="Check availability">
+        <form id="cars2AvailabilityForm" class="availability-form availability-range-form" data-booking-widget data-booking-range-picker>
+          <div class="availability-trip-segment">
+            <button class="availability-date-button" type="button" data-booking-date-button="pickup" aria-expanded="false">
+              <span class="availability-label">Pickup</span>
+              <span class="availability-date-value" data-booking-date-display="pickup">Choose date</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg>
+            </button>
+            <input class="availability-native-date" id="cars2PickupDate" type="date" required data-booking-date-input="pickup" aria-describedby="cars2TripSummary" />
+            <label class="availability-time-picker" for="cars2PickupTime">
+              <span class="availability-label">Time</span>
+              <span class="availability-time-control">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                <select id="cars2PickupTime" required aria-label="Pickup time" aria-describedby="cars2TripSummary"></select>
+              </span>
+            </label>
+          </div>
+
+          <div class="availability-trip-segment">
+            <button class="availability-date-button" type="button" data-booking-date-button="return" aria-expanded="false">
+              <span class="availability-label">Return</span>
+              <span class="availability-date-value" data-booking-date-display="return">Choose date</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg>
+            </button>
+            <input class="availability-native-date" id="cars2ReturnDate" type="date" required data-booking-date-input="return" aria-describedby="cars2TripSummary" />
+            <label class="availability-time-picker" for="cars2ReturnTime">
+              <span class="availability-label">Time</span>
+              <span class="availability-time-control">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                <select id="cars2ReturnTime" required aria-label="Return time" aria-describedby="cars2TripSummary"></select>
+              </span>
+            </label>
+          </div>
+
           <button id="cars2CheckAvailability" class="availability-submit" type="submit" aria-describedby="cars2TripSummary">Check Availability</button>
         </form>
-        <p id="cars2TripSummary" class="availability-summary" aria-live="polite"></p>
+        <p id="cars2TripSummary" class="availability-summary" aria-live="polite" hidden></p>
       </section>
 
       <section class="cars2-fleet-tools" aria-label="Fleet search and filters">
@@ -149,17 +148,17 @@
           </p>
         </div>
         <div class="cars2-insurance-grid">
-          <a class="recommended" href="https://bonzah.com/" target="_blank" rel="noopener noreferrer">
+          <a class="recommended" href="https://rentalcover.com/campaign/united-states?utm_source=google&utm_medium=cpc&utm_campaign=EN+%7C+US+%7C+NB+%7C+Generic&targetid=kwd-103285391&adgroupid=137793824364&keyword=rental%20car%20insurance%20coverage&match=b&creative=664769605198&network=g&device=m&loc_interest=&loc_physical=&gad_source=1&gad_campaignid=17076281514&gclid=CjwKCAjwnN3OBhA8EiwAfpTYergtOXAfpu1BPBv9XaEQlj41pA5uNEdy98EOr8pRIDIddil2vgb39hoCwGgQAvD_BwE" target="_blank" rel="noopener noreferrer">
             <span class="cars2-insurance-badge">Recommended</span>
-            <small>Rental insurance</small>
-            <strong>Bonzah</strong>
-            <p>Review rental car insurance options before pickup.</p>
-            <em>View coverage options →</em>
-          </a>
-          <a href="https://rentalcover.com/campaign/united-states?utm_source=google&utm_medium=cpc&utm_campaign=EN+%7C+US+%7C+NB+%7C+Generic&targetid=kwd-103285391&adgroupid=137793824364&keyword=rental%20car%20insurance%20coverage&match=b&creative=664769605198&network=g&device=m&loc_interest=&loc_physical=&gad_source=1&gad_campaignid=17076281514&gclid=CjwKCAjwnN3OBhA8EiwAfpTYergtOXAfpu1BPBv9XaEQlj41pA5uNEdy98EOr8pRIDIddil2vgb39hoCwGgQAvD_BwE" target="_blank" rel="noopener noreferrer">
             <small>Rental protection</small>
             <strong>RentalCover</strong>
             <p>Compare rental protection options for your reservation.</p>
+            <em>View coverage options →</em>
+          </a>
+          <a href="https://bonzah.com/" target="_blank" rel="noopener noreferrer">
+            <small>Rental insurance</small>
+            <strong>Bonzah</strong>
+            <p>Review rental car insurance options before pickup.</p>
             <em>View coverage options →</em>
           </a>
           <a href="https://www.withfaye.com/info/rental-car-coverage/" target="_blank" rel="noopener noreferrer">

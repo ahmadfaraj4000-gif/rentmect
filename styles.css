@@ -707,9 +707,9 @@ img {
   background-position: center;
 }
 
-.placeholder.truck {
+.placeholder.q3 {
   background:
-    url("assets/Ford-F350-4X4-191.webp");
+    url("assets/Audi-Q3-100.webp");
   background-size: cover;
   background-position: center;
 }
@@ -3147,8 +3147,9 @@ body.modal-open {
 }
 
 .hero .availability-card {
-  width: min(980px, 100%);
-  margin-top: 36px;
+  width: min(900px, 100%);
+  max-width: 900px;
+  margin-top: 24px;
   margin-bottom: 0;
 }
 

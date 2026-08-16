@@ -26,6 +26,7 @@ document.addEventListener("DOMContentLoaded", function () {
   setupMobileNavigation();
   setupSitePromotion();
   setupVehicleGalleries();
+  setupReviewCarousel();
   loadAdminVehicleImages();
   restoreBookingPreview();
   setupContactModal();
@@ -41,7 +42,7 @@ const PUBLIC_REQUEST_DEADLINE_MS = 9000;
 let bookingPageLinkObserver = null;
 
 window.getActiveBookingPage = () => ACTIVE_BOOKING_PAGE_PATH;
-window.resolveBookingPageUrl = (value) => resolveBookingPageUrl(value);
+window.resolveBookingPageUrl = resolveBookingPageUrl;
 
 function setupBookingPageRouting() {
   applyBookingPageRouting();
@@ -682,6 +683,78 @@ function closeContactModal() {
   modal.setAttribute("aria-hidden", "true");
 }
 
+function setupReviewCarousel() {
+  const carousel = document.querySelector("[data-review-carousel]");
+  if (!carousel) return;
+
+  const slides = [...carousel.querySelectorAll("[data-review-slide]")];
+  const dots = [...carousel.querySelectorAll("[data-review-dot]")];
+  const toggle = carousel.querySelector("[data-review-toggle]");
+  if (slides.length < 2) return;
+
+  let activeIndex = 0;
+  let intervalId = 0;
+  let paused = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const showReview = (nextIndex) => {
+    activeIndex = (nextIndex + slides.length) % slides.length;
+    slides.forEach((slide, index) => {
+      const active = index === activeIndex;
+      slide.classList.toggle("active", active);
+      slide.setAttribute("aria-hidden", String(!active));
+    });
+    dots.forEach((dot, index) => {
+      const active = index === activeIndex;
+      dot.classList.toggle("active", active);
+      if (active) dot.setAttribute("aria-current", "true");
+      else dot.removeAttribute("aria-current");
+    });
+  };
+
+  const stopCarousel = () => {
+    window.clearInterval(intervalId);
+    intervalId = 0;
+  };
+
+  const startCarousel = () => {
+    stopCarousel();
+    if (!paused && document.visibilityState !== "hidden") {
+      intervalId = window.setInterval(() => showReview(activeIndex + 1), 3000);
+    }
+  };
+
+  const updateToggle = () => {
+    if (!toggle) return;
+    toggle.textContent = paused ? "Play" : "Pause";
+    toggle.setAttribute("aria-label", paused ? "Play review slideshow" : "Pause review slideshow");
+  };
+
+  carousel.querySelector("[data-review-previous]")?.addEventListener("click", () => {
+    showReview(activeIndex - 1);
+    startCarousel();
+  });
+  carousel.querySelector("[data-review-next]")?.addEventListener("click", () => {
+    showReview(activeIndex + 1);
+    startCarousel();
+  });
+  dots.forEach((dot) => {
+    dot.addEventListener("click", () => {
+      showReview(Number(dot.dataset.reviewDot) || 0);
+      startCarousel();
+    });
+  });
+  toggle?.addEventListener("click", () => {
+    paused = !paused;
+    updateToggle();
+    startCarousel();
+  });
+  document.addEventListener("visibilitychange", startCarousel);
+
+  showReview(0);
+  updateToggle();
+  startCarousel();
+}
+
 function populateTimeSelects() {
   const pickup = document.getElementById("pickupTime");
   const dropoff = document.getElementById("returnTime");
@@ -887,8 +960,11 @@ function updateQuickBookingSummary(message = "", state = "") {
   if (!summary) return;
 
   summary.classList.remove("valid", "error");
+  summary.hidden = true;
+  summary.textContent = "";
   if (message) {
     summary.textContent = message;
+    summary.hidden = false;
     if (state) summary.classList.add(state);
     return;
   }
@@ -901,22 +977,14 @@ function updateQuickBookingSummary(message = "", state = "") {
   const dropoff = getRentalDateTime(returnDate, returnTime);
 
   if (!pickup || !dropoff) {
-    summary.textContent = "Choose your pickup and return once—we’ll carry them into the available fleet.";
     return;
   }
   if (dropoff <= pickup) {
     summary.textContent = "Return must be after pickup.";
+    summary.hidden = false;
     summary.classList.add("error");
     return;
   }
-
-  const rentalDays = Math.max(1, Math.ceil((new Date(`${returnDate}T12:00:00`) - new Date(`${pickupDate}T12:00:00`)) / 86400000));
-  const shortDate = (value) => new Date(`${value}T12:00:00`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-  summary.textContent = `${rentalDays} rental day${rentalDays === 1 ? "" : "s"} · ${shortDate(pickupDate)} at ${pickupTime} → ${shortDate(returnDate)} at ${returnTime}`;
-  summary.classList.add("valid");
 }
 
 function checkFleetAvailability(event) {
@@ -1070,14 +1138,14 @@ function loadBookingDatesIntoForm() {
   const pickupTime = quickBookingPickupTimeCustomized
     ? requestedPickupTime || savedPickupTime || formDefaultTime || defaultSlot.time
     : defaultSlot.time;
-  const returnTime = requestedReturnTime || savedReturnTime || pickupTime;
 
   quickBookingReturnTimeCustomized =
     params.get("returnTimeCustomized") === "1"
     || params.get("returnTimeCustomized") === "true"
-    || bookingData.returnTimeCustomized === true
-    || Boolean(requestedReturnTime && requestedReturnTime !== pickupTime)
-    || Boolean(!requestedReturnTime && savedReturnTime && savedReturnTime !== pickupTime);
+    || bookingData.returnTimeCustomized === true;
+  const returnTime = quickBookingReturnTimeCustomized
+    ? requestedReturnTime || savedReturnTime || pickupTime
+    : pickupTime;
 
   const pickupInput = document.getElementById("pickupDate");
   const returnInput = document.getElementById("returnDate");
