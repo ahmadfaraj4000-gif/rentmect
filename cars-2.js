@@ -426,8 +426,10 @@
           <span class="cars2-card-gallery-counter" aria-live="polite">1 / ${images.length}</span>
         </div>
         <div class="cars2-card-body">
-          <span class="cars2-card-status ${statusClass}" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${escapeHtml(status)}</span>
-          <h2>${escapeHtml(vehicle.name || "Rent Me CT vehicle")}</h2>
+          <div class="cars2-card-header">
+            <h2>${escapeHtml(vehicle.name || "Rent Me CT vehicle")}</h2>
+            <span class="cars2-card-status ${statusClass}" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${escapeHtml(status)}</span>
+          </div>
           <p class="cars2-card-meta">${escapeHtml(vehicleCardMeta(vehicle))}</p>
           <ul>
             ${highlights.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}
