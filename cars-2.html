@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="styles.css?v=20260816-calendar-picker-2" />
   <link rel="stylesheet" href="site-v2.css?v=20260816-calendar-picker-4" />
   <link rel="stylesheet" href="cars-2.css?v=20260816-fleet-retry-1" />
-  <link rel="stylesheet" href="booking-picker.css?v=20260816-mobile-sheet-1" />
+  <link rel="stylesheet" href="booking-picker.css?v=20260818-from-until-2" />
   <script src="fleet-gallery-data.js" defer></script>
   <script src="script.js?v=20260816-booking-handoff-1" defer></script>
   <script src="cars-2.js?v=20260816-fleet-retry-1" defer></script>
@@ -73,32 +73,26 @@
       <section class="availability-card" id="cars2Dates" aria-label="Check availability">
         <form id="cars2AvailabilityForm" class="availability-form availability-range-form" data-booking-widget data-booking-range-picker>
           <div class="availability-trip-segment">
+            <span class="availability-period-label">From</span>
             <button class="availability-date-button" type="button" data-booking-date-button="pickup" aria-expanded="false">
-              <span class="availability-label">Pickup</span>
               <span class="availability-date-value" data-booking-date-display="pickup">Choose date</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg>
             </button>
             <input class="availability-native-date" id="cars2PickupDate" type="date" required data-booking-date-input="pickup" aria-describedby="cars2TripSummary" />
             <label class="availability-time-picker" for="cars2PickupTime">
-              <span class="availability-label">Time</span>
               <span class="availability-time-control">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
                 <select id="cars2PickupTime" required aria-label="Pickup time" aria-describedby="cars2TripSummary"></select>
               </span>
             </label>
           </div>
 
           <div class="availability-trip-segment">
+            <span class="availability-period-label">Until</span>
             <button class="availability-date-button" type="button" data-booking-date-button="return" aria-expanded="false">
-              <span class="availability-label">Return</span>
               <span class="availability-date-value" data-booking-date-display="return">Choose date</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"></path></svg>
             </button>
             <input class="availability-native-date" id="cars2ReturnDate" type="date" required data-booking-date-input="return" aria-describedby="cars2TripSummary" />
             <label class="availability-time-picker" for="cars2ReturnTime">
-              <span class="availability-label">Time</span>
               <span class="availability-time-control">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
                 <select id="cars2ReturnTime" required aria-label="Return time" aria-describedby="cars2TripSummary"></select>
               </span>
             </label>
