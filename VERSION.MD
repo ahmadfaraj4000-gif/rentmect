@@ -6,7 +6,8 @@
 - GitHub base commit: `9a54e0d`
 - Last updated pages: `index.html` and `cars-2.html`
 - Last change: Simplified the shared booking picker to `FROM` / `UNTIL`, removed calendar and clock icons, and standardized all date/time dropdown chevrons at the far-right edge of each field.
-- Deployment status: Pending deployment; the verified release commit is local, but GitHub authentication is required before it can be pushed to `main`.
+- Deployment status: Live on GitHub `main`; deployed through PR #44 on 2026-08-18.
+- Live public merge commit: `9a4ea199cf3e66f765c40a71d14a3511eba472dd`
 
 Use this worktree for all future public-site changes. Do not use the older `rentalcover-public` worktree.
 
