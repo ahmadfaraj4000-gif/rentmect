@@ -51,7 +51,9 @@ check(bookingPickerJs.includes('data-calendar-action="close"'), 'The shared date
 check(bookingPickerJs.includes('booking-calendar-modal-open'), 'The shared date picker must lock background scrolling while open');
 check(bookingPickerCss.includes('height: 100dvh'), 'The mobile date picker must fit the visible phone viewport');
 check(bookingPickerCss.includes('.booking-calendar-month:nth-child(2)'), 'The mobile date picker must expose the second month');
-check(/booking-picker\.css\?v=20260818-from-until-2/.test(homepageHtml), 'Homepage must load the current mobile picker stylesheet');
+check(/booking-picker\.css\?v=20260819-compact-hero-1/.test(homepageHtml), 'Homepage must load the current booking picker stylesheet');
+check(/@media \(min-width: 901px\)[\s\S]*?\.hero \.availability-card \{[\s\S]*?padding-block: 15px;/.test(bookingPickerCss), 'Desktop homepage booking card must use compact vertical padding');
+check(/\.hero \.availability-card \.availability-range-form > \.availability-submit \{\s*min-height: 50px;/.test(bookingPickerCss), 'Desktop homepage availability button must use the compact control height');
 check(/booking-picker\.js\?v=20260816-mobile-sheet-1/.test(carsHtml), 'Cars-2 must load the current mobile picker JavaScript');
 
 const rootHtmlFiles = fs.readdirSync(root).filter((name) => name.endsWith('.html') && !['cars.html', 'cars-wheelbase.html'].includes(name));
