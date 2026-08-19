@@ -170,6 +170,31 @@
   border-radius: 10px;
 }
 
+@media (min-width: 901px) {
+  .hero .availability-card {
+    padding-block: 15px;
+  }
+
+  .hero .availability-card .availability-range-form {
+    padding-block: 4px;
+  }
+
+  .hero .availability-card .availability-trip-segment {
+    grid-template-rows: auto minmax(32px, 1fr);
+    padding-top: 6px;
+    padding-bottom: 5px;
+  }
+
+  .hero .availability-card .availability-date-button,
+  .hero .availability-card .availability-time-picker {
+    min-height: 32px;
+  }
+
+  .hero .availability-card .availability-range-form > .availability-submit {
+    min-height: 50px;
+  }
+}
+
 .booking-calendar-panel {
   position: absolute;
   top: calc(100% + 10px);
