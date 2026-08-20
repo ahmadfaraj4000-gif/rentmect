@@ -77,7 +77,7 @@
     filter: "all",
     search: "",
     availableOnly: false,
-    pricingDays: 1,
+    pricingDays: 3,
     checking: false,
     loading: true,
     starting: false,
@@ -185,7 +185,7 @@
       renderVehicles();
     });
     elements.cars2RentalLength.addEventListener("change", (event) => {
-      state.pricingDays = Math.max(1, Number(event.target.value) || 1);
+      state.pricingDays = Math.max(1, Number(event.target.value) || 3);
       renderVehicles();
     });
     elements.cars2AvailableOnly.addEventListener("click", () => {
@@ -409,7 +409,7 @@
         : result?.reason
           ? `Unavailable: ${result.reason}`
           : "Unavailable";
-    const pricingDays = Math.max(1, Number(state.pricingDays) || 1);
+    const pricingDays = Math.max(1, Number(state.pricingDays) || 3);
     const displayedPrice = Number(vehicle.daily_rate || 0) * pricingDays;
     const images = vehicleImages(vehicle);
     const highlights = vehicleHighlights(vehicle);
@@ -427,10 +427,10 @@
         </div>
         <div class="cars2-card-body">
           <div class="cars2-card-header">
-            <h2>${escapeHtml(vehicle.name || "Rent Me CT vehicle")}</h2>
+            <h2>${escapeHtml(vehicleCardName(vehicle))}</h2>
             <span class="cars2-card-status ${statusClass}" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${escapeHtml(status)}</span>
           </div>
-          <p class="cars2-card-meta">${escapeHtml(vehicleCardMeta(vehicle))}</p>
+          <p class="cars2-card-meta">${escapeHtml(vehicleFleetLabel(vehicle))}</p>
           <ul>
             ${highlights.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}
           </ul>
@@ -955,11 +955,14 @@
       .map(({ feature }) => feature);
   }
 
-  function vehicleCardMeta(vehicle) {
-    return [vehicle?.vehicle_type, vehicle?.brand, vehicle?.model]
-      .map((value) => String(value || "").trim())
-      .filter((value, index, values) => value && values.findIndex((item) => item.toLowerCase() === value.toLowerCase()) === index)
-      .join(" • ") || "Rent Me CT vehicle";
+  function vehicleCardName(vehicle) {
+    const name = String(vehicle?.name || "").trim();
+    return name.replace(/\s*#[a-z0-9]+\s*$/i, "").trim() || "Rent Me CT vehicle";
+  }
+
+  function vehicleFleetLabel(vehicle) {
+    const fleet = fleetNumber(vehicle);
+    return fleet ? `#${fleet}` : "";
   }
 
   function slideCardImage(card, direction) {

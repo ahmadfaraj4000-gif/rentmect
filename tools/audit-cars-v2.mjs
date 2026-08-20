@@ -163,6 +163,14 @@ check('Cars-2 cards rank and show exactly three useful saved features',
 check('Cars-2 cards no longer show mileage or turnaround filler',
   !cars2Js.includes('<li>200 miles per day included</li>')
   && !cars2Js.includes('<li>Three-hour turnaround protected</li>'));
+check('Cars-2 cards separate the vehicle name from its fleet number',
+  cars2Js.includes('vehicleCardName(vehicle)')
+  && cars2Js.includes('vehicleFleetLabel(vehicle)')
+  && cars2Js.includes('name.replace(/\\s*#[a-z0-9]+\\s*$/i, "")')
+  && !cars2Js.includes('vehicle?.vehicle_type, vehicle?.brand, vehicle?.model'));
+check('Cars-2 pricing defaults to three days',
+  cars2Html.includes('<option value="3" selected>3 Days</option>')
+  && cars2Js.includes('pricingDays: 3'));
 check('Published Supabase vehicles require pictures and three features',
   read('supabase/migrations/20260730193000_vehicle_catalog_source_of_truth.sql')
     .includes('vehicles_published_catalog_complete')
@@ -244,9 +252,9 @@ check('Cars-2 checkout includes every price element required by its renderer',
     'cars2Under25Quote', 'cars2Under25Rental', 'cars2Under25Tax',
     'cars2Under25Deposit', 'cars2Under25Total',
   ].every((id) => cars2Html.includes(`id="${id}"`)));
-check('Cars-2 checkout script and styles use a cache-busting recovery version',
-  cars2Html.includes('cars-2.js?v=20260806-checkout-recovery')
-  && cars2Html.includes('cars-2.css?v=20260806-checkout-recovery'));
+check('Cars-2 loads the current cache-busted script and styles',
+  cars2Html.includes('cars-2.js?v=20260819-card-hierarchy-1')
+  && cars2Html.includes('cars-2.css?v=20260819-card-hierarchy-1'));
 check('Cars-2 insurance reminder intercepts checkout before the hold is created',
   cars2Js.includes('elements.cars2BookVehicle.addEventListener("click", openInsuranceReminder)')
   && cars2Html.includes('I understand — start checkout')

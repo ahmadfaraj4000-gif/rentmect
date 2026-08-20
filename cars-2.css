@@ -709,9 +709,12 @@
 
 .cars2-card-meta {
   min-height: 21px;
-  margin: 0;
-  color: var(--cars2-copy);
+  margin: 5px 0 0;
+  color: #68736c;
   font-size: 13px;
+  font-weight: 750;
+  letter-spacing: .025em;
+  line-height: 1.25;
 }
 
 .cars2-card-body ul {
