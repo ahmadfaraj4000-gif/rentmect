@@ -1,4 +1,4 @@
-[functions.wheelbase-availability]
+[functions.website-booking-hold]
 verify_jwt = false
 
 [functions.stripe-web-hook]

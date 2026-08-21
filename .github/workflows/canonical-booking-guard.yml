@@ -20,6 +20,8 @@ jobs:
           node-version: 22
       - name: Verify Cars-2 and legacy-route contracts
         run: npm run audit:canonical-booking
+      - name: Verify protected booking holds and retired Wheelbase relay
+        run: npm run audit:booking-hold-security
       - name: Verify Eastern defaults and homepage handoff
         run: npm run audit:booking-default-time
       - name: Verify phone profile-save guard
