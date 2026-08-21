@@ -3,6 +3,7 @@
 
   const SUPABASE_URL = "https://gqmiktepthaafupwdmcl.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxbWlrdGVwdGhhYWZ1cHdkbWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1ODgxNzgsImV4cCI6MjA5MzE2NDE3OH0.dDM6SSAwd03FLWcdOc8OemcFmZ7yOxKsuPq3qpmqoWI";
+  const BOOKING_DEVICE_STORAGE_KEY = "rentmect_booking_device";
   const TEST_VEHICLE_ID = "00000000-0000-4000-8000-000000000015";
   const FALLBACK_IMAGE = "assets/Benz-CLS-AMG-550-224.webp";
   const PORTAL_URL = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname)
@@ -111,6 +112,7 @@
   let returnTimeCustomized =
     requestedReturnTimeCustomized
     && Boolean(requestedReturnTime && requestedReturnTime !== state.trip.pickupTime);
+  let bookingDeviceIdCache = "";
 
   document.addEventListener("DOMContentLoaded", () => {
     initialize().catch((error) => renderFatalLoadFailure(error));
@@ -714,15 +716,17 @@
       const finalQuote = await fetchBookingQuote(vehicle.id);
       if (!finalQuote?.valid) throw new Error(finalQuote?.error || "BOOKING_POLICY_REJECTED");
       state.quote = finalQuote;
-      const response = await apiFetch("/rest/v1/rpc/create_website_pending_booking_with_token", {
+      const response = await apiFetch("/functions/v1/website-booking-hold", {
         method: "POST",
+        headers: {
+          "X-RentMe-Device": bookingDeviceId(),
+        },
         body: JSON.stringify({
-          p_pickup_date: state.trip.pickupDate,
-          p_return_date: state.trip.returnDate,
-          p_pickup_time: state.trip.pickupTime,
-          p_return_time: state.trip.returnTime,
-          p_vehicle_id: vehicle.id,
-          p_selected_vehicle_name: vehicle.name,
+          pickup_date: state.trip.pickupDate,
+          return_date: state.trip.returnDate,
+          pickup_time: state.trip.pickupTime,
+          return_time: state.trip.returnTime,
+          vehicle_id: vehicle.id,
         }),
       });
       const bookingPayload = await response.json();
@@ -739,7 +743,7 @@
       portalUrl.searchParams.set("booking", bookingId);
       portalUrl.searchParams.set("preview", "1");
       portalUrl.searchParams.set("source", "cars2");
-      portalUrl.searchParams.set("holdExpires", new Date(Date.now() + 25 * 60000).toISOString());
+      portalUrl.searchParams.set("holdExpires", checkout.expires_at || new Date(Date.now() + 25 * 60000).toISOString());
       portalUrl.searchParams.set("abandonToken", abandonToken);
       const promo = sanitizePromo(url.searchParams.get("promo"));
       if (promo) portalUrl.searchParams.set("promo", promo);
@@ -819,6 +823,32 @@
       throw new Error(detail || `Request failed (${response.status})`);
     }
     return response;
+  }
+
+  function bookingDeviceId() {
+    if (isUuid(bookingDeviceIdCache)) return bookingDeviceIdCache;
+    try {
+      const saved = localStorage.getItem(BOOKING_DEVICE_STORAGE_KEY) || "";
+      if (isUuid(saved)) {
+        bookingDeviceIdCache = saved;
+        return saved;
+      }
+    } catch {
+      // Storage can be unavailable in strict private-browsing modes.
+    }
+
+    const created = typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (character) => (
+        Number(character) ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (Number(character) / 4)))
+      ).toString(16));
+    bookingDeviceIdCache = created;
+    try {
+      localStorage.setItem(BOOKING_DEVICE_STORAGE_KEY, created);
+    } catch {
+      // The in-memory id still protects this checkout session.
+    }
+    return created;
   }
 
   function populateTimeOptions() {
