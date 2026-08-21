@@ -472,6 +472,11 @@ function sameStableTollRecord(
       return existingValue === null || existingValue === undefined || existingValue === "";
     }
     if (typeof nextValue === "number") return Number(existingValue) === nextValue;
+    if (["occurred_at", "posted_at", "entry_at"].includes(field)) {
+      const nextTime = new Date(String(nextValue)).getTime();
+      const existingTime = new Date(String(existingValue)).getTime();
+      return !Number.isNaN(nextTime) && nextTime === existingTime;
+    }
     return String(existingValue) === String(nextValue);
   });
 }
