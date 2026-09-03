@@ -30,7 +30,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type Action = "health" | "sync_fleet" | "sync_tolls" | "backfill_tolls" | "run_all" | "assign_transponder";
+type Action = "health" | "sync_fleet" | "sync_tolls" | "backfill_tolls" | "run_all" | "assign_transponder" | "set_vehicle_transponder";
 
 type LocalVehicle = {
   id: string;
@@ -183,7 +183,7 @@ function normalizedPlate(value: unknown) {
 }
 
 function normalizedTransponder(value: unknown) {
-  return String(value || "").trim().replace(/[^A-Za-z0-9]/g, "");
+  return String(value || "").trim().replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 }
 
 function validateLocalVehicle(vehicle: LocalVehicle) {
@@ -593,53 +593,42 @@ async function runTollSync(api: TollSpotClient, fromDate: Date, toDate: Date) {
   };
 }
 
-async function assignTransponder(body: Record<string, unknown>, userId: string | null) {
-  if (!userId) throw new Error("An authenticated administrator is required to assign a transponder.");
+async function setVehicleTransponder(
+  body: Record<string, unknown>,
+  userId: string | null,
+  requireNumber = false,
+) {
+  if (!userId) throw new Error("An authenticated administrator is required to update a transponder.");
   const transponderNumber = normalizedTransponder(body.transponderNumber);
   const vehicleId = String(body.vehicleId || "").trim();
-  if (!transponderNumber) throw new Error("A transponder number is required.");
+  if (requireNumber && !transponderNumber) throw new Error("A transponder number is required.");
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(vehicleId)) {
     throw new Error("Choose a valid Rent Me CT fleet vehicle.");
   }
 
-  const [{ data: vehicleMapping, error: vehicleError }, { data: existingMapping }] = await Promise.all([
-    adminClient!.from("tollspot_vehicle_mappings").select("vehicle_id,tollspot_vehicle_id").eq("vehicle_id", vehicleId).eq("active", true).maybeSingle(),
-    adminClient!.from("tollspot_transponder_mappings").select("vehicle_id").eq("transponder_number", transponderNumber).maybeSingle(),
-  ]);
-  if (vehicleError || !vehicleMapping?.tollspot_vehicle_id) {
-    throw new Error("Sync this fleet vehicle with TollSpot before assigning its transponder.");
-  }
-  if (existingMapping?.vehicle_id && existingMapping.vehicle_id !== vehicleId) {
-    throw new Error("This transponder is already verified to a different vehicle. Review its physical assignment before changing history.");
-  }
-
-  const { data: firstSeen } = await adminClient!
-    .from("tollspot_transactions")
-    .select("occurred_at")
-    .eq("transponder_number", transponderNumber)
-    .order("occurred_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  const { error: mappingError } = await adminClient!.from("tollspot_transponder_mappings").upsert({
-    transponder_number: transponderNumber,
-    vehicle_id: vehicleId,
-    tollspot_vehicle_id: String(vehicleMapping.tollspot_vehicle_id),
-    first_seen_at: firstSeen?.occurred_at || new Date().toISOString(),
-    verified_by: userId,
-    verified_at: new Date().toISOString(),
-    active: true,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "transponder_number" });
+  const { data: mappingResult, error: mappingError } = await adminClient!.rpc(
+    "service_set_tollspot_vehicle_transponder",
+    {
+      p_vehicle_id: vehicleId,
+      p_transponder_number: transponderNumber,
+      p_actor_id: userId,
+    },
+  );
   if (mappingError) throw mappingError;
 
-  const { data: candidates, error: candidateError } = await adminClient!
-    .from("tollspot_transactions")
-    .select("id")
-    .eq("transponder_number", transponderNumber)
-    .in("status", ["received", "needs_review", "matched"])
-    .limit(1000);
-  if (candidateError) throw candidateError;
-  const ids = (candidates || []).map((row) => row.id);
+  let ids: string[] = [];
+  if (transponderNumber) {
+    const { data: candidates, error: candidateError } = await adminClient!
+      .from("tollspot_transactions")
+      .select("id,transponder_number")
+      .in("status", ["received", "needs_review", "matched"])
+      .not("transponder_number", "is", null)
+      .limit(1000);
+    if (candidateError) throw candidateError;
+    ids = (candidates || [])
+      .filter((row) => normalizedTransponder(row.transponder_number) === transponderNumber)
+      .map((row) => row.id);
+  }
   if (ids.length) {
     const { error: applyError } = await adminClient!.rpc("service_apply_tollspot_transponder_mappings", { p_transaction_ids: ids });
     if (applyError) throw applyError;
@@ -650,12 +639,24 @@ async function assignTransponder(body: Record<string, unknown>, userId: string |
   await adminClient!.from("admin_audit_logs").insert({
     actor_user_id: userId,
     actor_role: "admin",
-    action: "tollspot.transponder_assigned",
+    action: transponderNumber ? "tollspot.transponder_assigned" : "tollspot.transponder_cleared",
     entity_type: "vehicle",
     entity_id: vehicleId,
-    metadata: { transponder_last_four: transponderNumber.slice(-4), reprocessed_transactions: ids.length },
+    metadata: {
+      transponder_last_four: transponderNumber ? transponderNumber.slice(-4) : null,
+      previous_transponder_last_fours: Array.isArray(mappingResult?.previous_transponders)
+        ? mappingResult.previous_transponders.map((value: unknown) => String(value).slice(-4))
+        : [],
+      reprocessed_transactions: ids.length,
+    },
   });
-  return { ok: true, assigned: true, reprocessed: ids.length, transponderLastFour: transponderNumber.slice(-4) };
+  return {
+    ok: true,
+    assigned: Boolean(transponderNumber),
+    cleared: !transponderNumber,
+    reprocessed: ids.length,
+    transponderNumber: transponderNumber || null,
+  };
 }
 
 Deno.serve(async (req) => {
@@ -675,7 +676,7 @@ Deno.serve(async (req) => {
     return json({ error: "A valid JSON request is required." }, 400);
   }
   const action = String(body.action || "health") as Action;
-  if (!["health", "sync_fleet", "sync_tolls", "backfill_tolls", "run_all", "assign_transponder"].includes(action)) {
+  if (!["health", "sync_fleet", "sync_tolls", "backfill_tolls", "run_all", "assign_transponder", "set_vehicle_transponder"].includes(action)) {
     return json({ error: "Unsupported TollSpot action." }, 400);
   }
   if (authorization.source === "schedule" && action !== "health") {
@@ -688,12 +689,12 @@ Deno.serve(async (req) => {
       return json({ error: "Scheduled TollSpot sync is disabled in Billing Automation settings." }, 503);
     }
   }
-  if (action === "assign_transponder") {
+  if (action === "assign_transponder" || action === "set_vehicle_transponder") {
     if (authorization.source !== "admin") return json({ error: "Administrator access is required." }, 403);
     try {
-      return json(await assignTransponder(body, authorization.userId));
+      return json(await setVehicleTransponder(body, authorization.userId, action === "assign_transponder"));
     } catch (error) {
-      return json({ error: error instanceof Error ? error.message : "The transponder could not be assigned." }, 409);
+      return json({ error: error instanceof Error ? error.message : "The transponder could not be updated." }, 409);
     }
   }
   if (!tollspotBaseUrl) {
