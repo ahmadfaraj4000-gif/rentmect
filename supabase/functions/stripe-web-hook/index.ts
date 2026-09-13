@@ -1631,6 +1631,9 @@ async function refundRentalPayment(req: Request, payload: CheckoutPayload) {
     .maybeSingle();
   if (existingError) throw existingError;
   if (existingRequest) {
+    if (existingRequest.rental_id !== payload.rentalId || cents(Number(existingRequest.amount)) !== amountCents) {
+      throw new HttpError("Refund request does not match the original rental and amount.", 409);
+    }
     return {
       refundRequestId: existingRequest.id,
       refundId: existingRequest.stripe_refund_id,
@@ -1646,27 +1649,41 @@ async function refundRentalPayment(req: Request, payload: CheckoutPayload) {
     .eq("id", payload.rentalId)
     .single();
   if (rentalError || !rental) throw new Error(rentalError?.message || "Rental not found.");
-  if (String(rental.payment_provider || "").toLowerCase() !== "stripe" || !rental.stripe_payment_intent_id) {
+  let refundPayment = rental;
+  if (payload.chargeId) {
+    const { data: balancePayment, error: balanceError } = await adminClient!
+      .from("rental_charge_items")
+      .select("id, payment_provider, stripe_payment_intent_id, payment_amount_cents, status")
+      .eq("id", payload.chargeId)
+      .eq("rental_id", rental.id)
+      .eq("charge_type", "rental_amendment")
+      .eq("status", "paid")
+      .single();
+    if (balanceError || !balancePayment) throw new HttpError("Paid rental balance payment not found.", 400);
+    refundPayment = { ...rental, ...balancePayment };
+  }
+  if (String(refundPayment.payment_provider || "").toLowerCase() !== "stripe" || !refundPayment.stripe_payment_intent_id) {
     throw new Error("This rental was not paid through Stripe.");
   }
   if (String(rental.payment_status || "").toLowerCase() !== "paid") {
     throw new Error("Only a paid rental can be refunded.");
   }
 
-  await adminClient!.rpc("ensure_rental_deposit_allocation", { p_rental_id: rental.id });
+  const { error: ensureError } = await adminClient!.rpc("ensure_rental_deposit_allocation", { p_rental_id: rental.id });
+  if (ensureError) throw ensureError;
   const [{ data: allocations, error: allocationError }, paymentIntent, charges] = await Promise.all([
     adminClient!
       .from("rental_deposit_allocations")
       .select("amount_held, amount_released, status")
       .eq("payment_provider", "stripe")
-      .eq("stripe_payment_intent_id", rental.stripe_payment_intent_id),
-    stripe!.paymentIntents.retrieve(rental.stripe_payment_intent_id),
-    stripe!.charges.list({ payment_intent: rental.stripe_payment_intent_id, limit: 100 }),
+      .eq("stripe_payment_intent_id", refundPayment.stripe_payment_intent_id),
+    stripe!.paymentIntents.retrieve(refundPayment.stripe_payment_intent_id),
+    stripe!.charges.list({ payment_intent: refundPayment.stripe_payment_intent_id, limit: 100 }),
   ]);
   if (allocationError) throw allocationError;
 
   const protectedDepositCents = cents((allocations || [])
-    .filter((allocation) => !["released", "transferred"].includes(String(allocation.status || "").toLowerCase()))
+    .filter((allocation) => !["released"].includes(String(allocation.status || "").toLowerCase()))
     .reduce(
       (sum, allocation) => sum + Math.max(0, Number(allocation.amount_held || 0) - Number(allocation.amount_released || 0)),
       0,
@@ -1675,7 +1692,7 @@ async function refundRentalPayment(req: Request, payload: CheckoutPayload) {
     (sum, charge) => sum + Number(charge.amount_refunded || 0),
     0,
   );
-  const capturedCents = Number(paymentIntent.amount_received || rental.payment_amount_cents || 0);
+  const capturedCents = Number(paymentIntent.amount_received || refundPayment.payment_amount_cents || 0);
   const refundableRentalCents = Math.max(0, capturedCents - alreadyRefundedCents - protectedDepositCents);
   if (amountCents > refundableRentalCents) {
     throw new Error(
@@ -1687,7 +1704,7 @@ async function refundRentalPayment(req: Request, payload: CheckoutPayload) {
     .rpc("reserve_rental_payment_refund", {
       p_id: payload.refundRequestId,
       p_rental_id: rental.id,
-      p_stripe_payment_intent_id: rental.stripe_payment_intent_id,
+      p_stripe_payment_intent_id: refundPayment.stripe_payment_intent_id,
       p_amount: amountCents / 100,
       p_reason: reason,
       p_requested_by: admin.user.id,
@@ -1724,10 +1741,11 @@ async function refundRentalPayment(req: Request, payload: CheckoutPayload) {
 
   try {
     const refund = await stripe!.refunds.create({
-      payment_intent: rental.stripe_payment_intent_id,
+      payment_intent: refundPayment.stripe_payment_intent_id,
       amount: amountCents,
       metadata: {
         refund_type: "rental_payment",
+        charge_id: payload.chargeId || "",
         refund_request_id: payload.refundRequestId,
         rental_id: rental.id,
         admin_user_id: admin.user.id,
@@ -1785,8 +1803,12 @@ async function refundRentalPayment(req: Request, payload: CheckoutPayload) {
     const message = refundError instanceof Error ? refundError.message : "Stripe refund failed.";
     await adminClient!
       .from("rental_payment_refunds")
-      .update({ status: "failed", failure_reason: message.slice(0, 1000), updated_at: new Date().toISOString() })
-      .eq("id", payload.refundRequestId);
+      .update({
+        status: refundError instanceof Stripe.errors.StripeInvalidRequestError ? "failed" : "processing",
+        failure_reason: message.slice(0, 1000), updated_at: new Date().toISOString(),
+      })
+      .eq("id", payload.refundRequestId)
+      .is("stripe_refund_id", null);
     throw refundError;
   }
 }
