@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 type CheckoutPayload = {
-  action?: "create_checkout" | "confirm_checkout" | "admin_create_checkout" | "admin_create_installment_checkout" | "admin_create_charge_checkout" | "admin_create_extension_checkout" | "admin_charge_saved_card" | "admin_waive_rental_charge" | "admin_record_external_charge" | "admin_apply_manual_discount" | "admin_apply_rental_amendment" | "admin_record_external_balance" | "refund_rental_payment" | "release_deposit" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
+  action?: "create_checkout" | "confirm_checkout" | "admin_create_checkout" | "admin_create_installment_checkout" | "admin_create_charge_checkout" | "admin_create_extension_checkout" | "admin_charge_saved_card" | "admin_waive_rental_charge" | "admin_record_external_charge" | "admin_apply_manual_discount" | "admin_apply_rental_amendment" | "admin_record_external_balance" | "refund_rental_payment" | "cancel_before_pickup_refund_deposit" | "release_deposit" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
   targetType?: "rental" | "extension" | "charge";
   rentalId?: string;
   extensionRequestId?: string;
@@ -1274,12 +1274,13 @@ async function releaseSecurityDeposit(
 ) {
   const { data: rental, error } = await adminClient!
     .from("rentals")
-    .select("id, status, payment_provider, stripe_payment_intent_id, security_deposit, deposit_status, deposit_refund_id, deposit_release_due_at, deposit_decrease_refund_due")
+    .select("id, status, payment_provider, stripe_payment_intent_id, security_deposit, deposit_status, deposit_refund_id, deposit_release_due_at, deposit_decrease_refund_due, cancelled_before_pickup_at")
     .eq("id", rentalId)
     .single();
   if (error || !rental) throw new Error(error?.message || "Rental not found.");
-  if (String(rental.status || "").toLowerCase() !== "completed") {
-    throw new Error("The security deposit can be released only after the rental is completed.");
+  const cancelledBeforePickup = rental.status === "cancelled" && Boolean(rental.cancelled_before_pickup_at);
+  if (String(rental.status || "").toLowerCase() !== "completed" && !cancelledBeforePickup) {
+    throw new Error("Use Cancel & refund deposit for a booking that never left the lot; otherwise complete the rental return first.");
   }
   if (["released", "release_pending"].includes(String(rental.deposit_status || "").toLowerCase())) {
     return { rentalId, refundId: rental.deposit_refund_id, status: rental.deposit_status, duplicate: true };
@@ -1307,8 +1308,14 @@ async function releaseSecurityDeposit(
     { p_rental_id: rental.id },
   );
   if (chainBlockerError) throw new Error(`The continuation-chain deposit check failed: ${chainBlockerError.message}`);
-  if (Array.isArray(chainBlockers) && chainBlockers.length > 0) {
-    const blockerSummary = chainBlockers
+  // The guarded cancellation RPC proves no vehicle pickup occurred. All
+  // financial, toll, report and other-rental blockers still apply.
+  const effectiveBlockers = Array.isArray(chainBlockers) ? chainBlockers.filter((blocker) =>
+    !(cancelledBeforePickup && blocker?.rental_id === rental.id &&
+      ["rental_not_completed", "inspection_incomplete"].includes(blocker?.type))
+  ) : [];
+  if (effectiveBlockers.length > 0) {
+    const blockerSummary = effectiveBlockers
       .slice(0, 4)
       .map((blocker) => String(blocker?.detail || blocker?.type || "continuation-chain review required"))
       .join("; ");
@@ -1391,6 +1398,9 @@ async function releaseSecurityDeposit(
         },
       }, { idempotencyKey: `rentmect-security-deposit-allocation-${allocation.id}` });
       await updateAllocationRefundState(rental.id, allocation.id, refund, refundAmount);
+      if (["failed", "canceled"].includes(String(refund.status))) {
+        throw new Error(`Stripe deposit refund ${refund.status}: ${refund.failure_reason || refund.id}. Review this refund in Stripe before another attempt.`);
+      }
       refunds.push({ id: refund.id, status: refund.status, amount: refundAmount });
     }
     const summary = await refreshDepositAllocationSummary(rental.id);
@@ -2901,6 +2911,49 @@ async function confirmCheckout(req: Request, payload: CheckoutPayload) {
   return { confirmed: true, targetType, targetId, result: data };
 }
 
+async function cancelBeforePickupAndRefundDeposit(req: Request, payload: CheckoutPayload) {
+  const admin = await requireAdmin(req, "deposit.resolve");
+  await requireAdmin(req, "rental.cancel");
+  await requireAdmin(req, "payment.refund");
+  if (!payload.rentalId) throw new Error("Rental id is required.");
+  if (String(payload.reason || "").trim().length < 5) throw new Error("Enter a cancellation reason of at least 5 characters.");
+  const { data: rental, error } = await adminClient!.from("rentals")
+    .select("id, status, cancelled_before_pickup_at, stripe_payment_intent_id")
+    .eq("id", payload.rentalId).single();
+  if (error || !rental) throw new Error(error?.message || "Rental not found.");
+  // A retry resumes the durable cancellation; it never creates a new refund key.
+  if (!(rental.status === "cancelled" && rental.cancelled_before_pickup_at)) {
+    const activeAttempt = await findActiveAdminInstallment(rental.id);
+    if (activeAttempt) throw new Error("Complete or cancel the open Stripe payment attempt before cancelling this booking.");
+    if (!rental.stripe_payment_intent_id) throw new Error("No captured Stripe payment was found.");
+    const { error: ensureError } = await adminClient!.rpc("ensure_rental_deposit_allocation", { p_rental_id: rental.id });
+    if (ensureError) throw ensureError;
+    const { data: allocations, error: allocationError } = await adminClient!.from("rental_deposit_allocations")
+      .select("amount_held, amount_released").eq("holder_rental_id", rental.id);
+    if (allocationError) throw allocationError;
+    const heldCents = cents((allocations || []).reduce((sum, a) => sum + Math.max(0, Number(a.amount_held) - Number(a.amount_released)), 0));
+    const charges = await stripe!.charges.list({ payment_intent: rental.stripe_payment_intent_id, limit: 100 });
+    const remainingCents = charges.data.filter((charge) => charge.paid && charge.captured)
+      .reduce((sum, charge) => sum + charge.amount - charge.amount_refunded, 0);
+    if (heldCents <= 0 || remainingCents !== heldCents) {
+      throw new Error("Refund the rental payment first using Refund. Stripe must show only the held deposit remaining. If you already refunded in Stripe, reconcile that refund first.");
+    }
+    const { error: cancelError } = await adminClient!.rpc("prepare_before_pickup_deposit_refund", {
+      p_rental_id: rental.id, p_actor_id: admin.user.id, p_reason: payload.reason,
+    });
+    if (cancelError) throw cancelError;
+  }
+  try {
+    return await releaseSecurityDeposit(rental.id, "manual", {
+      userId: admin.user.id, email: admin.profile.email || admin.user.email, reason: payload.reason,
+    });
+  } catch (error) {
+    // Cancellation and its credit remain durable if Stripe is temporarily down.
+    // The administrator can retry the same allocation-based refund safely.
+    throw new Error(`Reservation cancelled; deposit refund is not confirmed. Use Refund Deposit to retry. ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 async function handleApiAction(req: Request) {
   if (!stripe || !supabaseUrl || !serviceRoleKey) {
     return json({ error: "Stripe function is missing Stripe or Supabase secrets." }, 500);
@@ -2916,6 +2969,10 @@ async function handleApiAction(req: Request) {
       return json({ error: "Invalid deposit-release scheduler secret." }, 401);
     }
     return json(await releaseDueSecurityDeposits());
+  }
+
+  if (payload.action === "cancel_before_pickup_refund_deposit") {
+    return json(await cancelBeforePickupAndRefundDeposit(req, payload));
   }
 
   if (payload.action === "release_deposit") {
