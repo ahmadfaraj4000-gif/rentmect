@@ -616,23 +616,36 @@ async function setVehicleTransponder(
   );
   if (mappingError) throw mappingError;
 
-  let ids: string[] = [];
+  const ids: string[] = [];
   if (transponderNumber) {
-    const { data: candidates, error: candidateError } = await adminClient!
-      .from("tollspot_transactions")
-      .select("id,transponder_number")
-      .in("status", ["received", "needs_review", "matched"])
-      .not("transponder_number", "is", null)
-      .limit(1000);
-    if (candidateError) throw candidateError;
-    ids = (candidates || [])
-      .filter((row) => normalizedTransponder(row.transponder_number) === transponderNumber)
-      .map((row) => row.id);
+    // Page the complete unresolved queue before changing statuses. A fleet-wide
+    // limit can omit every record for the transponder that was just verified.
+    const pageSize = 1000;
+    let afterId: string | null = null;
+    while (true) {
+      let query = adminClient!
+        .from("tollspot_transactions")
+        .select("id,transponder_number")
+        .in("status", ["received", "needs_review", "matched"])
+        .not("transponder_number", "is", null)
+        .order("id", { ascending: true })
+        .limit(pageSize);
+      if (afterId) query = query.gt("id", afterId);
+      const { data: candidates, error: candidateError } = await query;
+      if (candidateError) throw candidateError;
+      if (!candidates?.length) break;
+      ids.push(...candidates
+        .filter((row) => normalizedTransponder(row.transponder_number) === transponderNumber)
+        .map((row) => row.id));
+      afterId = candidates[candidates.length - 1].id;
+    }
   }
-  if (ids.length) {
-    const { error: applyError } = await adminClient!.rpc("service_apply_tollspot_transponder_mappings", { p_transaction_ids: ids });
+  // Keep each reconciliation request bounded; matching remains idempotent.
+  for (let offset = 0; offset < ids.length; offset += 100) {
+    const batch = ids.slice(offset, offset + 100);
+    const { error: applyError } = await adminClient!.rpc("service_apply_tollspot_transponder_mappings", { p_transaction_ids: batch });
     if (applyError) throw applyError;
-    const { error: matchError } = await adminClient!.rpc("service_match_tollspot_transactions", { p_transaction_ids: ids });
+    const { error: matchError } = await adminClient!.rpc("service_match_tollspot_transactions", { p_transaction_ids: batch });
     if (matchError) throw matchError;
   }
 
