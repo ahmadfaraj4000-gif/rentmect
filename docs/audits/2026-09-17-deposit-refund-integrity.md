@@ -41,3 +41,11 @@ The migration repairs only the two proven stale-summary discrepancies. It leaves
 - A post-deployment read-only audit checks all bookings against their allocation totals.
 
 These checks prevent the identified failure mechanisms. They do not verify physical cash returns or promise the absence of unrelated future defects.
+
+## Deployed verification
+
+- Database migration `20260917210000` applied and recorded; Stripe edge function version 90 is ACTIVE.
+- Admin deployment `35272170147` succeeded, including the new refund-history regression gate. The public JavaScript bundle contains the dedicated refund timestamps and external-receipt attribution.
+- Post-deployment audit: **91 bookings checked; 0 held-total mismatches; 0 released-total mismatches; 0 over-released allocations; 0 duplicate refund references.**
+- Both repaired bookings retain a $300 held deposit, with current allocated released total $0. Their $282.04 and $110 historical external records remain intact, with repair audit events.
+- 23 targeted JavaScript tests passed. Full suite: 183 passed, 1 pre-existing missing-migration test failure. Production build passed.
