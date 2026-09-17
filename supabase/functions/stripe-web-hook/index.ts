@@ -1185,63 +1185,23 @@ async function handleIdentityVerification(req: Request, payload: CheckoutPayload
 }
 
 async function updateRefundState(rentalId: string, refund: Stripe.Refund, fallbackAmount: number) {
-  const succeeded = refund.status === "succeeded";
-  const failed = refund.status === "failed" || refund.status === "canceled";
-  const updates: Record<string, unknown> = {
-    deposit_refund_id: refund.id,
-    deposit_release_attempted_at: new Date().toISOString(),
-    deposit_release_due_at: null,
-    deposit_release_error: failed ? refund.failure_reason || `Stripe refund ${refund.status}.` : null,
-    deposit_release_reason: "Stripe partial refund of the captured security-deposit amount.",
-  };
-  if (succeeded) {
-    updates.deposit_status = "released";
-    updates.deposit_released_at = new Date().toISOString();
-    updates.deposit_released_amount = Number(refund.amount || fallbackAmount) / 100;
-  } else if (failed) {
-    updates.deposit_status = "held";
-  } else {
-    updates.deposit_status = "release_pending";
-  }
-  const { error } = await adminClient!.from("rentals").update(updates).eq("id", rentalId);
+  // Legacy webhooks may lack an allocation id. Match their immutable payment
+  // source; never write an unsupported refund into the rental summary alone.
+  const paymentIntentId = typeof refund.payment_intent === "string" ? refund.payment_intent : refund.payment_intent?.id;
+  const { data: allocations, error } = await adminClient!.from("rental_deposit_allocations")
+    .select("id, stripe_payment_intent_id, refund_id")
+    .eq("holder_rental_id", rentalId).eq("payment_provider", "stripe");
   if (error) throw error;
+  const matches = (allocations || []).filter((allocation) =>
+    allocation.refund_id === refund.id || (paymentIntentId && allocation.stripe_payment_intent_id === paymentIntentId));
+  if (matches.length !== 1) throw new Error("The deposit refund needs allocation reconciliation; its payment source is missing or ambiguous.");
+  return await updateAllocationRefundState(rentalId, matches[0].id, refund, fallbackAmount);
 }
 
 async function refreshDepositAllocationSummary(rentalId: string) {
-  const { data: allocations, error } = await adminClient!
-    .from("rental_deposit_allocations")
-    .select("amount_held, amount_released, status, refund_id")
-    .eq("holder_rental_id", rentalId);
+  const { data, error } = await adminClient!.rpc("refresh_rental_deposit_summary", { p_rental_id: rentalId });
   if (error) throw error;
-  if (!allocations?.length) return null;
-  const pending = allocations.some((item) => item.status === "release_pending");
-  const failed = allocations.some((item) => item.status === "failed");
-  const unreleased = allocations.reduce((sum, item) =>
-    sum + Math.max(0, Number(item.amount_held || 0) - Number(item.amount_released || 0)), 0);
-  const released = allocations.reduce((sum, item) => sum + Number(item.amount_released || 0), 0);
-  const allReleased = unreleased <= 0.005;
-  const { data: rental } = await adminClient!
-    .from("rentals")
-    .select("deposit_decrease_refund_due")
-    .eq("id", rentalId)
-    .single();
-  const status = allReleased ? "released"
-    : pending ? "release_pending"
-      : Number(rental?.deposit_decrease_refund_due || 0) > 0 ? "adjustment_refund_due"
-        : failed ? "held" : "held";
-  const updates: Record<string, unknown> = {
-    deposit_status: status,
-    deposit_held_amount: unreleased,
-    deposit_released_amount: released,
-    deposit_refund_id: allocations.find((item) => item.refund_id)?.refund_id || null,
-    deposit_release_due_at: null,
-    deposit_released_at: allReleased ? new Date().toISOString() : null,
-    deposit_release_error: failed ? "One or more deposit refund allocations failed." : null,
-  };
-  if (allReleased) updates.deposit_decrease_refund_due = 0;
-  const { error: rentalError } = await adminClient!.from("rentals").update(updates).eq("id", rentalId);
-  if (rentalError) throw rentalError;
-  return { status, unreleased, released };
+  return data;
 }
 
 async function updateAllocationRefundState(
@@ -1250,21 +1210,18 @@ async function updateAllocationRefundState(
   refund: Stripe.Refund,
   fallbackAmount: number,
 ) {
-  const succeeded = refund.status === "succeeded";
-  const failed = refund.status === "failed" || refund.status === "canceled";
-  const { error } = await adminClient!
-    .from("rental_deposit_allocations")
-    .update({
-      refund_id: refund.id,
-      status: succeeded ? "released" : failed ? "failed" : "release_pending",
-      amount_released: succeeded ? Number(refund.amount || fallbackAmount) / 100 : 0,
-      last_error: failed ? refund.failure_reason || `Stripe refund ${refund.status}.` : null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", allocationId)
-    .eq("holder_rental_id", rentalId);
+  const paymentIntentId = typeof refund.payment_intent === "string" ? refund.payment_intent : refund.payment_intent?.id;
+  const { data, error } = await adminClient!.rpc("apply_stripe_deposit_refund", {
+    p_rental_id: rentalId,
+    p_allocation_id: allocationId,
+    p_refund_id: refund.id,
+    p_payment_intent_id: paymentIntentId || null,
+    p_status: refund.status || "pending",
+    p_amount: Number(refund.amount || fallbackAmount) / 100,
+    p_failure_reason: refund.failure_reason || null,
+  });
   if (error) throw error;
-  return await refreshDepositAllocationSummary(rentalId);
+  return data;
 }
 
 async function releaseSecurityDeposit(
