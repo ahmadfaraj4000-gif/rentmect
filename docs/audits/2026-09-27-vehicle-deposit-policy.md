@@ -53,7 +53,8 @@ Existing underfunded bookings remain a separate review.
   with stale values. Node 20 initially failed an existing WebSocket-dependent
   test; Node 22 matches the deployment workflow and passes.
 - Migration recorded in the production migration registry.
-- Admin commit: a8eb146.
+- Admin commit: a8eb146. Deployment succeeded; the public admin JavaScript
+  bundle contains the fixed $200 policy and omits the removed adjustment button.
 - Deployment: https://github.com/ahmadfaraj4000-gif/rentmect-admin-portal/actions/runs/36354099408
 
 No charge or refund was submitted. Apply the new migration; do not rerun old

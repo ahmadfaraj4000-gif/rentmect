@@ -398,7 +398,7 @@ begin
   end if;
 
   v_security_deposit := case
-    when age((now() at time zone 'America/New_York')::date, v_profile.date_of_birth) < interval '25 years' 
+    when age((now() at time zone 'America/New_York')::date, v_profile.date_of_birth) < interval '25 years'
       then public.rentmect_calculate_under25_deposit(v_vehicle.security_deposit)
     else round(coalesce(v_vehicle.security_deposit, 0), 2)
   end;
