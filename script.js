@@ -1,4 +1,3 @@
-const RENT_ME_CT_ADDRESS = "12 Holmes Circle, Farmington, CT";
 
 let selectedVehicleName = "";
 let selectedRentalPeriod = "";
@@ -1307,7 +1306,7 @@ const RENT_ME_CT_CHATBOT_TOPICS = [
   },
   {
     keywords: ["pickup", "pick up", "return", "address", "location", "where are you", "where located", "hours", "open", "time window"],
-    response: "Rent Me CT pickup and return are based at 12 Holmes Circle, Farmington, CT. Pickup and return times are available from 9 AM to midnight unless another arrangement is approved."
+    response: "Rent Me CT pickup and return are in Farmington, CT. The pickup address is provided after checkout and in your booking confirmation email. Pickup and return times are available from 9 AM to midnight unless another arrangement is approved."
   },
   {
     keywords: ["license", "driver license", "driver's license", "drivers license", "documents", "paperwork", "what do i need", "requirements", "required"],

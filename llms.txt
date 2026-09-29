@@ -1,10 +1,10 @@
 # Rent Me CT
 
-> Rent Me CT is a local car rental business serving Hartford, West Hartford, New Britain, Farmington, Bradley International Airport travelers, and surrounding Connecticut communities. The fleet includes sedans, SUVs, luxury vehicles, trucks, and passenger vans depending on current availability. Vehicle pickup is at the Farmington address below unless another arrangement is confirmed.
+> Rent Me CT is a local car rental business serving Hartford, West Hartford, New Britain, Farmington, Bradley International Airport travelers, and surrounding Connecticut communities. The fleet includes sedans, SUVs, luxury vehicles, trucks, and passenger vans depending on current availability. Vehicle pickup is in Farmington. The pickup address is provided after checkout and in the booking confirmation email.
 
 Website: https://rentmect.com/
 Phone: 860-558-6031
-Address: 12 Holmes Circle, Farmington, CT 06032
+Service area: Farmington, CT and surrounding communities
 Pickup/Return Window: 9 AM - Midnight
 Rental Length: Flexible based on vehicle availability
 Daily Mileage: 250 miles per day included
