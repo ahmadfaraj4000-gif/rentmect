@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 type CheckoutPayload = {
-  action?: "create_checkout" | "confirm_checkout" | "admin_create_checkout" | "admin_create_installment_checkout" | "admin_create_charge_checkout" | "admin_create_extension_checkout" | "admin_charge_saved_card" | "admin_waive_rental_charge" | "admin_record_external_charge" | "admin_apply_manual_discount" | "admin_apply_rental_amendment" | "admin_apply_vehicle_swap" | "admin_record_external_balance" | "refund_rental_payment" | "cancel_before_pickup_refund_deposit" | "release_deposit" | "settle_deposit_charges" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
+  action?: "create_checkout" | "confirm_checkout" | "admin_create_checkout" | "admin_create_installment_checkout" | "admin_create_charge_checkout" | "admin_create_extension_checkout" | "admin_charge_saved_card" | "admin_waive_rental_charge" | "admin_record_external_charge" | "admin_apply_manual_discount" | "admin_apply_rental_amendment" | "admin_apply_vehicle_swap" | "admin_apply_rental_extension" | "admin_record_external_balance" | "refund_rental_payment" | "cancel_before_pickup_refund_deposit" | "release_deposit" | "settle_deposit_charges" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
   targetType?: "rental" | "extension" | "charge";
   rentalId?: string;
   extensionRequestId?: string;
@@ -318,30 +318,35 @@ async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload)
     throw new HttpError("Rental and vehicle are required.", 400);
   }
   const isSwap = payload.action === "admin_apply_vehicle_swap";
-  if ((!isSwap && (!payload.pickupDate || !payload.returnDate)) || !payload.idempotencyKey) {
+  const isExtension = payload.action === "admin_apply_rental_extension";
+  const isDatedChange = isSwap || isExtension;
+  if ((!isDatedChange && (!payload.pickupDate || !payload.returnDate)) || (isExtension && !payload.returnDate) || !payload.idempotencyKey) {
     throw new HttpError("Rental dates and idempotency key are required.", 400);
   }
 
-  if (isSwap) {
+  if (isDatedChange) {
     const userClient = authenticatedClient(req);
-    const swapArgs = {
+    const changeArgs = isSwap ? {
       p_rental_id: payload.rentalId, p_vehicle_id: payload.vehicleId,
       p_effective_at: payload.effectiveAt, p_swap_kind: payload.swapKind,
       p_reason: String(payload.reason || "").trim(), p_daily_rate: payload.dailyRate ?? null,
+    } : {
+      p_rental_id: payload.rentalId, p_return_date: payload.returnDate, p_return_time: payload.returnTime,
+      p_reason: String(payload.reason || "").trim(), p_daily_rate: payload.dailyRate ?? null,
     };
-    const { data: existing, error: existingError } = await userClient.from("rental_vehicle_swaps")
+    const { data: existing, error: existingError } = await userClient.from(isSwap ? "rental_vehicle_swaps" : "rental_admin_extensions")
       .select("id").eq("id", payload.idempotencyKey).maybeSingle();
     if (existingError) throw existingError;
     if (existing) {
-      const { data, error } = await userClient.rpc("admin_apply_vehicle_swap", {
-        ...swapArgs, p_idempotency_key: payload.idempotencyKey, p_expected_revision: payload.expectedRevision,
+      const { data, error } = await userClient.rpc(isSwap ? "admin_apply_vehicle_swap" : "admin_apply_rental_extension", {
+        ...changeArgs, p_idempotency_key: payload.idempotencyKey, p_expected_revision: payload.expectedRevision,
       });
       if (error) throw error;
       return data;
     }
-    const { data: preview, error } = await userClient.rpc("admin_preview_vehicle_swap", swapArgs);
+    const { data: preview, error } = await userClient.rpc(isSwap ? "admin_preview_vehicle_swap" : "admin_preview_rental_extension", changeArgs);
     if (error || preview?.revision !== payload.expectedRevision) {
-      throw new HttpError(error?.message || "Rental or payments changed. Review the swap again.", 409);
+      throw new HttpError(error?.message || `Rental or payments changed. Review the ${isSwap ? "swap" : "extension"} again.`, 409);
     }
   }
 
@@ -417,7 +422,7 @@ async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload)
 
   let staleStripePaymentExpired = false;
   if (payload.waiveLateFees === true) {
-    for (const lateFee of isSwap ? [] : lateFeeCharges || []) {
+    for (const lateFee of isDatedChange ? [] : lateFeeCharges || []) {
       staleStripePaymentExpired = await retireStripePaymentAttempt(
         lateFee.stripe_payment_intent_id,
         lateFee.stripe_checkout_session_id,
@@ -488,6 +493,10 @@ async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload)
     p_effective_at: payload.effectiveAt, p_swap_kind: payload.swapKind,
     p_reason: String(payload.reason || "").trim(), p_daily_rate: payload.dailyRate ?? null,
     p_idempotency_key: payload.idempotencyKey, p_expected_revision: payload.expectedRevision,
+  }) : isExtension ? await userClient.rpc("admin_apply_rental_extension", {
+    p_rental_id: payload.rentalId, p_return_date: payload.returnDate, p_return_time: payload.returnTime,
+    p_reason: String(payload.reason || "").trim(), p_daily_rate: payload.dailyRate ?? null,
+    p_idempotency_key: payload.idempotencyKey, p_expected_revision: payload.expectedRevision,
   }) : await userClient.rpc("admin_apply_rental_amendment", {
     p_rental_id: payload.rentalId,
     p_vehicle_id: payload.vehicleId,
@@ -504,7 +513,7 @@ async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload)
   if (error || !data) throw new HttpError(error?.message || "The rental changes could not be applied.", 400);
 
   const lateFeeDecision = payload.waiveLateFees === true ? "waive" : "keep";
-  for (const lateFee of isSwap ? [] : lateFeeCharges || []) {
+  for (const lateFee of isDatedChange ? [] : lateFeeCharges || []) {
     const description = lateFeeDecision === "waive"
       ? `${String(lateFee.description || "Late-return charge.").replace(/\s*\[(?:AUTO-)?WAIVED[^\]]*\]\s*$/i, "")} [WAIVED BY ADMIN DURING RENTAL EXTENSION.]`
       : lateFee.description;
@@ -530,7 +539,7 @@ async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload)
     if (lateFeeDecisionError) throw lateFeeDecisionError;
   }
 
-  if ((isSwap ? [] : lateFeeCharges || []).length > 0) {
+  if ((isDatedChange ? [] : lateFeeCharges || []).length > 0) {
     const { error: lateFeeAuditError } = await userClient.rpc("record_admin_audit_event", {
       p_action: lateFeeDecision === "waive"
         ? "rental.late_fees_waived_on_extension"
@@ -579,7 +588,7 @@ async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload)
     ...data,
     settlement,
     balanceCharge,
-    lateFeeDecision: (isSwap ? [] : lateFeeCharges || []).length > 0 ? lateFeeDecision : null,
+    lateFeeDecision: (isDatedChange ? [] : lateFeeCharges || []).length > 0 ? lateFeeDecision : null,
     staleStripePaymentExpired,
   };
 }
@@ -3050,7 +3059,7 @@ async function handleApiAction(req: Request) {
     return json(await applyAdminManualDiscount(req, payload));
   }
 
-  if (payload.action === "admin_apply_rental_amendment" || payload.action === "admin_apply_vehicle_swap") {
+  if (payload.action === "admin_apply_rental_amendment" || payload.action === "admin_apply_vehicle_swap" || payload.action === "admin_apply_rental_extension") {
     return json(await applyAdminRentalAmendment(req, payload));
   }
 
