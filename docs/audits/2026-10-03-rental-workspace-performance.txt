@@ -29,3 +29,12 @@ Validation
 Database rollback preflight passed count consistency, pagination, search, detail ownership, bounds, and anonymous/customer access-denial assertions.
 Synthetic browser preview verified list-only initial reads, full detail loading, payment display, extension dialog, and archive pagination. Production build and GitHub deployment checks passed.
 No rental dates, charges, payments, or refunds were changed by this performance rollout.
+
+Interface correction after user feedback — October 3, 2026
+Admin commit: 4b929e2
+The original rollout changed the rental interface beyond the requested load-time work. That redesign was removed: the original RentalRow cards, direct action buttons, minimized inline details, warning popup, and Archive "Load 25 more archived rentals" interaction are restored. The separate summary list, Open rental step, selected-rental section, automatic scrolling, and previous/next navigation are removed.
+
+Reads remain scoped to the selected filter. Its cards receive complete detail records before rendering; detail reads run at concurrency five and reuse the session cache. Archive loads an additional 25 records when requested. Switching filters discards late results and stops queued detail reads for the prior filter. Saves refresh the interacted-with card without awaiting the filter refresh. The earlier list-only/on-open timing observations above describe the superseded interface, not this corrected version.
+
+Validation: 75 focused tests passed, including new behavioral tests for complete inline hydration, stale-filter suppression, archive accumulation/cache reuse, failed financial reads, save refresh independence, and bounded concurrency. Production build passed. Synthetic browser verified the original card controls, inline expansion and $68.06 balance, and Archive accumulation from 25 to 50 cards. No financial mutations were performed.
+Deployment 37148939959 succeeded. After the portal's Reload now action, live Needs Action rendered five original cards in 1,016 ms in one observation including automation overhead. All eight filter counts remained unchanged. Ayleen's details expanded inline while all five cards remained present; the original extension dialog showed daily rate 64 and was cancelled without submitting. Live Archive showed 25 cards and then 50 after Load 25 more.
