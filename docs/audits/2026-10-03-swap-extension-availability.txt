@@ -1,0 +1,28 @@
+Swap, extension, and reservation availability audit — October 3, 2026
+
+Observed production timeline (Eastern Time)
+- Kelly Vail was extended through October 3 at 5:00 PM at 10:21 AM.
+- At 10:28 AM Kelly was swapped from BMW 330I #157 into Audi A6 #473. The reason was '#157 Right rear side tire goes flat'. The swap preserved the October 3, 5:00 PM return.
+- At 1:49 PM staff moved Dermoy Watson's new booking into BMW #157 for October 3, 3:00 PM through October 5, 3:00 PM. The vehicle was released at 2:30 PM. No current maintenance lock or current calendar block was found for #157; whether its tire was repaired before release requires operational confirmation.
+- At 4:20 PM a website checkout held Audi #473 from October 3, 8:00 PM. This was exactly three hours after Kelly's recorded return, so the saved dates did not overlap. The checkout converted at 4:23 PM.
+- Staff subsequently moved that customer's pickup to October 4 and moved the reservation to Benz C300 #418 at 5:20 PM. No correction to that booking was performed in this task.
+- The live audit query found no overlapping nonterminal vehicle assignments extending into the future, including the three-hour turnaround. This is a database-record check, not confirmation of physical possession or repair.
+
+Findings and changes
+The performance changes did not change the saved swap or extension dates. The dedicated swap form previously listed vehicles without availability indicators. The existing rental schedule trigger checked the preceding rental's turnaround but omitted the proposed rental's turnaround before a following reservation. The old swap conflict helper relied on assignment rows without a fallback for a reservation missing those rows.
+
+Migration 20261003223000_vehicle_conflict_checks adds a shared conflict reader used by booking availability, rental/checkout guards, and swap/extension checks. It includes assignment history, live rental end times, reservation fallback, three-hour turnaround on both sides, checkout holds, calendar blocks, maintenance locks, and existing physical-return lock rules. It also prevents releasing a vehicle to another active customer before physical return. Existing guarded apply actions recheck availability at confirmation while retaining their vehicle advisory lock.
+
+New admin_rental_vehicle_availability requires admin rental.edit permission. Its detailed conflict records are not exposed to anonymous/customer callers. Public fleet availability retains generic reasons. The internal conflict helper cannot be invoked by public, anon, or authenticated roles directly.
+
+Admin commit a3d0b67 adds availability checks only inside the existing swap and extension dialogs. Swap choices show Available/Unavailable for the chosen time window and disable unavailable vehicles. Extensions show conflict times and the next booked reservation. A changed window immediately invalidates the previous availability result; late or failed reads cannot enable confirmation. The original rental-card interface and filter-scoped loading remain intact.
+
+Validation
+- Seven isolated database scenarios passed: fallback reservations, public/admin availability consistency, exact three-hour boundary, stale swap review, reservation write guard, extension preview/apply recheck, maintenance/calendar/checkout holds, physical handover, and customer/anonymous denial (grouped into seven reported rows).
+- Existing dated-swap/pricing suite and all five direct-extension scenarios passed, including original discount/payment preservation, assignment continuity, and the earlier pre-pickup history correction.
+- Five new frontend availability tests passed. Broad admin suite: 227 passed, one pre-existing missing historical partial-payment SQL fixture failure.
+- Production-data migration preflight rolled back successfully. For October 4 noon through October 10 noon, no vehicle changed from available to unavailable or the reverse in the comparison query.
+- Browser preview verified native date input, an unavailable extension with conflict dates and disabled Review, and Available/Unavailable replacement options with the conflicting vehicle disabled.
+- Migration deployed atomically with its migration-history record after checking fingerprints of the four existing functions it replaces/patches. Admin deployment 37156943817 succeeded.
+
+No rental dates, vehicle assignments, payments, refunds, or vehicle maintenance statuses were changed by this task. The #157 repair question remains for the operator; a maintenance reason by itself is not proof of a completed repair or a configured maintenance lock.
