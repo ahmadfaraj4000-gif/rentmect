@@ -3,7 +3,7 @@ Swap, extension, and reservation availability audit — October 3, 2026
 Observed production timeline (Eastern Time)
 - Kelly Vail was extended through October 3 at 5:00 PM at 10:21 AM.
 - At 10:28 AM Kelly was swapped from BMW 330I #157 into Audi A6 #473. The reason was '#157 Right rear side tire goes flat'. The swap preserved the October 3, 5:00 PM return.
-- At 1:49 PM staff moved Dermoy Watson's new booking into BMW #157 for October 3, 3:00 PM through October 5, 3:00 PM. The vehicle was released at 2:30 PM. No current maintenance lock or current calendar block was found for #157; whether its tire was repaired before release requires operational confirmation.
+- At 1:49 PM staff moved Dermoy Watson's new booking into BMW #157 for October 3, 3:00 PM through October 5, 3:00 PM. The vehicle was released at 2:30 PM. No current maintenance lock or current calendar block was found for #157; The user confirmed the tire was repaired before release.
 - At 4:20 PM a website checkout held Audi #473 from October 3, 8:00 PM. This was exactly three hours after Kelly's recorded return, so the saved dates did not overlap. The checkout converted at 4:23 PM.
 - Staff subsequently moved that customer's pickup to October 4 and moved the reservation to Benz C300 #418 at 5:20 PM. No correction to that booking was performed in this task.
 - The live audit query found no overlapping nonterminal vehicle assignments extending into the future, including the three-hour turnaround. This is a database-record check, not confirmation of physical possession or repair.
@@ -25,4 +25,7 @@ Validation
 - Browser preview verified native date input, an unavailable extension with conflict dates and disabled Review, and Available/Unavailable replacement options with the conflicting vehicle disabled.
 - Migration deployed atomically with its migration-history record after checking fingerprints of the four existing functions it replaces/patches. Admin deployment 37156943817 succeeded.
 
-No rental dates, vehicle assignments, payments, refunds, or vehicle maintenance statuses were changed by this task. The #157 repair question remains for the operator; a maintenance reason by itself is not proof of a completed repair or a configured maintenance lock.
+No rental dates, vehicle assignments, payments, refunds, or vehicle maintenance statuses were changed by this task. The user confirmed #157 was repaired before it was released to Dermoy; this resolves the repair concern.
+
+Post-deployment live SQL verification rejected a proposed Kelly swap back into #157 because Dermoy has a conflicting rental. The check was executed in a rolled-back transaction and did not apply a swap.
+Live browser verification confirmed Kelly's swap dropdown shows BMW #157 as Unavailable/disabled for October 3, 11:00 AM through the booked 5:00 PM return. Other vehicles show their corresponding availability. Dialog cancelled without submitting.
