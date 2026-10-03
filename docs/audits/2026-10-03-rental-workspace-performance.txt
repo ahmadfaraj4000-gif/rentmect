@@ -1,0 +1,31 @@
+Rental workspace performance rollout — October 3, 2026
+
+Deployed backend migration: 20261003190000_admin_rental_workspace_reads
+Root source commit: ec6e476
+Admin source commits: 2ee6637, 4eea5f9
+Successful deployments: 37147846728, 37147928130
+Live entry asset after final deployment: index-CPWRW1-7.js
+
+Changes
+- Rentals owns a paginated, server-filtered summary list; opening the main tab defaults to Needs Action.
+- One list RPC replaces approximately 20 full-domain reads on initial entry.
+- Full rental documents, payment records, refunds, extensions, and reports load only when a rental is opened.
+- Existing operational/financial forms use complete hydrated records; controls do not mount before the detail read succeeds.
+- Mutations refresh the selected rental; list/count refresh runs independently of save completion.
+- Event bursts share a refresh; events carrying another rental's ID do not reload the selected rental.
+- Pages are cached by filter, search, focus ID, and offset for 30 seconds, with invalidation on changes. Delayed reads cannot replace a different selection.
+- Archive requests pages of 25 from the database.
+- Read endpoints use SECURITY INVOKER and existing RLS; no billing calculation, payment mutation, or return-approval guard was replaced.
+
+Evidence
+The old rental and document query shapes alone serialized approximately 6,180,630 bytes of uncompressed JSON across 104 rentals (92 archived) and 168 documents. This excludes other initial queries and is not a compressed network-transfer measurement.
+The new initial Needs Action response measured 4,108 bytes; Ayleen's detail response measured 30,940 bytes. Authenticated database execution of the list measured 225.423 ms in one EXPLAIN ANALYZE run.
+In one live Chrome check, clicking Rentals until the Needs Action count was visible took 557 ms. Opening Ayleen until Payment Summary was visible took 750 ms. These are individual observations including automation overhead, not percentile benchmarks or guarantees.
+All eight live filter counts matched before/after: Needs Action 5, Ready for Pickup 0, Cars Out 12, Returns Today 4, Extensions Pending 1, Maintenance 1, All Open 12, Archive 92.
+Ayleen's displayed balance remained $68.06; deposit held remained $400. Extension dialog opened and was cancelled without saving. Both live archive pages showed 25 records. No live browser errors appeared.
+
+Validation
+73 focused release tests passed. Broad admin suite: 215 passed, one pre-existing failure due to absent historical SQL fixture 20260813213000_admin_partial_payment_installments.sql (the test also references another absent historical installment migration).
+Database rollback preflight passed count consistency, pagination, search, detail ownership, bounds, and anonymous/customer access-denial assertions.
+Synthetic browser preview verified list-only initial reads, full detail loading, payment display, extension dialog, and archive pagination. Production build and GitHub deployment checks passed.
+No rental dates, charges, payments, or refunds were changed by this performance rollout.
