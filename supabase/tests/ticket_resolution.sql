@@ -175,6 +175,7 @@ reset role;
 set local session_replication_role=replica;
 update profiles set staff_role='employee' where id='11111111-1111-4111-8111-111111111111';
 set local session_replication_role=origin;
+delete from staff_permission_overrides where user_id='11111111-1111-4111-8111-111111111111' and permission_key in ('tab.tickets','ticket.manage');
 set local role authenticated;
 do $$begin
  assert (select count(*) from ticket_cases)=0;
