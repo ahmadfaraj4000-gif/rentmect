@@ -179,9 +179,9 @@ check('Published Supabase vehicles require pictures and three features',
   && read('supabase/migrations/20260730193000_vehicle_catalog_source_of_truth.sql')
     .includes('coalesce(cardinality(image_urls), 0) >= 1'));
 check('Cars-2 no longer displays the empty feature placeholder', !cars2Js.includes('Vehicle features are being updated.'));
-check('Cars-2 is labeled as Supabase at the bottom without a testing banner',
-  cars2Html.includes('class="cars2-provider-signature"')
-  && cars2Html.includes('>Supabase</p>')
+check('Cars-2 does not display an internal provider label or testing banner',
+  !cars2Html.includes('class="cars2-provider-signature"')
+  && !cars2Html.includes('>Supabase</p>')
   && !cars2Html.includes('SUPABASE TESTING'));
 check('Cars-2 includes the complete public navigation',
   cars2Html.includes('class="site-header cars2-site-navigation"')
