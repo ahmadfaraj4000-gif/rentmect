@@ -9,7 +9,7 @@
   customer booking, admin booking, database enforcement, and Stripe Checkout.
 - Deposit release: implemented as an idempotent partial Stripe refund. Admins
   can trigger it after a rental is completed. Clean completed returns are
-  scheduled for automatic refund seven days after completion; a hold/damage
+  scheduled for automatic refund 30 calendar days after the recorded return; a hold/damage
   decision prevents automatic refund.
 - Wheelbase availability implementation in `index.html`, `cars.html`, and
   `supabase/functions/wheelbase-availability/index.ts`: not modified by this work.

@@ -1290,6 +1290,15 @@ async function releaseSecurityDeposit(
     throw new Error("This rental does not have a held security deposit.");
   }
 
+  // Recheck the persisted deadline after the scheduler query. An old queue
+  // selection must not refund early after the policy or deadline changes.
+  if (source === "automatic") {
+    const dueAt = Date.parse(String(rental.deposit_release_due_at || ""));
+    if (!Number.isFinite(dueAt) || dueAt > Date.now()) {
+      throw new Error("This deposit is not due for automatic refund yet. An administrator may refund it earlier.");
+    }
+  }
+
   // A temporary administrator Stripe installment is not money owed. Reconcile
   // it against Stripe before consulting the deposit blocker ledger. Expired,
   // missing, and never-created attempts are retired; a genuinely open or

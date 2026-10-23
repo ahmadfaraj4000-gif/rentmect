@@ -29,7 +29,7 @@ There are two separate releases:
 - [x] Audit-log database support and admin Audit Log UI are implemented locally.
 - [x] Deposit calculation is $500 for customers under 25 and $300 for customers age 25 or older.
 - [x] Manual security-deposit refund action is available from the Admin Portal Rental Manager as **Refund Deposit Now**.
-- [x] Clean completed rentals can be scheduled for automatic deposit refund after seven days.
+- [x] Clean completed rentals can be scheduled for automatic deposit refund after 30 calendar days from the recorded return.
 - [x] Stripe Identity workflow and server-side payment prerequisites are implemented locally.
 - [x] Admin-managed site banners/popups, placement, coupon action, and automatic date cutoff are implemented locally.
 - [x] Internal `Booking Flow Test Vehicle` and automatic Booking Preview assignment are implemented locally.
