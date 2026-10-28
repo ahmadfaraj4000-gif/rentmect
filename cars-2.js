@@ -74,6 +74,7 @@
     quoteRequest: 0,
     vehicles: [],
     availability: new Map(),
+    availabilityError: "",
     selectedId: "",
     filter: "all",
     search: "",
@@ -387,25 +388,32 @@
       const type = String(vehicle.vehicle_type || "").toLowerCase();
       const brand = String(vehicle.brand || "").toLowerCase();
       const filterMatches = state.filter === "all" || brand === state.filter || type.includes(state.filter);
-      return filterMatches && terms.includes(state.search) && (!state.availableOnly || result?.available === true);
-    });
+      return filterMatches && terms.includes(state.search)
+        && (!state.availableOnly || state.checking || state.availabilityError || result?.available === true);
+    }).sort((a, b) => Number(state.availability.get(b.id)?.available === true)
+      - Number(state.availability.get(a.id)?.available === true));
 
     elements.cars2Grid.innerHTML = visible.map((vehicle) => vehicleCard(vehicle)).join("");
     if (!visible.length) {
       elements.cars2Grid.innerHTML = '<p class="cars2-empty">No vehicles match these filters and dates. Try changing a filter or rental date.</p>';
     }
     elements.cars2Grid.setAttribute("aria-busy", String(state.checking));
-    setStatus(state.checking ? "Checking live availability…" : `${visible.length} vehicle${visible.length === 1 ? "" : "s"} shown`);
+    const availableCount = visible.filter((vehicle) => state.availability.get(vehicle.id)?.available === true).length;
+    setStatus(state.checking ? "Checking live availability…" : state.availabilityError
+      ? "Availability has not been checked. Please review the message below."
+      : `${availableCount} available for your dates · ${visible.length} vehicle${visible.length === 1 ? "" : "s"} shown`);
   }
 
   function vehicleCard(vehicle) {
     const result = state.availability.get(vehicle.id);
     const available = result?.available === true;
     const checking = state.checking;
-    const status = checking ? "Checking…" : available ? "Available" : "Unavailable";
-    const statusClass = checking ? "checking" : available ? "available" : "unavailable";
+    const unknown = !result;
+    const status = checking ? "Checking…" : unknown ? "Not checked" : available ? "Available" : "Unavailable";
+    const statusClass = checking || unknown ? "checking" : available ? "available" : "unavailable";
     const statusLabel = checking
       ? "Checking availability"
+      : unknown ? "Choose valid dates and check availability"
       : available
         ? "Available"
         : result?.reason
@@ -438,7 +446,7 @@
           </ul>
           <p class="cars2-card-price"><strong>${money(displayedPrice)}</strong><span>/ ${pricingDays} ${pricingDays === 1 ? "day" : "days"}</span></p>
           <button class="cars2-card-button" type="button" data-vehicle-id="${escapeHtml(vehicle.id)}" ${checking || !available ? "disabled" : ""}>
-            ${checking ? "Checking dates…" : available ? "View & book" : "Unavailable"}
+            ${checking ? "Checking dates…" : unknown ? "Check dates" : available ? "View & book" : "Unavailable"}
           </button>
         </div>
       </article>`;
@@ -517,13 +525,14 @@
     const unavailableDetail = unavailableReason.replace(/^unavailable(?:\s*[:—-]\s*|\s+)/i, "").trim();
     const message = state.checking
       ? "Checking calendar…"
+      : !result ? "Availability not checked — review your dates and try again."
       : available
         ? "Available for these dates"
         : unavailableDetail
           ? `Unavailable — ${unavailableDetail}`
           : "Unavailable for these dates";
     elements.cars2DetailAvailability.textContent = message;
-    elements.cars2DetailAvailability.className = `cars2-availability ${state.checking ? "" : available ? "available" : "unavailable"}`;
+    elements.cars2DetailAvailability.className = `cars2-availability ${state.checking || !result ? "" : available ? "available" : "unavailable"}`;
     const selectedQuote = state.quote?.vehicle_id === vehicle.id ? state.quote : null;
     const quoteReady = Boolean(selectedQuote?.valid && !state.quoteLoading);
     const days = selectedQuote?.valid ? Number(selectedQuote.billable_days || 0) : rentalDays();
@@ -548,7 +557,7 @@
         ? "Checking dates…"
         : available
           ? quoteReady ? "Start checkout" : "Calculating full price…"
-          : "Unavailable";
+          : !result ? "Check dates" : "Unavailable";
   }
 
   async function refreshSelectedQuote(vehicleId) {
@@ -605,6 +614,12 @@
 
   function scheduleAvailabilityCheck() {
     window.clearTimeout(availabilityTimer);
+    // Invalidate in-flight results as soon as dates change, before the debounce.
+    state.availabilityRequest += 1;
+    state.availability.clear();
+    state.checking = true;
+    renderVehicles();
+    renderDetailAvailability();
     availabilityTimer = window.setTimeout(checkAvailability, 180);
   }
 
@@ -621,16 +636,23 @@
   }
 
   async function checkAvailability() {
-    if (!validTrip()) {
-      state.availability.clear();
-      state.checking = false;
-      renderVehicles();
-      renderDetailAvailability();
-      showError(elements.cars2DetailError, `Choose valid pickup and return times. Rentals require at least ${state.policy.minimumRentalHours} hours.`);
-      return false;
-    }
     const requestId = ++state.availabilityRequest;
     const quoteRequestId = ++state.quoteRequest;
+    state.availability.clear();
+    state.availabilityError = "";
+    state.quote = null;
+    hideError(elements.cars2Error);
+    hideError(elements.cars2DetailError);
+    if (!validTrip()) {
+      state.availabilityError = `Choose valid pickup and return times. Rentals require at least ${state.policy.minimumRentalHours} hours.`;
+      state.checking = false;
+      state.quoteLoading = false;
+      renderTripSummary();
+      renderVehicles();
+      renderDetailAvailability();
+      showAvailabilityError(true);
+      return false;
+    }
     state.checking = true;
     state.quoteLoading = Boolean(state.selectedId);
     hideError(elements.cars2Error);
@@ -639,19 +661,17 @@
     renderDetailAvailability();
     try {
       const quote = await fetchBookingQuote();
+      if (requestId !== state.availabilityRequest) return false;
       state.quote = quote;
       renderTripSummary();
       if (!quote?.valid) {
+        state.availabilityError = quote?.error || "Choose valid rental dates and times, then check availability.";
         state.availability.clear();
         state.checking = false;
         if (quoteRequestId === state.quoteRequest) state.quoteLoading = false;
         renderVehicles();
         renderDetailAvailability();
-        if (state.selectedId) {
-          showError(elements.cars2DetailError, quote?.error || "The selected rental times are not allowed.");
-        } else {
-          hideError(elements.cars2Error);
-        }
+        showAvailabilityError(true);
         return false;
       }
       const response = await apiFetch("/rest/v1/rpc/get_admin_calendar_fleet_availability", {
@@ -665,6 +685,10 @@
       });
       const data = await response.json();
       if (requestId !== state.availabilityRequest) return false;
+      if (!Array.isArray(data) || state.vehicles.some((vehicle) =>
+        !data.some((item) => item.vehicle_id === vehicle.id && typeof item.available === "boolean"))) {
+        throw new Error("Incomplete fleet availability response");
+      }
       state.availability = new Map((Array.isArray(data) ? data : []).map((item) => [item.vehicle_id, item]));
       if (state.selectedId) {
         const selectedQuote = await fetchBookingQuote(state.selectedId);
@@ -679,14 +703,42 @@
     } catch (error) {
       if (requestId !== state.availabilityRequest) return false;
       state.availability.clear();
+      state.availabilityError = friendlyError(error, "Live availability could not be verified. Please try again.");
       state.checking = false;
       if (quoteRequestId === state.quoteRequest) state.quoteLoading = false;
       renderVehicles();
       renderDetailAvailability();
-      const message = friendlyError(error, "Live availability could not be verified. Please try again.");
-      showError(state.selectedId ? elements.cars2DetailError : elements.cars2Error, message);
+      showAvailabilityError(false);
       return false;
     }
+  }
+
+  function showAvailabilityError(resetDates) {
+    const target = state.selectedId ? elements.cars2DetailError : elements.cars2Error;
+    showError(target, `${state.availabilityError} `);
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.textContent = resetDates ? "Use next valid pickup time" : "Try availability again";
+    retry.addEventListener("click", async () => {
+      retry.disabled = true;
+      if (resetDates) {
+        await loadBookingPolicy();
+        const days = Math.max(state.policy.minimumRentalDays, rentalDays());
+        const slot = earliestPickupSlot();
+        state.trip.pickupDate = slot.date;
+        state.trip.pickupTime = slot.time;
+        state.trip.returnDate = addDays(slot.date, days);
+        state.trip.returnTime = slot.time;
+        returnTimeCustomized = false;
+        state.quote = null;
+        syncTripFields();
+        const nextUrl = new URL(window.location.href);
+        syncTripToUrl(nextUrl);
+        history.replaceState({}, "", nextUrl);
+      }
+      await checkAvailability();
+    });
+    target.append(retry);
   }
 
   async function fetchBookingQuote(vehicleId = null) {
