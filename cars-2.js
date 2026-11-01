@@ -644,7 +644,7 @@
     hideError(elements.cars2Error);
     hideError(elements.cars2DetailError);
     if (!validTrip()) {
-      state.availabilityError = `Choose valid pickup and return times. Rentals require at least ${state.policy.minimumRentalHours} hours.`;
+      state.availabilityError = `Choose valid pickup and return times. Rentals require at least ${state.policy.minimumRentalDays} rental day(s), ending at the same Eastern time.`;
       state.checking = false;
       state.quoteLoading = false;
       renderTripSummary();
@@ -938,7 +938,7 @@
     elements.cars2TripSummary.textContent = "";
     elements.cars2TripSummary.classList.remove("valid", "error");
     if (state.quote?.valid === false) {
-      elements.cars2TripSummary.textContent = state.quote.error || `Rentals require at least ${state.policy.minimumRentalHours} hours.`;
+      elements.cars2TripSummary.textContent = state.quote.error || `Rentals require at least ${state.policy.minimumRentalDays} rental day(s), ending at the same Eastern time.`;
       elements.cars2TripSummary.hidden = false;
       elements.cars2TripSummary.classList.add("error");
       return;
@@ -1123,7 +1123,14 @@
     const start = tripDateTime(state.trip.pickupDate, state.trip.pickupTime);
     const end = tripDateTime(state.trip.returnDate, state.trip.returnTime);
     if (!start || !end) return 0;
-    return Math.max(0, Math.floor((end - start) / 60000));
+    const wallValue = (date) => {
+      const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+      }).formatToParts(date).filter(p => p.type !== "literal").map(p => [p.type, p.value]));
+      return Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute);
+    };
+    return Math.max(0, Math.floor((wallValue(end) - wallValue(start)) / 60000));
   }
 
   function rentalDays() {

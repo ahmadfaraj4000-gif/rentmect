@@ -28,3 +28,7 @@ jobs:
         run: npm run audit:phone-profile-save
       - name: Verify late-return and mileage policy
         run: npm run audit:late-fee-mileage
+      - name: Verify daylight-saving rental days
+        run: |
+          node --test tools/test-daylight-saving-fleet.mjs
+          python3 tools/test-daylight-saving-billing.py
