@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@19.2.0";
+import { closeTollCollectionPaths } from "../_shared/external-toll-payment.js";
+import { requireMerchantRental } from "../_shared/merchant-access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,12 +11,15 @@ const corsHeaders = {
 };
 
 type CheckoutPayload = {
-  action?: "create_checkout" | "confirm_checkout" | "admin_create_checkout" | "admin_create_installment_checkout" | "admin_create_charge_checkout" | "admin_create_extension_checkout" | "admin_charge_saved_card" | "admin_waive_rental_charge" | "admin_record_external_charge" | "admin_apply_manual_discount" | "admin_apply_rental_amendment" | "admin_apply_vehicle_swap" | "admin_apply_rental_extension" | "admin_record_external_balance" | "refund_rental_payment" | "cancel_before_pickup_refund_deposit" | "release_deposit" | "settle_deposit_charges" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
+  action?: "admin_record_external_tolls" | "admin_cancel_external_tolls" | "merchant_create_checkout" | "create_checkout" | "confirm_checkout" | "admin_create_checkout" | "admin_create_installment_checkout" | "admin_create_charge_checkout" | "admin_create_extension_checkout" | "admin_charge_saved_card" | "admin_waive_rental_charge" | "admin_record_external_charge" | "admin_apply_manual_discount" | "admin_apply_rental_amendment" | "admin_apply_vehicle_swap" | "admin_apply_rental_extension_revision" | "admin_apply_rental_extension" | "admin_record_external_balance" | "refund_rental_payment" | "cancel_before_pickup_refund_deposit" | "release_deposit" | "deduct_deposit_charges" | "settle_deposit_charges" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
   targetType?: "rental" | "extension" | "charge";
   rentalId?: string;
   extensionRequestId?: string;
   chargeId?: string;
   chargeIds?: string[];
+  tollPayment?: { charges: { id: string; amountCents: number }[]; amountCents: number; paymentMethod: string; receivedDate: string; reference: string };
+  allocationId?: string;
+  expectedRemaining?: number;
   expectedApplied?: number;
   expectedRefund?: number;
   amountCents?: number;
@@ -189,7 +194,7 @@ async function reusableCheckout(
 async function findActiveAdminInstallment(rentalId: string) {
   const { data: installments, error } = await adminClient!
     .from("rental_charge_items")
-    .select("id, rental_id, user_id, status, description, stripe_checkout_session_id, stripe_payment_intent_id, created_at")
+    .select("id, rental_id, user_id, status, description, total_amount, stripe_checkout_session_id, stripe_payment_intent_id, created_at")
     .eq("rental_id", rentalId)
     .eq("charge_type", "rental_installment")
     .in("status", ["pending", "checkout_open", "failed"])
@@ -312,44 +317,7 @@ function authenticatedClient(req: Request) {
   });
 }
 
-async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload) {
-  const admin = await requireAdmin(req, "rental.edit");
-  if (!payload.rentalId || !payload.vehicleId) {
-    throw new HttpError("Rental and vehicle are required.", 400);
-  }
-  const isSwap = payload.action === "admin_apply_vehicle_swap";
-  const isExtension = payload.action === "admin_apply_rental_extension";
-  const isDatedChange = isSwap || isExtension;
-  if ((!isDatedChange && (!payload.pickupDate || !payload.returnDate)) || (isExtension && !payload.returnDate) || !payload.idempotencyKey) {
-    throw new HttpError("Rental dates and idempotency key are required.", 400);
-  }
-
-  if (isDatedChange) {
-    const userClient = authenticatedClient(req);
-    const changeArgs = isSwap ? {
-      p_rental_id: payload.rentalId, p_vehicle_id: payload.vehicleId,
-      p_effective_at: payload.effectiveAt, p_swap_kind: payload.swapKind,
-      p_reason: String(payload.reason || "").trim(), p_daily_rate: payload.dailyRate ?? null,
-    } : {
-      p_rental_id: payload.rentalId, p_return_date: payload.returnDate, p_return_time: payload.returnTime,
-      p_reason: String(payload.reason || "").trim(), p_daily_rate: payload.dailyRate ?? null,
-    };
-    const { data: existing, error: existingError } = await userClient.from(isSwap ? "rental_vehicle_swaps" : "rental_admin_extensions")
-      .select("id").eq("id", payload.idempotencyKey).maybeSingle();
-    if (existingError) throw existingError;
-    if (existing) {
-      const { data, error } = await userClient.rpc(isSwap ? "admin_apply_vehicle_swap" : "admin_apply_rental_extension", {
-        ...changeArgs, p_idempotency_key: payload.idempotencyKey, p_expected_revision: payload.expectedRevision,
-      });
-      if (error) throw error;
-      return data;
-    }
-    const { data: preview, error } = await userClient.rpc(isSwap ? "admin_preview_vehicle_swap" : "admin_preview_rental_extension", changeArgs);
-    if (error || preview?.revision !== payload.expectedRevision) {
-      throw new HttpError(error?.message || `Rental or payments changed. Review the ${isSwap ? "swap" : "extension"} again.`, 409);
-    }
-  }
-
+async function retireRentalPaymentAttempts(rentalId: string, retireLateFees = false) {
   // Stripe Checkout amounts are immutable. Retire every open rental-payment
   // attempt before repricing so a link created for the old vehicle cannot be
   // paid after the amendment. Temporary admin installments remain typed as
@@ -362,19 +330,19 @@ async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload)
     adminClient!
       .from("rentals")
       .select("id, paid_at, stripe_checkout_session_id, stripe_payment_intent_id")
-      .eq("id", payload.rentalId)
+      .eq("id", rentalId)
       .single(),
     adminClient!
       .from("rental_charge_items")
       .select("id, charge_type, status, stripe_checkout_session_id, stripe_payment_intent_id")
-      .eq("rental_id", payload.rentalId)
+      .eq("rental_id", rentalId)
       .in("charge_type", ["rental_amendment", "rental_installment"])
       .in("status", ["pending", "checkout_open", "failed"])
       .order("created_at", { ascending: false }),
     adminClient!
       .from("rental_charge_items")
       .select("id, status, description, total_amount, stripe_checkout_session_id, stripe_payment_intent_id")
-      .eq("rental_id", payload.rentalId)
+      .eq("rental_id", rentalId)
       .eq("source_type", "late_return")
       .in("status", ["pending", "checkout_open", "failed"])
       .order("created_at", { ascending: true }),
@@ -421,8 +389,8 @@ async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload)
   };
 
   let staleStripePaymentExpired = false;
-  if (payload.waiveLateFees === true) {
-    for (const lateFee of isDatedChange ? [] : lateFeeCharges || []) {
+  if (retireLateFees) {
+    for (const lateFee of lateFeeCharges || []) {
       staleStripePaymentExpired = await retireStripePaymentAttempt(
         lateFee.stripe_payment_intent_id,
         lateFee.stripe_checkout_session_id,
@@ -479,6 +447,7 @@ async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload)
         stripe_checkout_session_id: null,
         stripe_payment_intent_id: null,
         payment_provider: null,
+        payment_amount_cents: null,
         last_admin_charge_error: null,
         updated_at: new Date().toISOString(),
       })
@@ -487,13 +456,60 @@ async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload)
     if (resetOpenChargeError) throw resetOpenChargeError;
   }
 
+  return { staleStripePaymentExpired, lateFeeCharges };
+}
+
+async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload) {
+  const admin = await requireAdmin(req, "rental.edit");
+  if (!payload.rentalId || !payload.vehicleId) {
+    throw new HttpError("Rental and vehicle are required.", 400);
+  }
+  const isSwap = payload.action === "admin_apply_vehicle_swap";
+  const isRevision = payload.action === "admin_apply_rental_extension_revision";
+  const extensionRpc = isRevision ? "admin_apply_rental_extension_revision" : "admin_apply_rental_extension";
+  const isExtension = payload.action === "admin_apply_rental_extension" || isRevision;
+  const isDatedChange = isSwap || isExtension;
+  if ((!isDatedChange && (!payload.pickupDate || !payload.returnDate)) || (isExtension && !payload.returnDate) || !payload.idempotencyKey) {
+    throw new HttpError("Rental dates and idempotency key are required.", 400);
+  }
+
+  if (isDatedChange) {
+    const userClient = authenticatedClient(req);
+    const changeArgs = isSwap ? {
+      p_rental_id: payload.rentalId, p_vehicle_id: payload.vehicleId,
+      p_effective_at: payload.effectiveAt, p_swap_kind: payload.swapKind,
+      p_reason: String(payload.reason || "").trim(), p_daily_rate: payload.dailyRate ?? null,
+    } : {
+      p_rental_id: payload.rentalId, p_return_date: payload.returnDate, p_return_time: payload.returnTime,
+      p_reason: String(payload.reason || "").trim(), p_daily_rate: payload.dailyRate ?? null,
+    };
+    const { data: existing, error: existingError } = await userClient.from(isSwap ? "rental_vehicle_swaps" : isRevision ? "rental_admin_extension_revisions" : "rental_admin_extensions")
+      .select("id").eq("id", payload.idempotencyKey).maybeSingle();
+    if (existingError) throw existingError;
+    if (existing) {
+      const { data, error } = await userClient.rpc(isSwap ? "admin_apply_vehicle_swap" : extensionRpc, {
+        ...changeArgs, p_idempotency_key: payload.idempotencyKey, p_expected_revision: payload.expectedRevision,
+      });
+      if (error) throw error;
+      return data;
+    }
+    const { data: preview, error } = await userClient.rpc(isSwap ? "admin_preview_vehicle_swap" : isRevision ? "admin_preview_rental_extension_revision" : "admin_preview_rental_extension", changeArgs);
+    if (error || preview?.revision !== payload.expectedRevision) {
+      throw new HttpError(error?.message || `Rental or payments changed. Review the ${isSwap ? "swap" : "extension"} again.`, 409);
+    }
+  }
+
+  const { staleStripePaymentExpired, lateFeeCharges } = await retireRentalPaymentAttempts(
+    payload.rentalId, !isDatedChange && payload.waiveLateFees === true,
+  );
+
   const userClient = authenticatedClient(req);
   const { data, error } = isSwap ? await userClient.rpc("admin_apply_vehicle_swap", {
     p_rental_id: payload.rentalId, p_vehicle_id: payload.vehicleId,
     p_effective_at: payload.effectiveAt, p_swap_kind: payload.swapKind,
     p_reason: String(payload.reason || "").trim(), p_daily_rate: payload.dailyRate ?? null,
     p_idempotency_key: payload.idempotencyKey, p_expected_revision: payload.expectedRevision,
-  }) : isExtension ? await userClient.rpc("admin_apply_rental_extension", {
+  }) : isExtension ? await userClient.rpc(extensionRpc, {
     p_rental_id: payload.rentalId, p_return_date: payload.returnDate, p_return_time: payload.returnTime,
     p_reason: String(payload.reason || "").trim(), p_daily_rate: payload.dailyRate ?? null,
     p_idempotency_key: payload.idempotencyKey, p_expected_revision: payload.expectedRevision,
@@ -601,6 +617,14 @@ async function applyAdminManualDiscount(req: Request, payload: CheckoutPayload) 
   }
   if (!payload.idempotencyKey) throw new HttpError("Idempotency key is required.", 400);
 
+  // An identical retry must not cancel a newer payment attempt. The RPC binds
+  // a replay to its original rental and discount request.
+  const { data: existingDiscount, error: existingDiscountError } = await adminClient!
+    .from("rental_amendments").select("id")
+    .eq("idempotency_key", payload.idempotencyKey).maybeSingle();
+  if (existingDiscountError) throw existingDiscountError;
+  const retirement = existingDiscount ? null : await retireRentalPaymentAttempts(payload.rentalId);
+
   const { data, error } = await adminClient!.rpc("admin_apply_manual_rental_discount", {
     p_rental_id: payload.rentalId,
     p_mode: payload.discountMode,
@@ -611,29 +635,7 @@ async function applyAdminManualDiscount(req: Request, payload: CheckoutPayload) 
   });
   if (error || !data) throw new HttpError(error?.message || "The discount could not be applied.", 400);
 
-  const checkoutSessionId = String(data.checkout_session_id || "");
-  let checkoutExpired = false;
-  let checkoutWarning = "";
-  if (checkoutSessionId) {
-    try {
-      const checkout = await stripe!.checkout.sessions.retrieve(checkoutSessionId);
-      if (checkout.status === "open") {
-        await stripe!.checkout.sessions.expire(checkout.id);
-        checkoutExpired = true;
-      }
-      if (checkout.status !== "complete" && checkout.payment_status !== "paid") {
-        await adminClient!.from("rentals").update({ stripe_checkout_session_id: null }).eq("id", payload.rentalId).eq("stripe_checkout_session_id", checkoutSessionId);
-      }
-    } catch (checkoutError) {
-      if ((checkoutError as { code?: string })?.code === "resource_missing") {
-        await adminClient!.from("rentals").update({ stripe_checkout_session_id: null }).eq("id", payload.rentalId).eq("stripe_checkout_session_id", checkoutSessionId);
-      } else {
-        checkoutWarning = "The reservation was repriced, but its earlier Stripe link could not be expired automatically. Create a new payment link before sending checkout.";
-      }
-    }
-  }
-
-  return { ...data, checkoutExpired, checkoutWarning };
+  return { ...data, checkoutExpired: retirement?.staleStripePaymentExpired || false, checkoutWarning: "" };
 }
 
 async function recordAdminExternalBalance(req: Request, payload: CheckoutPayload) {
@@ -1876,10 +1878,11 @@ async function releaseDueSecurityDeposits() {
 }
 
 async function createRentalCheckout(req: Request, payload: CheckoutPayload, userId: string, adminAssisted = false) {
+  if (!adminClient) throw new Error("Payment service is not configured.");
   assertPaymentCreationEnabled();
   if (!payload.rentalId) throw new Error("Rental id is required.");
 
-  const rentalSelect = "id, user_id, vehicle_id, status, payment_status, rental_total, pre_discount_rental_total, discount_code, discount_amount, manual_discount_amount, manual_discount_type, manual_discount_value, service_fee_total, tax_amount, security_deposit, agreement_signed, checkout_expires_at, payment_due_at, stripe_checkout_session_id, vehicles(name, security_deposit)";
+  const rentalSelect = "id, user_id, vehicle_id, merchant_id, status, payment_status, rental_total, pre_discount_rental_total, discount_code, discount_amount, manual_discount_amount, manual_discount_type, manual_discount_value, service_fee_total, tax_amount, security_deposit, agreement_signed, checkout_expires_at, payment_due_at, stripe_checkout_session_id, vehicles(name, security_deposit)";
   const { data: initialRental, error } = await adminClient
     .from("rentals")
     .select(rentalSelect)
@@ -1895,12 +1898,8 @@ async function createRentalCheckout(req: Request, payload: CheckoutPayload, user
   if (String(rental.status || "").toLowerCase() === "cancelled") {
     throw new Error("Cancelled rentals cannot be paid.");
   }
-  const activeAdminInstallment = await findActiveAdminInstallment(rental.id);
-  if (activeAdminInstallment?.id) {
-    throw new Error("An administrator-started Stripe installment is already open for this rental. Complete or cancel that checkout before starting another payment.");
-  }
   if (["partially_paid", "partial"].includes(String(rental.payment_status || "").toLowerCase())) {
-    if (!adminAssisted && !rental.agreement_signed) {
+    if ((!adminAssisted || rental.merchant_id) && !rental.agreement_signed) {
       throw new Error("Sign the revised rental agreement before paying the remaining balance.");
     }
     const { data: balanceCharge, error: balanceError } = await adminClient!
@@ -1921,6 +1920,10 @@ async function createRentalCheckout(req: Request, payload: CheckoutPayload, user
       { ...payload, targetType: "charge", chargeId: balanceCharge.id },
       userId,
     );
+  }
+  const activeAdminInstallment = await findActiveAdminInstallment(rental.id);
+  if (activeAdminInstallment?.id) {
+    throw new Error("An administrator-started Stripe installment is already open for this rental. Complete or cancel that checkout before starting another payment.");
   }
   if (
     (rental.payment_due_at || rental.checkout_expires_at) &&
@@ -1962,7 +1965,7 @@ async function createRentalCheckout(req: Request, payload: CheckoutPayload, user
     }
     rental = refreshedRental;
   }
-  if (!adminAssisted && !rental.agreement_signed) {
+  if ((!adminAssisted || rental.merchant_id) && !rental.agreement_signed) {
     throw new Error("Sign the rental agreement before payment.");
   }
 
@@ -2076,12 +2079,71 @@ async function createRentalCheckout(req: Request, payload: CheckoutPayload, user
   return { url: session.url, sessionId: session.id };
 }
 
+// An admin payment link is another way to collect the same invoice balance.
+// Hand the customer the existing verified session; never create a competing one.
+async function resumeAdminInstallmentCheckout(
+  installment: { id: string; total_amount: number; stripe_checkout_session_id?: string | null },
+  rentalId: string,
+  userId: string,
+) {
+  const { data: rental, error: rentalError } = await adminClient!
+    .from("rentals")
+    .select("id, user_id, status, agreement_signed")
+    .eq("id", rentalId)
+    .single();
+  if (rentalError || !rental) throw new Error(rentalError?.message || "Rental not found.");
+  if (rental.user_id !== userId) throw new Error("This rental does not belong to the signed-in customer.");
+  if (rental.status === "cancelled") throw new Error("Cancelled rentals cannot be paid.");
+  if (!rental.agreement_signed) throw new Error("Sign the revised rental agreement before paying the remaining balance.");
+
+  const sessionId = String(installment.stripe_checkout_session_id || "");
+  if (!sessionId.startsWith("cs_")) {
+    throw new HttpError("Your payment checkout is still being prepared. Please try again in a moment.", 409);
+  }
+  const { data: settlement, error: settlementError } = await adminClient!.rpc(
+    "sync_rental_remaining_balance", { p_rental_id: rentalId },
+  );
+  if (settlementError || !settlement) throw new Error(settlementError?.message || "The remaining balance could not be checked.");
+  const amountCents = cents(Number(installment.total_amount || 0));
+  const balanceDueCents = cents(Number(settlement.balance_due || 0));
+  if (amountCents < 50 || amountCents > balanceDueCents) {
+    throw new HttpError("This payment link no longer matches your remaining balance. Contact Rent Me CT to refresh it.", 409);
+  }
+  const checkout = await stripe!.checkout.sessions.retrieve(sessionId);
+  if (checkout.status === "complete" || checkout.payment_status === "paid") {
+    throw new HttpError("Your payment was received and is being confirmed. Refresh in a moment.", 409);
+  }
+  if (checkout.status !== "open" || !checkout.url) {
+    throw new HttpError("Your payment link has closed. Refresh and try again.", 409);
+  }
+  if (checkout.mode !== "payment" || checkout.currency !== "usd"
+    || checkout.amount_total !== amountCents
+    || checkout.metadata?.target_type !== "charge"
+    || checkout.metadata?.charge_id !== installment.id
+    || checkout.metadata?.rental_id !== rentalId
+    || checkout.metadata?.user_id !== userId) {
+    throw new HttpError("This payment link could not be verified. Contact Rent Me CT to refresh it.", 409);
+  }
+  return {
+    url: checkout.url,
+    sessionId: checkout.id,
+    targetType: "charge",
+    targetId: installment.id,
+    rentalId,
+    installment: amountCents < balanceDueCents,
+    installmentAmount: amountCents / 100,
+    balanceBeforePayment: balanceDueCents / 100,
+    balanceAfterPayment: (balanceDueCents - amountCents) / 100,
+    reused: true,
+  };
+}
+
 async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload, userId: string) {
   assertPaymentCreationEnabled();
   if (!payload.chargeId) throw new Error("Rental charge id is required.");
   const { data: charge, error } = await adminClient!
     .from("rental_charge_items")
-    .select("id, rental_id, user_id, name, charge_type, source_type, description, total_amount, included_in_initial_payment, status, stripe_checkout_session_id")
+    .select("id, rental_id, user_id, name, charge_type, source_type, description, total_amount, included_in_initial_payment, status, stripe_checkout_session_id, external_toll_receipt_id, checkout_creation_token")
     .eq("id", payload.chargeId)
     .single();
   if (error || !charge) throw new Error(error?.message || "Rental charge not found.");
@@ -2092,11 +2154,15 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
   if (charge.charge_type !== "rental_installment") {
     const activeAdminInstallment = await findActiveAdminInstallment(charge.rental_id);
     if (activeAdminInstallment?.id) {
+      if (charge.charge_type === "rental_amendment") {
+        return await resumeAdminInstallmentCheckout(activeAdminInstallment, charge.rental_id, userId);
+      }
       throw new Error("An administrator-started Stripe installment is already open for this rental. Complete or cancel that checkout before paying another balance.");
     }
   }
   const amountCents = cents(Number(charge.total_amount || 0));
   if (amountCents < 50) throw new Error("Charge amount is too small for Stripe Checkout.");
+  if (charge.external_toll_receipt_id) throw new Error("This toll belongs to an external payment receipt. Resume or cancel that recording first.");
   const priorChargeCheckout = await reusableCheckout(
     charge.stripe_checkout_session_id,
     "charge",
@@ -2119,6 +2185,18 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
     rental_id: charge.rental_id,
     user_id: userId,
   };
+  let tollCheckoutToken: string | null = null;
+  if (charge.charge_type === "toll") {
+    tollCheckoutToken = charge.checkout_creation_token || crypto.randomUUID();
+    if (!charge.checkout_creation_token) {
+      const { data: claimed, error: claimError } = await adminClient!.from("rental_charge_items")
+        .update({ checkout_creation_token: tollCheckoutToken })
+        .eq("id", charge.id).is("checkout_creation_token", null)
+        .in("status", ["pending", "failed", "checkout_open"]).select("id").maybeSingle();
+      if (claimError) throw claimError;
+      if (!claimed) throw new Error("Another collection started. Refresh before creating a payment link.");
+    }
+  }
   const session = await stripe!.checkout.sessions.create({
     mode: "payment",
     customer_creation: "always",
@@ -2138,10 +2216,11 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
         },
       },
     }],
-  }, { idempotencyKey: priorChargeCheckout.idempotencyKey });
+  }, { idempotencyKey: tollCheckoutToken ? `toll-checkout-${tollCheckoutToken}` : priorChargeCheckout.idempotencyKey });
   const { error: updateError } = await adminClient!
     .from("rental_charge_items")
     .update({
+      ...(tollCheckoutToken ? { checkout_creation_token: null } : {}),
       status: "checkout_open",
       payment_provider: "stripe",
       stripe_checkout_session_id: session.id,
@@ -2175,12 +2254,13 @@ async function createAdminRentalChargeCheckout(req: Request, payload: CheckoutPa
 }
 
 async function createExtensionCheckout(req: Request, payload: CheckoutPayload, userId: string) {
+  if (!adminClient) throw new Error("Payment service is not configured.");
   assertPaymentCreationEnabled();
   if (!payload.extensionRequestId) throw new Error("Extension request id is required.");
 
   const { data: request, error } = await adminClient
     .from("rental_extension_requests")
-    .select("id, rental_id, user_id, request_kind, status, payment_status, payment_due_at, extension_total_amount, existing_deposit_held, replacement_deposit_required, deposit_carried_amount, deposit_increase_amount, deposit_decrease_amount, requested_return_date, requested_return_time, stripe_checkout_session_id, created_at, rentals!rental_extension_requests_rental_id_fkey(vehicles(name))")
+    .select("id, rental_id, user_id, request_kind, status, payment_status, payment_due_at, extension_total_amount, existing_deposit_held, replacement_deposit_required, deposit_carried_amount, deposit_increase_amount, deposit_decrease_amount, requested_return_date, requested_return_time, stripe_checkout_session_id, created_at, rentals!rental_extension_requests_rental_id_fkey(agreement_signed, vehicles(name))")
     .eq("id", payload.extensionRequestId)
     .single();
 
@@ -2191,6 +2271,10 @@ async function createExtensionCheckout(req: Request, payload: CheckoutPayload, u
   }
   if (request.payment_due_at && new Date(request.payment_due_at).getTime() <= Date.now()) {
     throw new Error("This extension payment window expired. Submit a new request.");
+  }
+  const agreementRental = Array.isArray(request.rentals) ? request.rentals[0] : request.rentals;
+  if (!agreementRental?.agreement_signed) {
+    throw new Error("Sign the updated rental agreement before paying this extension.");
   }
   await requireMatchingStoredIdentity(userId);
 
@@ -2756,6 +2840,30 @@ async function recordExternalRentalCharge(req: Request, payload: CheckoutPayload
   return { status: "paid", charge: recorded };
 }
 
+async function recordExternalTollPayment(req: Request, payload: CheckoutPayload) {
+  const admin = await requireAdmin(req, "charge.manage");
+  if (!payload.rentalId || !payload.idempotencyKey) throw new HttpError("A rental and receipt key are required.", 400);
+  if (payload.action === "admin_cancel_external_tolls") {
+    const { data, error } = await adminClient!.rpc("service_finish_external_toll_receipt", {
+      p_id: payload.idempotencyKey, p_actor_id: admin.user.id, p_cancel: true,
+    });
+    if (error) throw error;
+    return data;
+  }
+  if (!payload.tollPayment) throw new HttpError("Review the selected tolls and received payment.", 400);
+  const { data: prepared, error: prepareError } = await adminClient!.rpc("service_prepare_external_toll_receipt", {
+    p_id: payload.idempotencyKey, p_rental_id: payload.rentalId, p_actor_id: admin.user.id, p_request: payload.tollPayment,
+  });
+  if (prepareError) throw prepareError;
+  if (prepared.status === "posted") return prepared;
+  await closeTollCollectionPaths(stripe, prepared.charges);
+  const { data, error } = await adminClient!.rpc("service_finish_external_toll_receipt", {
+    p_id: payload.idempotencyKey, p_actor_id: admin.user.id, p_cancel: false,
+  });
+  if (error) throw error;
+  return data;
+}
+
 async function confirmCheckout(req: Request, payload: CheckoutPayload) {
   const user = await getUser(req);
   if (!user?.id) throw new HttpError("You must be signed in to confirm checkout.", 401);
@@ -2854,11 +2962,18 @@ async function confirmCheckout(req: Request, payload: CheckoutPayload) {
   const targetColumns = targetType === "extension"
     ? "id, rental_id, user_id, status, payment_status, payment_due_at, stripe_checkout_session_id"
     : "id, user_id, status, payment_status, payment_due_at, checkout_expires_at, stripe_checkout_session_id";
-  const { data: target, error: targetError } = await adminClient!
+  const { data: rawTarget, error: targetError } = await adminClient!
     .from(table)
     .select(targetColumns)
     .eq("id", targetId)
     .single();
+  // The two selected relations share these fields; rental_id and the checkout
+  // deadline are relation-specific. PostgREST cannot infer a dynamic select union.
+  const target = rawTarget as {
+    id: string; user_id: string; rental_id?: string; status: string;
+    payment_status: string; payment_due_at?: string; checkout_expires_at?: string;
+    stripe_checkout_session_id?: string;
+  } | null;
   if (targetError || !target) {
     await openReconciliationIssue({ ...issueBase, errorMessage: targetError?.message || "Rental payment record not found." });
     throw new HttpError(targetError?.message || "Rental payment record not found.", 404);
@@ -2964,6 +3079,85 @@ async function cancelBeforePickupAndRefundDeposit(req: Request, payload: Checkou
   }
 }
 
+async function deductDepositCharges(req: Request, payload: CheckoutPayload) {
+  const admin = await requireAdmin(req, "deposit.resolve");
+  await requireAdmin(req, "charge.manage");
+  if (!payload.rentalId || !payload.allocationId || !payload.idempotencyKey || !payload.chargeIds?.length
+    || !Number.isFinite(payload.expectedApplied) || !Number.isFinite(payload.expectedRemaining)) {
+    throw new HttpError("Review the deposit and selected charges before confirming.", 400);
+  }
+  const apply = async (charges: unknown[], funding: unknown = null) => {
+    const { data, error } = await adminClient!.rpc("service_deduct_deposit_charges", {
+      p_rental_id: payload.rentalId, p_allocation_id: payload.allocationId, p_charge_ids: payload.chargeIds,
+      p_expected_applied: payload.expectedApplied, p_expected_remaining: payload.expectedRemaining,
+      p_expected_charges: charges, p_expected_allocation: funding, p_actor_id: admin.user.id, p_reason: payload.reason || "",
+      p_idempotency_key: payload.idempotencyKey,
+    });
+    if (error) throw error;
+    return data;
+  };
+  const { data: prior, error: priorError } = await adminClient!.from("rental_deposit_deductions")
+    .select("id").eq("id", payload.idempotencyKey).maybeSingle();
+  if (priorError) throw priorError;
+  if (prior) return await apply([]); // DB validates the original request, even after a later refund.
+  const { data: allocation, error: allocationError } = await adminClient!.from("rental_deposit_allocations")
+    .select("*").eq("id", payload.allocationId).eq("holder_rental_id", payload.rentalId).single();
+  if (allocationError || !allocation || !["stripe", "local"].includes(allocation.payment_provider)
+    || !["held", "refund_due_inspection"].includes(allocation.status) || allocation.refund_id
+    || allocation.refund_reserved_amount != null || Number(allocation.amount_released) !== 0) {
+    throw new Error("This deposit is unavailable or its refund has started. Refresh the rental.");
+  }
+  if (allocation.payment_provider === "stripe") {
+    if (!allocation.stripe_payment_intent_id) throw new Error("The deposit has no captured Stripe source.");
+    const captures = await stripe!.charges.list({ payment_intent: allocation.stripe_payment_intent_id, limit: 100 });
+    const available = captures.data.filter(c => c.paid && c.captured && c.currency === "usd")
+      .reduce((sum, c) => sum + c.amount - c.amount_refunded, 0);
+    const { data: fundedAllocations, error: fundingError } = await adminClient!.from("rental_deposit_allocations")
+      .select("amount_held, amount_released").eq("stripe_payment_intent_id", allocation.stripe_payment_intent_id);
+    if (fundingError) throw fundingError;
+    const protectedCents = (fundedAllocations || []).reduce((sum, a) => sum + cents(Number(a.amount_held) - Number(a.amount_released || 0)), 0);
+    if (available < Math.max(protectedCents, cents(Number(allocation.amount_held)))) throw new Error("Stripe no longer holds the recorded deposit. Reconcile refunds first.");
+    const refunds = await stripe!.refunds.list({ payment_intent: allocation.stripe_payment_intent_id, limit: 100 })
+      .autoPagingToArray({ limit: 10000 });
+    if (refunds.length >= 10000 || refunds.some(r => r.metadata?.deposit_allocation_id === allocation.id)) {
+      throw new Error("A deposit refund already exists in Stripe. Reconcile it before deducting charges.");
+    }
+  }
+  const { data: charges, error: chargeError } = await adminClient!.from("rental_charge_items")
+    .select("*").eq("rental_id", payload.rentalId).in("id", payload.chargeIds);
+  if (chargeError) throw chargeError;
+  if (!charges || charges.length !== payload.chargeIds.length) throw new Error("A selected charge no longer exists.");
+  if (charges.some(charge => charge.charge_type === "rental_amendment")) {
+    const activeAttempt = await findActiveAdminInstallment(payload.rentalId);
+    if (activeAttempt) throw new Error("Complete or cancel the open rental payment attempt before applying the deposit.");
+  }
+  for (const charge of charges) {
+    if (!["pending", "failed", "checkout_open"].includes(charge.status) || charge.included_in_initial_payment
+      || charge.charge_type === "rental_installment") throw new Error("A selected charge is no longer eligible.");
+    if (charge.admin_charge_attempted_at && !charge.stripe_payment_intent_id) {
+      throw new Error("A saved-card attempt is unresolved. Reconcile it before deducting from the deposit.");
+    }
+    if (charge.stripe_checkout_session_id) {
+      const session = await stripe!.checkout.sessions.retrieve(charge.stripe_checkout_session_id);
+      if (session.payment_status === "paid" || session.status === "complete") throw new Error("A charge payment has completed or is processing. Refresh after reconciliation.");
+      if (session.status === "open") await stripe!.checkout.sessions.expire(session.id);
+      const intentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
+      if (intentId && intentId !== charge.stripe_payment_intent_id) {
+        const intent = await stripe!.paymentIntents.retrieve(intentId);
+        if (["succeeded", "processing", "requires_capture"].includes(intent.status)) throw new Error("A charge payment is processing. Reconcile it first.");
+        if (intent.status !== "canceled") await stripe!.paymentIntents.cancel(intent.id);
+      }
+    }
+    if (charge.stripe_payment_intent_id) {
+      const intent = await stripe!.paymentIntents.retrieve(charge.stripe_payment_intent_id);
+      if (["succeeded", "processing", "requires_capture"].includes(intent.status)) throw new Error("A charge payment is processing or collected. Reconcile it first.");
+      if (intent.status !== "canceled") await stripe!.paymentIntents.cancel(intent.id);
+    }
+  }
+  // No refund or new card charge is created: only existing collateral is applied.
+  return await apply(charges, allocation);
+}
+
 async function settleDepositCharges(req: Request, payload: CheckoutPayload) {
   const admin = await requireAdmin(req, "deposit.resolve");
   await requireAdmin(req, "charge.manage");
@@ -3033,6 +3227,10 @@ async function handleApiAction(req: Request) {
     return json(await cancelBeforePickupAndRefundDeposit(req, payload));
   }
 
+  if (payload.action === "deduct_deposit_charges") {
+    return json(await deductDepositCharges(req, payload));
+  }
+
   if (payload.action === "settle_deposit_charges") {
     return json(await settleDepositCharges(req, payload));
   }
@@ -3060,6 +3258,9 @@ async function handleApiAction(req: Request) {
     return json(await waiveRentalCharge(req, payload));
   }
 
+  if (["admin_record_external_tolls", "admin_cancel_external_tolls"].includes(payload.action || "")) {
+    return json(await recordExternalTollPayment(req, payload));
+  }
   if (payload.action === "admin_record_external_charge") {
     return json(await recordExternalRentalCharge(req, payload));
   }
@@ -3068,7 +3269,7 @@ async function handleApiAction(req: Request) {
     return json(await applyAdminManualDiscount(req, payload));
   }
 
-  if (payload.action === "admin_apply_rental_amendment" || payload.action === "admin_apply_vehicle_swap" || payload.action === "admin_apply_rental_extension") {
+  if (payload.action === "admin_apply_rental_amendment" || payload.action === "admin_apply_vehicle_swap" || payload.action === "admin_apply_rental_extension" || payload.action === "admin_apply_rental_extension_revision") {
     return json(await applyAdminRentalAmendment(req, payload));
   }
 
@@ -3086,6 +3287,17 @@ async function handleApiAction(req: Request) {
 
   if (payload.action === "admin_create_extension_checkout") {
     return json(await createAdminExtensionCheckout(req, payload));
+  }
+
+  if (payload.action === "merchant_create_checkout") {
+    if (!payload.rentalId) return json({ error: "Rental id is required." }, 400);
+    const rental = await requireMerchantRental(adminClient, req, payload.rentalId);
+    const portal = (Deno.env.get("RENTMECT_CLIENT_PORTAL_URL") || "https://login.rentmect.com").replace(/\/$/, "");
+    return json(await createRentalCheckout(req, {
+      ...payload,
+      successUrl: `${portal}/?adminRental=${rental.id}&payment=stripe_success`,
+      cancelUrl: `${portal}/?merchant=carcraft`,
+    }, rental.user_id, true));
   }
 
   if (payload.action === "admin_create_checkout") {
