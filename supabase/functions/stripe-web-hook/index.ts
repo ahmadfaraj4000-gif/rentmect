@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@19.2.0";
+import { closeTollCollectionPaths } from "../_shared/external-toll-payment.js";
 import { requireMerchantRental } from "../_shared/merchant-access.ts";
 
 const corsHeaders = {
@@ -10,12 +11,13 @@ const corsHeaders = {
 };
 
 type CheckoutPayload = {
-  action?: "merchant_create_checkout" | "create_checkout" | "confirm_checkout" | "admin_create_checkout" | "admin_create_installment_checkout" | "admin_create_charge_checkout" | "admin_create_extension_checkout" | "admin_charge_saved_card" | "admin_waive_rental_charge" | "admin_record_external_charge" | "admin_apply_manual_discount" | "admin_apply_rental_amendment" | "admin_apply_vehicle_swap" | "admin_apply_rental_extension_revision" | "admin_apply_rental_extension" | "admin_record_external_balance" | "refund_rental_payment" | "cancel_before_pickup_refund_deposit" | "release_deposit" | "deduct_deposit_charges" | "settle_deposit_charges" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
+  action?: "admin_record_external_tolls" | "admin_cancel_external_tolls" | "merchant_create_checkout" | "create_checkout" | "confirm_checkout" | "admin_create_checkout" | "admin_create_installment_checkout" | "admin_create_charge_checkout" | "admin_create_extension_checkout" | "admin_charge_saved_card" | "admin_waive_rental_charge" | "admin_record_external_charge" | "admin_apply_manual_discount" | "admin_apply_rental_amendment" | "admin_apply_vehicle_swap" | "admin_apply_rental_extension_revision" | "admin_apply_rental_extension" | "admin_record_external_balance" | "refund_rental_payment" | "cancel_before_pickup_refund_deposit" | "release_deposit" | "deduct_deposit_charges" | "settle_deposit_charges" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
   targetType?: "rental" | "extension" | "charge";
   rentalId?: string;
   extensionRequestId?: string;
   chargeId?: string;
   chargeIds?: string[];
+  tollPayment?: { charges: { id: string; amountCents: number }[]; amountCents: number; paymentMethod: string; receivedDate: string; reference: string };
   allocationId?: string;
   expectedRemaining?: number;
   expectedApplied?: number;
@@ -2141,7 +2143,7 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
   if (!payload.chargeId) throw new Error("Rental charge id is required.");
   const { data: charge, error } = await adminClient!
     .from("rental_charge_items")
-    .select("id, rental_id, user_id, name, charge_type, source_type, description, total_amount, included_in_initial_payment, status, stripe_checkout_session_id")
+    .select("id, rental_id, user_id, name, charge_type, source_type, description, total_amount, included_in_initial_payment, status, stripe_checkout_session_id, external_toll_receipt_id, checkout_creation_token")
     .eq("id", payload.chargeId)
     .single();
   if (error || !charge) throw new Error(error?.message || "Rental charge not found.");
@@ -2160,6 +2162,7 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
   }
   const amountCents = cents(Number(charge.total_amount || 0));
   if (amountCents < 50) throw new Error("Charge amount is too small for Stripe Checkout.");
+  if (charge.external_toll_receipt_id) throw new Error("This toll belongs to an external payment receipt. Resume or cancel that recording first.");
   const priorChargeCheckout = await reusableCheckout(
     charge.stripe_checkout_session_id,
     "charge",
@@ -2182,6 +2185,18 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
     rental_id: charge.rental_id,
     user_id: userId,
   };
+  let tollCheckoutToken: string | null = null;
+  if (charge.charge_type === "toll") {
+    tollCheckoutToken = charge.checkout_creation_token || crypto.randomUUID();
+    if (!charge.checkout_creation_token) {
+      const { data: claimed, error: claimError } = await adminClient!.from("rental_charge_items")
+        .update({ checkout_creation_token: tollCheckoutToken })
+        .eq("id", charge.id).is("checkout_creation_token", null)
+        .in("status", ["pending", "failed", "checkout_open"]).select("id").maybeSingle();
+      if (claimError) throw claimError;
+      if (!claimed) throw new Error("Another collection started. Refresh before creating a payment link.");
+    }
+  }
   const session = await stripe!.checkout.sessions.create({
     mode: "payment",
     customer_creation: "always",
@@ -2201,10 +2216,11 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
         },
       },
     }],
-  }, { idempotencyKey: priorChargeCheckout.idempotencyKey });
+  }, { idempotencyKey: tollCheckoutToken ? `toll-checkout-${tollCheckoutToken}` : priorChargeCheckout.idempotencyKey });
   const { error: updateError } = await adminClient!
     .from("rental_charge_items")
     .update({
+      ...(tollCheckoutToken ? { checkout_creation_token: null } : {}),
       status: "checkout_open",
       payment_provider: "stripe",
       stripe_checkout_session_id: session.id,
@@ -2824,6 +2840,30 @@ async function recordExternalRentalCharge(req: Request, payload: CheckoutPayload
   return { status: "paid", charge: recorded };
 }
 
+async function recordExternalTollPayment(req: Request, payload: CheckoutPayload) {
+  const admin = await requireAdmin(req, "charge.manage");
+  if (!payload.rentalId || !payload.idempotencyKey) throw new HttpError("A rental and receipt key are required.", 400);
+  if (payload.action === "admin_cancel_external_tolls") {
+    const { data, error } = await adminClient!.rpc("service_finish_external_toll_receipt", {
+      p_id: payload.idempotencyKey, p_actor_id: admin.user.id, p_cancel: true,
+    });
+    if (error) throw error;
+    return data;
+  }
+  if (!payload.tollPayment) throw new HttpError("Review the selected tolls and received payment.", 400);
+  const { data: prepared, error: prepareError } = await adminClient!.rpc("service_prepare_external_toll_receipt", {
+    p_id: payload.idempotencyKey, p_rental_id: payload.rentalId, p_actor_id: admin.user.id, p_request: payload.tollPayment,
+  });
+  if (prepareError) throw prepareError;
+  if (prepared.status === "posted") return prepared;
+  await closeTollCollectionPaths(stripe, prepared.charges);
+  const { data, error } = await adminClient!.rpc("service_finish_external_toll_receipt", {
+    p_id: payload.idempotencyKey, p_actor_id: admin.user.id, p_cancel: false,
+  });
+  if (error) throw error;
+  return data;
+}
+
 async function confirmCheckout(req: Request, payload: CheckoutPayload) {
   const user = await getUser(req);
   if (!user?.id) throw new HttpError("You must be signed in to confirm checkout.", 401);
@@ -3218,6 +3258,9 @@ async function handleApiAction(req: Request) {
     return json(await waiveRentalCharge(req, payload));
   }
 
+  if (["admin_record_external_tolls", "admin_cancel_external_tolls"].includes(payload.action || "")) {
+    return json(await recordExternalTollPayment(req, payload));
+  }
   if (payload.action === "admin_record_external_charge") {
     return json(await recordExternalRentalCharge(req, payload));
   }

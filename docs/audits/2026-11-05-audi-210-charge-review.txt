@@ -1,0 +1,21 @@
+AUDI Q5 #210 — DANNY DANIEL MALCOLM
+Read-only charge review — November 5, 2026
+Rental ccb2c17a-b418-4d36-a8db-9be97d64c367
+
+The account has repeated charge names, but the available records do not prove duplicate billing. No charges, payments, refunds, or customer messages were changed or sent during this review.
+
+Fuel/refueling:
+- October 26, 9:23 PM Eastern: $64 fuel and $21.27 refueling service fee were added shortly after the recorded swap from Audi Q5 #474 to Q3 #100 (9:16 PM). Both were recorded as paid in cash to Michael on October 27. Total paid: $85.27.
+- October 28, 3:34 PM Eastern: another $30 fuel and $21.27 refueling service fee were added shortly before the recorded swap from Q3 #100 to Q5 #210 (3:38 PM). These remain pending. Total pending: $51.27.
+The same fee descriptions are reused, but the amounts/timestamps and adjacent vehicle swaps differ. Staff must confirm whether these were separate refueling events before a duplicate can be established or a charge waived.
+
+Insurance:
+- October 24: $853.01 (including $50.93 tax) added and recorded paid in cash to Michael.
+- November 3: $200.52 (no tax) added; recorded paid in cash to Michael on November 5.
+The rental has an extension from November 9 to November 13, but the later insurance charge does not specify a coverage period or policy identifier. It cannot be confirmed as extension coverage or as a duplicate from the charge record alone. Ask for the coverage/policy receipt before changing a paid entry.
+
+There are no TollSpot transaction rows or toll charge items associated with this current rental in the reviewed snapshot. This account review is separate from the grouped toll payment feature.
+
+Customer/staff confirmation requested: whether the October 28 fuel/refueling pair relates to a separate refueling at the swap, and whether the November 3 insurance charge is additional coverage. The user requested a text draft to relay this question; no outbound message was sent.
+
+Evidence: live vehicles, rentals, rental_vehicle_assignments, rental_charge_items, rental_audit_events, admin_audit_logs, rental_extension_requests and tollspot_transactions. Working snapshots and exact read-only SQL are retained in /tmp/rentme-toll-batch-20261105/. Recorded cash receipts are application ledger entries, not independently verified cash or bank settlements.
