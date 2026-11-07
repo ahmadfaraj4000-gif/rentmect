@@ -46,6 +46,7 @@ with tempfile.TemporaryDirectory(prefix='rentme-discount-schema-') as temp:
             'supabase/tests/discount_history_rounding.sql',
             'supabase/tests/extension_discount_safety.sql',
             'supabase/tests/rental_account_consistency.sql',
+            'supabase/tests/customer_availability.sql',
         ]:
             result = subprocess.run([str(BIN / 'psql'), *map(str, args), '-f', str(ROOT / file)],
                 text=True, capture_output=True)
