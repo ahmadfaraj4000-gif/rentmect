@@ -46,6 +46,9 @@ with tempfile.TemporaryDirectory(prefix='rentme-discount-schema-') as temp:
             'supabase/migrations/20261108010000_vehicle_mileage_and_calendar_proration.sql',
             'supabase/migrations/20261108020000_atomic_return_followup.sql',
             'supabase/migrations/20261108190000_completed_rentals_do_not_block_amendments.sql',
+            'supabase/migrations/20261108200000_unify_amendment_and_assignment_availability.sql',
+            'supabase/migrations/20261108201000_retire_unapproved_closed_extensions.sql',
+            'supabase/migrations/20261108202000_consistent_swap_vehicle_lock_order.sql',
         ]
         for file in migrations:
             run('psql', *args, '-f', ROOT / file, stdout=subprocess.DEVNULL)
@@ -65,7 +68,7 @@ with tempfile.TemporaryDirectory(prefix='rentme-discount-schema-') as temp:
           'dated_vehicle_swaps_and_pricing','discounts_and_legacy_assignments','client_extension_and_deposit_changes',
           'deposit_rental_balance_closeout','linked_continuation_accounting','vehicle_conflict_checks',
           'thirty_day_deposit_return','vehicle_deposit_source_of_truth','customer_identity_blocks',
-          'ticket_resolution','ticket_quick_lookup_flags','vehicle_mileage_returns','calendar_swap_proration','atomic_return_followup','completed_rental_amendment_conflicts']
+          'ticket_resolution','ticket_quick_lookup_flags','vehicle_mileage_returns','calendar_swap_proration','atomic_return_followup','completed_rental_amendment_conflicts','rental_availability_stale_history','closed_rental_extension_cleanup']
         for file in ['supabase/tests/'+name+'.sql' for name in tests]:
             result = subprocess.run([str(BIN / 'psql'), *map(str, args), '-f', str(ROOT / file)],
                 text=True, capture_output=True)
@@ -74,7 +77,7 @@ with tempfile.TemporaryDirectory(prefix='rentme-discount-schema-') as temp:
             print('PASS:', file)
         concurrency_env = {**os.environ, 'PG_BINDIR': str(BIN),
             'RENTMECT_TEST_DATABASE_URL': url or f'postgresql://{os.environ.get("USER", "postgres")}@127.0.0.1:{port}/postgres'}
-        for script in ['test-rental-change-concurrency.py','test-deposit-deduction-concurrency.py']:
+        for script in ['test-rental-change-concurrency.py','test-deposit-deduction-concurrency.py','test-cross-rental-availability-concurrency.py']:
             subprocess.run(['python3', str(ROOT / 'tools' / script)], cwd=ROOT,
                 env=concurrency_env, check=True)
 
