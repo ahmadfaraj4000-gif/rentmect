@@ -24,7 +24,7 @@ begin
  select rid,user_id,'Synthetic bridge toll','toll',26,false,26,'manual' from rentals where id=rid returning id into cid;
  req:=jsonb_build_object('kind','rental_payment','charges',jsonb_build_array(jsonb_build_object('id',cid,'amountCents',2600)),
  'amountCents',20000,'rentalAmountCents',17400,'expectedRentalDueCents',18900,'paymentMethod','cash_app',
- 'receivedDate',current_date-1,'receivedTime','23:00','reference','Synthetic full-schema receipt','notes','Received last night; posted today');
+ 'receivedDate',(now() at time zone 'America/New_York')::date-1,'receivedTime','23:00','reference','Synthetic full-schema receipt','notes','Received last night; posted today');
  result:=service_prepare_external_payment(k,rid,auth.uid(),req);
  assert result->>'status'='pending';
  assert admin_rental_detail(rid)->'rental'->>'pending_external_payment_id'=k::text;
