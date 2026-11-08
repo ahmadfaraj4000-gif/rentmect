@@ -1,5 +1,14 @@
 -- Isolated database only. All fixtures roll back; no payment or notification calls.
 begin;
+create or replace function pg_temp.fixture_vehicle_swap(r uuid,v uuid,t timestamptz,k text,n text,rate numeric,key uuid,rev text)
+returns jsonb language plpgsql as $$ declare old_reading integer; new_reading integer; begin
+ select greatest(coalesce(x.starting_mileage,0),coalesce(c.current_mileage,0)) into old_reading from rentals x join vehicles c on c.id=x.vehicle_id where x.id=r;
+ select coalesce(current_mileage,0) into new_reading from vehicles where id=v;
+ old_reading:=coalesce((select (request->>'outgoing_mileage')::integer from rental_vehicle_swaps where id=key),old_reading);
+ new_reading:=coalesce((select (request->>'incoming_mileage')::integer from rental_vehicle_swaps where id=key),new_reading);
+ return public.admin_apply_vehicle_swap(r,v,t,k,n,rate,key,rev,old_reading,new_reading);
+end $$;
+
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
 select set_config('request.jwt.claim.role','authenticated',true);
 create temporary table availability_results(scenario text,result text);
@@ -12,8 +21,8 @@ begin
  perform set_config('session_replication_role','replica',true);
  insert into auth.users(id) values(actor),(customer) on conflict do nothing;
  insert into profiles(id,role,staff_role,date_of_birth) values(actor,'admin','owner','1980-01-01'),(customer,'customer','customer','1980-01-01') on conflict do nothing;
- insert into vehicles(name,daily_rate,security_deposit,status,is_active) values('Availability source',64,300,'rented',true) returning id into car;
- insert into vehicles(name,daily_rate,security_deposit,status,is_active) values('Availability replacement',64,300,'available',true) returning id into replacement;
+ insert into vehicles(name,daily_rate,security_deposit,status,is_active,published) values('Availability source',64,300,'rented',true,false) returning id into car;
+ insert into vehicles(name,daily_rate,security_deposit,status,is_active,published) values('Availability replacement',64,300,'available',true,false) returning id into replacement;
  insert into rentals(user_id,vehicle_id,status,pickup_date,pickup_time,return_date,return_time,rental_total,tax_amount,security_deposit,payment_status,under_25_markup_percentage)
  values(customer,car,'active',day-2,'9:00 AM',day+1,'9:00 AM',192,12.19,300,'pending',0) returning id into rid;
  insert into rental_vehicle_assignments(rental_id,vehicle_id,assigned_from,assigned_until,source)
@@ -44,7 +53,7 @@ begin
  update rentals set pickup_time='10:00 AM' where id=other;
  perform set_config('session_replication_role','origin',true);
  blocked:=false;
- begin perform admin_apply_vehicle_swap(rid,replacement,swap_at,'emergency','Availability regression test',null,gen_random_uuid(),q->>'revision');
+ begin perform pg_temp.fixture_vehicle_swap(rid,replacement,swap_at,'emergency','Availability regression test',null,gen_random_uuid(),q->>'revision');
  exception when others then if sqlerrm not like 'Replacement vehicle conflicts%' then raise; end if; blocked:=true; end;
  if not blocked then raise exception 'Stale swap confirmation bypassed a new booking'; end if;
  insert into availability_results values('exact turnaround boundary and swap confirmation recheck','passed');

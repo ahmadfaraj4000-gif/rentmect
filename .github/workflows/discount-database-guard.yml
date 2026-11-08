@@ -1,4 +1,4 @@
-name: Discount database lifecycle
+name: Rental lifecycle regression
 on:
   pull_request:
   push:
@@ -24,8 +24,18 @@ jobs:
           python-version: '3.12'
       - name: Install database client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Verify discount, extension, receipt, deposit and permission invariants
+      - name: Verify complete schema, booking lifecycle, money invariants and concurrent requests
         env:
           RENTMECT_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
           PG_BINDIR: /usr/bin
         run: python3 tools/test-discount-full-schema.py
+
+  payment-handlers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify payment and refund handlers with fake providers
+        run: node --test tools/test-vehicle-swap-payments.mjs tools/test-rental-balance-refunds.mjs tools/external-toll-payment.test.mjs tools/unified-external-payment.test.mjs

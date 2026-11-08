@@ -1,12 +1,20 @@
 -- Isolated test database only; synthetic records and payments, rolled back.
 begin;
+create or replace function pg_temp.fixture_vehicle_swap(r uuid,v uuid,t timestamptz,k text,n text,rate numeric,key uuid,rev text)
+returns jsonb language plpgsql as $$ declare old_reading integer; new_reading integer; begin
+ select greatest(coalesce(x.starting_mileage,0),coalesce(c.current_mileage,0)) into old_reading from rentals x join vehicles c on c.id=x.vehicle_id where x.id=r;
+ select coalesce(current_mileage,0) into new_reading from vehicles where id=v;
+ old_reading:=coalesce((select (request->>'outgoing_mileage')::integer from rental_vehicle_swaps where id=key),old_reading);
+ new_reading:=coalesce((select (request->>'incoming_mileage')::integer from rental_vehicle_swaps where id=key),new_reading);
+ return public.admin_apply_vehicle_swap(r,v,t,k,n,rate,key,rev,old_reading,new_reading);
+end $$;
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
 select set_config('request.jwt.claim.role','authenticated',true);
 create temporary table admin_extension_results(scenario text,result text);
 do $test$
 declare actor uuid:='11111111-1111-4111-8111-111111111111'; customer uuid:='22222222-2222-4222-8222-222222222222';
   car uuid; replacement uuid; rid uuid; code_id uuid; key uuid; eid uuid; q jsonb; result jsonb; before_periods jsonb;
-  r public.rentals%rowtype; kind text;
+  r public.rentals%rowtype; kind text; invalid_case text; expected_error text;
   end_day date:=(now() at time zone 'America/New_York')::date+3;
 begin
   perform set_config('session_replication_role','replica',true);
@@ -14,11 +22,11 @@ begin
   insert into public.profiles(id,role,staff_role,date_of_birth)
     values(actor,'admin','owner','1980-01-01'),(customer,'customer','customer','1980-01-01') on conflict do nothing;
   perform set_config('session_replication_role','origin',true);
-  foreach kind in array array['no_swap','customer_request','emergency','maintenance'] loop
+  foreach kind in array array['no_swap','customer_request','emergency','maintenance','legacy_pre_pickup_change'] loop
     begin
       perform set_config('session_replication_role','replica',true);
-      insert into public.vehicles(name,daily_rate,security_deposit,status,is_active) values('Test Buick',49,300,'available',true) returning id into car;
-      insert into public.vehicles(name,daily_rate,security_deposit,status,is_active) values('Test Audi',69,500,'available',true) returning id into replacement;
+      insert into public.vehicles(name,daily_rate,security_deposit,status,is_active,published) values('Test Buick',49,300,'available',true,false) returning id into car;
+      insert into public.vehicles(name,daily_rate,security_deposit,status,is_active,published) values('Test Audi',69,500,'available',true,false) returning id into replacement;
       insert into public.discount_codes(code,discount_type,amount,waive_security_deposit)
         values('ADMIN-EXT-'||car,'fixed',10,false) returning id into code_id;
       insert into public.rentals(user_id,vehicle_id,pickup_date,pickup_time,return_date,return_time,status,
@@ -31,17 +39,24 @@ begin
         values(rid,car,public.rentmect_rental_timestamp(end_day-10,'9:00 AM') at time zone 'America/New_York',
           public.rentmect_rental_timestamp(end_day,'9:00 AM') at time zone 'America/New_York','initial');
       perform set_config('session_replication_role','origin',true);
-      if kind<>'no_swap' then
+      if kind='legacy_pre_pickup_change' then
+        -- A pre-pickup vehicle/time edit retained the original planned car's
+        -- two-hour assignment before the revised pickup. Keep that history.
+        insert into public.rental_vehicle_assignments(rental_id,vehicle_id,assigned_from,assigned_until,source)
+          values(rid,replacement,
+            (public.rentmect_rental_timestamp(end_day-10,'9:00 AM') at time zone 'America/New_York')-interval '2 hours',
+            public.rentmect_rental_timestamp(end_day-10,'9:00 AM') at time zone 'America/New_York','initial');
+      elsif kind<>'no_swap' then
         q:=public.admin_preview_vehicle_swap(rid,replacement,public.rentmect_rental_timestamp(end_day-4,'9:00 AM') at time zone 'America/New_York',
           kind,'Customer agreed to replacement',case when kind='customer_request' then 69 else null end);
-        perform public.admin_apply_vehicle_swap(rid,replacement,public.rentmect_rental_timestamp(end_day-4,'9:00 AM') at time zone 'America/New_York',
+        perform pg_temp.fixture_vehicle_swap(rid,replacement,public.rentmect_rental_timestamp(end_day-4,'9:00 AM') at time zone 'America/New_York',
           kind,'Customer agreed to replacement',case when kind='customer_request' then 69 else null end,gen_random_uuid(),q->>'revision');
       end if;
       before_periods:=public.rentmect_pricing_snapshot(rid);
       -- Added dates must remain subject to inventory and existing request holds.
       begin
         insert into public.vehicle_availability_blocks(vehicle_id,start_date,end_date,start_time,end_time,block_type,active)
-          values(case when kind='no_swap' then car else replacement end,end_day+1,end_day+3,'9:00 AM','9:00 AM','maintenance',true);
+          values(case when kind in ('no_swap','legacy_pre_pickup_change') then car else replacement end,end_day+1,end_day+3,'9:00 AM','9:00 AM','maintenance',true);
         begin
           perform public.admin_preview_rental_extension(rid,end_day+4,'9:00 AM',49,'Customer agreed to four added days');
           raise exception 'FAILED calendar conflict protection';
@@ -86,6 +101,12 @@ begin
       if (result->>'balance_due')::numeric<>(case when kind='customer_request' then 241.41 else 156.33 end) then raise exception 'Extension payment erased previous debt: %',result; end if;
       set constraints all immediate;
       set constraints all deferred;
+      if kind='legacy_pre_pickup_change' then
+        if not exists(select 1 from public.rental_vehicle_assignments where rental_id=rid and vehicle_id=replacement
+          and assigned_from=(public.rentmect_rental_timestamp(end_day-10,'9:00 AM') at time zone 'America/New_York')-interval '2 hours'
+          and assigned_until=(public.rentmect_rental_timestamp(end_day-10,'9:00 AM') at time zone 'America/New_York')) then
+          raise exception 'Extension rewrote the pre-pickup assignment history'; end if;
+      end if;
       -- A second extension appends to the first and can use the fleet rate.
       q:=public.admin_preview_rental_extension(rid,end_day+5,'10:00 AM',69,'Customer agreed to another extension');
       if (q->>'extension_days')::integer<>2 or (q->>'extension_total')::numeric<>146.76 then raise exception 'Partial-day extension cutoff is wrong'; end if;
@@ -93,6 +114,35 @@ begin
       if (select sum(billing_units) from public.rental_pricing_periods where rental_id=rid)<>16 then raise exception 'Repeated extension lost billing units'; end if;
       set constraints all immediate;
       set constraints all deferred;
+      if kind='legacy_pre_pickup_change' then
+        -- Allowing an earlier start must not weaken actual trip coverage or
+        -- permit a gap, overlap, incorrect return, or changed pricing start.
+        foreach invalid_case in array array['missing','late_start','early_return','late_return','gap','overlap','pricing_start'] loop
+          expected_error:=case when invalid_case in ('gap','overlap') then 'Vehicle assignments must have no gaps or overlaps.'
+            when invalid_case='pricing_start' then 'Pricing periods must cover the original rental through its booked return.'
+            else 'Vehicle assignments must cover the original rental through its return.' end;
+          begin
+            case invalid_case
+              when 'missing' then delete from public.rental_vehicle_assignments where rental_id=rid;
+              when 'late_start' then
+                delete from public.rental_vehicle_assignments where rental_id=rid and vehicle_id=replacement;
+                update public.rental_vehicle_assignments set assigned_from=assigned_from+interval '1 second' where rental_id=rid;
+              when 'early_return' then
+                update public.rental_vehicle_assignments set assigned_until=assigned_until-interval '1 second' where rental_id=rid and vehicle_id=car;
+              when 'late_return' then
+                update public.rental_vehicle_assignments set assigned_until=assigned_until+interval '1 second' where rental_id=rid and vehicle_id=car;
+              when 'gap' then
+                update public.rental_vehicle_assignments set assigned_from=assigned_from+interval '1 second' where rental_id=rid and vehicle_id=car;
+              when 'overlap' then
+                update public.rental_vehicle_assignments set assigned_from=assigned_from-interval '1 second' where rental_id=rid and vehicle_id=car;
+              when 'pricing_start' then
+                update public.rental_pricing_periods set starts_at=starts_at-interval '1 second' where rental_id=rid and source='booking_snapshot';
+            end case;
+            set constraints all immediate;
+            raise exception 'FAILED coverage protection: %',invalid_case;
+          exception when others then if sqlerrm<>expected_error then raise; end if; end;
+        end loop;
+      end if;
       perform set_config('request.jwt.claim.sub',customer::text,true);
       begin
         perform public.admin_preview_rental_extension(rid,end_day+8,'9:00 AM',49,'Unauthorized extension attempt');

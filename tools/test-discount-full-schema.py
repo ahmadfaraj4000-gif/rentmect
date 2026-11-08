@@ -41,18 +41,41 @@ with tempfile.TemporaryDirectory(prefix='rentme-discount-schema-') as temp:
         schema = gzip.decompress((ROOT / 'supabase/tests/fixtures/discount_full_schema.sql.gz').read_bytes()).decode()
         run('psql', *args, input="create role anon; create role authenticated; create role service_role; create role supabase_auth_admin; create role supabase_storage_admin; create role authenticator; create role dashboard_user; create role supabase_admin; do $$begin if not exists(select 1 from pg_roles where rolname='postgres') then create role postgres; end if; end $$;" + schema,
             text=True, stdout=subprocess.DEVNULL)
-        for file in [
+        migrations = [
             'supabase/migrations/20261107230000_discount_history_rounding.sql',
-            'supabase/tests/discount_history_rounding.sql',
-            'supabase/tests/extension_discount_safety.sql',
-            'supabase/tests/rental_account_consistency.sql',
-            'supabase/tests/customer_availability.sql',
-        ]:
+            'supabase/migrations/20261108010000_vehicle_mileage_and_calendar_proration.sql',
+        ]
+        for file in migrations:
+            run('psql', *args, '-f', ROOT / file, stdout=subprocess.DEVNULL)
+        # Configuration rows are part of the disposable fixture, never copied from customers.
+        run('psql', *args, input="""begin; set local session_replication_role='replica';
+          insert into auth.users(id) values('11111111-1111-4111-8111-111111111111');
+          insert into profiles(id,role,staff_role,date_of_birth) values('11111111-1111-4111-8111-111111111111','admin','owner','1980-01-01');
+          insert into billing_automation_settings(id) values(true);
+          insert into under_25_pricing_settings(id) values(true);
+          insert into vehicles(id,name,daily_rate,security_deposit,status,published) values('00000000-0000-4000-8000-000000000015','Synthetic preview',59,350,'available',false);
+          insert into storage.buckets(id,name,public) values('ticket-evidence','ticket-evidence',false);
+          insert into employee_permissions(permission_key,label,category,description,enabled) values
+           ('tab.tickets','View tickets','Visible tabs','Synthetic fixture',false),('ticket.manage','Manage tickets','Rentals','Synthetic fixture',false);
+          commit;""", text=True, stdout=subprocess.DEVNULL)
+        tests = ['discount_history_rounding','extension_discount_safety','rental_account_consistency',
+          'customer_availability','unified_external_payments_full_schema','admin_direct_rental_extensions',
+          'dated_vehicle_swaps_and_pricing','discounts_and_legacy_assignments','client_extension_and_deposit_changes',
+          'deposit_rental_balance_closeout','linked_continuation_accounting','vehicle_conflict_checks',
+          'thirty_day_deposit_return','vehicle_deposit_source_of_truth','customer_identity_blocks',
+          'ticket_resolution','ticket_quick_lookup_flags','vehicle_mileage_returns','calendar_swap_proration']
+        for file in ['supabase/tests/'+name+'.sql' for name in tests]:
             result = subprocess.run([str(BIN / 'psql'), *map(str, args), '-f', str(ROOT / file)],
                 text=True, capture_output=True)
             if result.returncode:
                 raise RuntimeError(file + '\n' + result.stdout + '\n' + result.stderr)
             print('PASS:', file)
+        concurrency_env = {**os.environ, 'PG_BINDIR': str(BIN),
+            'RENTMECT_TEST_DATABASE_URL': url or f'postgresql://{os.environ.get("USER", "postgres")}@127.0.0.1:{port}/postgres'}
+        for script in ['test-rental-change-concurrency.py','test-deposit-deduction-concurrency.py']:
+            subprocess.run(['python3', str(ROOT / 'tools' / script)], cwd=ROOT,
+                env=concurrency_env, check=True)
+
     finally:
         if started:
             run('pg_ctl', '-D', path / 'data', '-m', 'fast', 'stop', stdout=subprocess.DEVNULL)
