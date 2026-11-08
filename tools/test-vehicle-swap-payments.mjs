@@ -2,14 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { stripTypeScriptTypes } from 'node:module';
 
 // Run the real Edge handler against fake providers; no Stripe/network calls.
 const source = readFileSync(new URL('../supabase/functions/stripe-web-hook/index.ts', import.meta.url), 'utf8');
-const handler = source.slice(source.indexOf('async function applyAdminRentalAmendment('), source.indexOf('async function applyAdminManualDiscount('))
-  .replace('req: Request, payload: CheckoutPayload', 'req, payload')
-  .replaceAll(': string | null | undefined', '')
-  .replaceAll('adminClient!', 'adminClient').replaceAll('stripe!', 'stripe').replaceAll('lateFeeCharges!', 'lateFeeCharges');
-function fixture({ stale = false, duplicate = false, extension = false } = {}) {
+const handler = stripTypeScriptTypes(source.slice(source.indexOf('async function retireRentalPaymentAttempts('), source.indexOf('async function applyAdminManualDiscount(')));
+function fixture({ stale = false, duplicate = false, extension = false, mileage = { outgoingMileage: 104300, incomingMileage: 70000 } } = {}) {
   const calls = [];
   const charge = { id: 'balance', charge_type: 'rental_amendment', status: 'checkout_open', stripe_checkout_session_id: 'cs_open', stripe_payment_intent_id: null };
   const late = { id: 'late', status: 'pending', total_amount: 35, description: 'Existing late fee', stripe_checkout_session_id: 'cs_late' };
@@ -38,7 +36,7 @@ function fixture({ stale = false, duplicate = false, extension = false } = {}) {
     stripe:{checkout:{sessions:{retrieve:async(id)=>({id,status:'open',payment_status:'unpaid'}),expire:async(id)=>{calls.push({expire:id});}}}},
   });
   vm.runInContext(handler,context);
-  return {calls,run:()=>context.applyAdminRentalAmendment({}, {action:extension ? 'admin_apply_rental_extension' : 'admin_apply_vehicle_swap',rentalId:'rental',vehicleId:'audi',
+  return {calls,run:()=>context.applyAdminRentalAmendment({}, {action:extension ? 'admin_apply_rental_extension' : 'admin_apply_vehicle_swap',rentalId:'rental',vehicleId:'audi',...mileage,
     returnDate:'2026-10-08',returnTime:'9:00 AM',
     effectiveAt:'2026-09-23T13:00:00Z',swapKind:'emergency',dailyRate:null,reason:'Emergency replacement agreed',idempotencyKey:'key',expectedRevision:'reviewed',waiveLateFees:true})};
 }
@@ -82,4 +80,19 @@ test('retry returns the committed swap without resetting or expiring payment lin
   const f=fixture({duplicate:true});const result=await f.run();
   assert.equal(result.idempotent_replay,true);
   assert.equal(f.calls.some(c=>c.write||c.expire||c.rpc==='admin_preview_vehicle_swap'),false);
+});
+
+test('swap preview and commit use the same verified odometer readings', async () => {
+  const f=fixture(); await f.run();
+  for (const name of ['admin_preview_vehicle_swap','admin_apply_vehicle_swap']) {
+    const args=f.calls.find(c=>c.rpc===name).args;
+    assert.equal(args.p_outgoing_mileage,104300);
+    assert.equal(args.p_incoming_mileage,70000);
+  }
+});
+test('invalid or missing odometer readings cannot retire a payment link', async () => {
+  for (const mileage of [{},{outgoingMileage:10.5,incomingMileage:20},{outgoingMileage:10,incomingMileage:-1},{outgoingMileage:10,incomingMileage:10000000}]) {
+    const f=fixture({mileage}); await assert.rejects(f.run(),/odometer/i);
+    assert.equal(f.calls.some(c=>c.expire||c.write||c.rpc),false);
+  }
 });

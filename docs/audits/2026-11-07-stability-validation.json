@@ -1,0 +1,34 @@
+{
+  "status": "implemented_locally_pending_ci_and_release",
+  "baseline": {
+    "backend": "c48fe0b526de0daea96e746f2acd399d6a7b4fa0",
+    "live_payment_handler_sha256": "ebf185781e579a707a314dc3fbfa609931ca42535c5c54eabfb3a1946521505d",
+    "live_payment_handler_matches_workspace_before_repair": true,
+    "production_postgres": "17.6"
+  },
+  "repairs": [
+    "Vehicle assignment odometers and cumulative distance with unknown history preserved",
+    "Audited return mileage override including later transaction updates",
+    "Eastern calendar swap proration across DST",
+    "Payment notes and allocation row visibility",
+    "Bounded concurrent rental detail batches",
+    "Normal return no longer applies default customer review flag"
+  ],
+  "validation": {
+    "full_schema_sql_suites": 19,
+    "concurrency_and_cross_transaction_scenarios": 7,
+    "payment_handler_tests": 38,
+    "admin_tests": 371,
+    "browser_ledger": {
+      "synthetic_transactions": 47,
+      "references_notes_expanded_allocations": "visible"
+    }
+  },
+  "limits": [
+    "Historical refunds and suspected duplicate receipt allocations require provider evidence; no financial corrections inferred",
+    "Two closed discount histories remain protected pending source reconciliation",
+    "Recovered 151 migration records privately; one has no SQL; migration history is not claimed fully replayable",
+    "Provider interactions are mocked; no real customer payment was initiated for testing",
+    "Production deployment and post-release timing checks pending"
+  ]
+}
