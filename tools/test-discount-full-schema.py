@@ -44,6 +44,7 @@ with tempfile.TemporaryDirectory(prefix='rentme-discount-schema-') as temp:
         migrations = [
             'supabase/migrations/20261107230000_discount_history_rounding.sql',
             'supabase/migrations/20261108010000_vehicle_mileage_and_calendar_proration.sql',
+            'supabase/migrations/20261108020000_atomic_return_followup.sql',
         ]
         for file in migrations:
             run('psql', *args, '-f', ROOT / file, stdout=subprocess.DEVNULL)
@@ -63,7 +64,7 @@ with tempfile.TemporaryDirectory(prefix='rentme-discount-schema-') as temp:
           'dated_vehicle_swaps_and_pricing','discounts_and_legacy_assignments','client_extension_and_deposit_changes',
           'deposit_rental_balance_closeout','linked_continuation_accounting','vehicle_conflict_checks',
           'thirty_day_deposit_return','vehicle_deposit_source_of_truth','customer_identity_blocks',
-          'ticket_resolution','ticket_quick_lookup_flags','vehicle_mileage_returns','calendar_swap_proration']
+          'ticket_resolution','ticket_quick_lookup_flags','vehicle_mileage_returns','calendar_swap_proration','atomic_return_followup']
         for file in ['supabase/tests/'+name+'.sql' for name in tests]:
             result = subprocess.run([str(BIN / 'psql'), *map(str, args), '-f', str(ROOT / file)],
                 text=True, capture_output=True)
