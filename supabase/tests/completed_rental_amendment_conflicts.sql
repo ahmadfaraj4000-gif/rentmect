@@ -32,13 +32,14 @@ begin
   -- The same overlapping dates still block every open rental state.
   foreach blocker_status in array array['pending','documents_needed','approved','active','overdue','return_initiated'] loop
     perform set_config('session_replication_role','replica',true);
-    update rentals set status=blocker_status where id=prior;
+    update rentals set status=blocker_status,inspection_completed_at=null where id=prior;
     perform set_config('session_replication_role','origin',true);
     begin
       perform admin_preview_rental_amendment(rid,car,day,'2:30 PM',day+2,'5:00 PM',74,300);
       raise exception 'Open rental conflict was accepted: %',blocker_status;
     exception when others then
-      if sqlerrm <> 'Vehicle schedule conflict: another rental or its three-hour turnaround occupies this time.' then raise; end if;
+      if sqlerrm <> 'Vehicle schedule conflict: another rental or its three-hour turnaround occupies this time.'
+        and sqlerrm <> 'Vehicle schedule conflict: awaiting physical return and inspection.' then raise; end if;
     end;
   end loop;
 
@@ -78,7 +79,7 @@ begin
   perform set_config('session_replication_role','origin',true);
   perform admin_preview_rental_amendment(rid,car,day,'2:30 PM',day+2,'5:00 PM',74,300);
   perform set_config('session_replication_role','replica',true);
-  update rentals set status='completed' where id=prior;
+  update rentals set status='completed',inspection_completed_at=now() where id=prior;
   perform set_config('session_replication_role','origin',true);
   insert into vehicle_availability_blocks(vehicle_id,start_date,end_date,start_time,end_time,label)
     values(car,day+1,day+2,'9:00 AM','9:00 AM','Synthetic amendment block') returning id into block_id;
