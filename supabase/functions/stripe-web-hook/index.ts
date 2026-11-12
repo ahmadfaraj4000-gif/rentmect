@@ -2981,6 +2981,7 @@ async function allocatedStripePayment(req: Request, payload: CheckoutPayload) {
   await closeTollCollectionPaths(stripe,prepared.charges);
   const metadata={target_type:'allocated_payment',receipt_id:id,rental_id:rental.id,user_id:rental.user_id};
   let sessionId=existing?.stripe_checkout_session_id || null, intentId=existing?.stripe_payment_intent_id || null;
+  let createdSession: Stripe.Checkout.Session | null = null;
   if(!sessionId&&!intentId){
     if(request.collectionMode==='saved_card'){
       const intent=await stripe!.paymentIntents.create({amount:request.amountCents,currency:'usd',customer:card!.customer,payment_method:card!.method,metadata,description:'Rent Me CT — allocated rental payment'}, {idempotencyKey:`allocated-intent-${id}`});
@@ -2989,12 +2990,16 @@ async function allocatedStripePayment(req: Request, payload: CheckoutPayload) {
       const {successUrl,cancelUrl}=checkoutUrls(req,payload);
       const session=await stripe!.checkout.sessions.create({mode:'payment',customer_creation:'always',success_url:successUrl,cancel_url:cancelUrl,client_reference_id:id,metadata,payment_intent_data:{metadata,setup_future_usage:'off_session'},line_items:[{quantity:1,price_data:{currency:'usd',unit_amount:request.amountCents,product_data:{name:'Rent Me CT — rental payment',description:`Rental $${(request.rentalAmountCents/100).toFixed(2)}; security deposit $${((request.depositAmountCents||0)/100).toFixed(2)}; selected additional charges $${((request.amountCents-request.rentalAmountCents-(request.depositAmountCents||0)-request.creditAmountCents)/100).toFixed(2)}; customer credit $${(request.creditAmountCents/100).toFixed(2)}.`}}}]},{idempotencyKey:`allocated-checkout-${id}`});
       sessionId=session.id;
+      createdSession=session;
     }
-    const {error}=await adminClient!.rpc('service_bind_allocated_stripe',{p_id:id,p_session:sessionId,p_intent:intentId});
+    const {data:bound,error}=await adminClient!.rpc('service_bind_allocated_stripe',{p_id:id,p_session:sessionId,p_intent:intentId,p_url:createdSession?.url || null});
     if(error){if(sessionId)await stripe!.checkout.sessions.expire(sessionId);if(intentId)await stripe!.paymentIntents.cancel(intentId);throw error;}
+    // Creation already returns the checkout state and URL. Persist both before
+    // exposing the link; existing attempts still retrieve fresh Stripe status.
+    if(createdSession?.status==='open' && createdSession.payment_status==='unpaid' && createdSession.url && !cancel) return {...bound,url:createdSession.url};
   }
   if(sessionId){
-    let session=await stripe!.checkout.sessions.retrieve(sessionId);
+    let session=createdSession || await stripe!.checkout.sessions.retrieve(sessionId);
     const pi=typeof session.payment_intent==='string'?session.payment_intent:session.payment_intent?.id||'';
     if(session.payment_status==='paid')return await confirmAllocatedStripe(id,session.id,pi,session.amount_total||0,session.currency||'usd');
     if(cancel || session.status==='expired'){
