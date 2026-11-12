@@ -2921,6 +2921,10 @@ async function confirmAllocatedStripe(receiptId: string, sessionId: string | nul
     p_id: receiptId, p_session: sessionId, p_intent: intentId, p_amount: amount, p_currency: currency,
   });
   if (error) throw error;
+  const {error: recoveryError}=await adminClient!.from('stripe_reconciliation_issues')
+    .update({status:'resolved',resolved_at:new Date().toISOString(),error_message:null})
+    .eq('dedupe_key',`allocated-receipt:${receiptId}`).in('status',['open','processing']);
+  if(recoveryError)throw recoveryError;
   return data;
 }
 async function allocatedSavedCard(rentalId: string, userId: string) {
