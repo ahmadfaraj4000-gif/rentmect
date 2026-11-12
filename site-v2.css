@@ -1215,15 +1215,20 @@
     position: absolute;
     display: none;
     width: auto;
-    top: 68px;
-    left: 12px;
-    right: 12px;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: calc(100vh - var(--mobile-nav-top, 68px));
+    max-height: calc(100dvh - var(--mobile-nav-top, 68px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: 0;
     gap: 4px;
-    padding: 12px;
-    border: 1px solid var(--v2-line);
-    border-radius: 12px;
+    padding: 8px max(4%, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(4%, env(safe-area-inset-left));
+    border: 0;
+    border-radius: 0;
     background: #fff;
-    box-shadow: var(--v2-shadow);
+    box-shadow: 0 12px 20px rgb(24 32 22 / 14%);
   }
 
   .site-v2 .site-header nav.open {
@@ -1234,6 +1239,29 @@
 
   .site-v2 .site-header nav > a {
     width: 100%;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: normal;
+  }
+
+  .site-v2 .site-header nav > a:not(.nav-cta) {
+    padding: 12px;
+    border-radius: 0;
+  }
+
+  .site-v2 .site-header nav > a[aria-current="page"]:not(.nav-cta) {
+    color: var(--v2-olive-dark);
+    background: var(--v2-olive-soft);
+  }
+
+  .site-v2 .site-header nav > .nav-cta {
+    justify-content: center;
+    margin-top: 12px;
+    padding: 12px;
   }
 
   .site-v2 .hero,
