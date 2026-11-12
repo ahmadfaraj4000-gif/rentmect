@@ -16,6 +16,7 @@ do $$ declare rid uuid; cid uuid; result jsonb; rows jsonb; req jsonb; receipt u
  (select jsonb_agg(c) from rental_charge_items c where id=cid),(select jsonb_agg(a) from rental_deposit_allocations a where holder_rental_id=rid));
  assert result->>'applied'='300' or (result->>'applied')::numeric=300;
  perform set_config('request.jwt.claim.role','authenticated',true);
+ perform set_config('role','authenticated',true);
  rows:=admin_rental_list('needs_action','',0,25,null);
  assert exists(select 1 from jsonb_array_elements(rows->'rows') x where x->>'id'=rid::text and (x->>'returned_balance_due')::numeric=145),rows::text;
  assert (rows->'counts'->>'needs_action')::integer=1;
@@ -23,6 +24,7 @@ do $$ declare rid uuid; cid uuid; result jsonb; rows jsonb; req jsonb; receipt u
  assert not exists(select 1 from jsonb_array_elements(rows->'rows') x where x->>'id'=rid::text);
  rows:=admin_rental_list('archive','',0,5,null);
  assert not exists(select 1 from jsonb_array_elements(rows->'rows') x where x->>'id'=rid::text);
+ perform set_config('role','none',true);
  -- Collect the remaining balance through the normal payment ledger.
  perform set_config('request.jwt.claim.role','service_role',true);
  req:=jsonb_build_object('version',2,'kind','rental_payment','funding','external','amountCents',14500,'rentalAmountCents',0,
