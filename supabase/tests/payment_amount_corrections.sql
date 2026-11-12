@@ -61,6 +61,27 @@ begin
   raise exception 'Customer corrected payment';
  exception when others then if sqlerrm not like '%Staff access%' then raise;end if;end;
  perform set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
+ -- A production-era v1 combined receipt can be corrected without changing history on preview.
+ perform set_config('request.jwt.claim.role','service_role',true);
+ rid:=pg_temp.account_fixture(0,0);receipt:=gen_random_uuid();
+ insert into rental_charge_items(rental_id,user_id,name,charge_type,amount,taxable,total_amount,source_type)
+ select rid,user_id,'Legacy combined toll','toll',26,false,26,'manual' from rentals where id=rid returning id into cid;
+ req:=jsonb_build_object('kind','rental_payment','charges',jsonb_build_array(jsonb_build_object('id',cid,'amountCents',2600)),
+  'amountCents',53967,'rentalAmountCents',51367,'expectedRentalDueCents',51367,'paymentMethod','cash','receivedDate',current_date-1);
+ perform service_prepare_external_payment(receipt,rid,auth.uid(),req);perform service_finish_external_payment(receipt,auth.uid());
+ assert (select allocation_version=1 from external_payment_receipts where id=receipt);
+ perform set_config('request.jwt.claim.role','authenticated',true);
+ req:=jsonb_build_object('expectedAmountCents',53967,'amountCents',52000,'paymentMethod','cash','receivedDate',current_date-1,'reason','Correct legacy grouped receipt');key:=gen_random_uuid();
+ preview:=admin_correct_payment_amount('receipt',receipt,req,key);
+ assert (select allocation_version=1 from external_payment_receipts where id=receipt);
+ result:=admin_correct_payment_amount('receipt',receipt,req,key,preview->>'reviewToken');
+ assert (select allocation_version=2 and amount_cents=52000 from external_payment_receipts where id=receipt);
+ assert (select allocation_managed and allocated_payment_cents=633 and total_amount=26 and payment_receipt_id is null and status='pending' from rental_charge_items where id=cid);
+ assert rentmect_rental_net_paid_amount(rid)=513.67;
+ assert (select sum(amount_cents)=52000 from external_payment_allocations where receipt_id=receipt);
+ assert (select count(*)=1 from rental_charge_items where flex_payment_receipt_id=receipt);
+ assert admin_correct_payment_amount('receipt',receipt,req,key,preview->>'reviewToken')=result;
+ set constraints all immediate;set constraints all deferred;
  raise notice 'PASS: correction preview, confirmation, idempotency, original invoices, deposit preservation, partial charges and credit reductions';
 end $$;
 rollback;
