@@ -62,4 +62,4 @@ jobs:
         with:
           node-version: '24'
       - name: Verify payment and refund handlers with fake providers
-        run: node --test tools/allocated-stripe-payment.test.mjs tools/allocated-payment-message.test.mjs tools/test-vehicle-swap-payments.mjs tools/test-rental-balance-refunds.mjs tools/external-toll-payment.test.mjs tools/unified-external-payment.test.mjs tools/flexible-stripe-remainder.test.mjs tools/test-customer-installment-checkout.mjs
+        run: node --test tools/deposit-review-handler.test.mjs tools/allocated-stripe-payment.test.mjs tools/allocated-payment-message.test.mjs tools/test-vehicle-swap-payments.mjs tools/test-rental-balance-refunds.mjs tools/external-toll-payment.test.mjs tools/unified-external-payment.test.mjs tools/flexible-stripe-remainder.test.mjs tools/test-customer-installment-checkout.mjs
