@@ -1,3 +1,4 @@
+import { chargeCollectionCents } from '../_shared/charge-collection-amount.js';
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@19.2.0";
@@ -2152,7 +2153,7 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
   if (!payload.chargeId) throw new Error("Rental charge id is required.");
   const { data: charge, error } = await adminClient!
     .from("rental_charge_items")
-    .select("id, rental_id, user_id, name, charge_type, source_type, description, total_amount, included_in_initial_payment, status, stripe_checkout_session_id, external_toll_receipt_id, checkout_creation_token")
+    .select("id, rental_id, user_id, name, charge_type, source_type, description, total_amount, allocation_managed, allocated_payment_cents, allocated_deposit_cents, allocated_waiver_cents, included_in_initial_payment, status, stripe_payment_intent_id, admin_charge_attempted_at, stripe_checkout_session_id, external_toll_receipt_id, checkout_creation_token")
     .eq("id", payload.chargeId)
     .single();
   if (error || !charge) throw new Error(error?.message || "Rental charge not found.");
@@ -2169,11 +2170,29 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
       throw new Error("An administrator-started Stripe installment is already open for this rental. Complete or cancel that checkout before paying another balance.");
     }
   }
-  const amountCents = cents(Number(charge.total_amount || 0));
+  const amountCents = chargeCollectionCents(charge);
   if (amountCents < 50) throw new Error("Charge amount is too small for Stripe Checkout.");
   if (charge.external_toll_receipt_id) throw new Error("This toll belongs to an external payment receipt. Resume or cancel that recording first.");
+  if (charge.admin_charge_attempted_at && !charge.stripe_payment_intent_id) throw new Error("A saved-card payment is starting. Resume it before opening checkout.");
+  if (charge.stripe_payment_intent_id) {
+    let postedIntent = false;
+    if (charge.allocation_managed) {
+      const { data, error } = await adminClient!.from("external_payment_receipts").select("id")
+        .eq("stripe_payment_intent_id", charge.stripe_payment_intent_id).eq("status", "posted").maybeSingle();
+      if (error) throw error;
+      postedIntent = Boolean(data);
+    }
+    if (!postedIntent) await closeTollCollectionPaths(stripe!, [{ stripe_payment_intent_id: charge.stripe_payment_intent_id }]);
+  }
+  let priorSessionId = charge.stripe_checkout_session_id;
+  if (charge.allocation_managed && priorSessionId) {
+    const { data: posted, error: receiptError } = await adminClient!.from("external_payment_receipts")
+      .select("id").eq("stripe_checkout_session_id", priorSessionId).eq("status", "posted").maybeSingle();
+    if (receiptError) throw receiptError;
+    if (posted) priorSessionId = null; // Prior Stripe funds remain posted after an external portion was refunded.
+  }
   const priorChargeCheckout = await reusableCheckout(
-    charge.stripe_checkout_session_id,
+    priorSessionId,
     "charge",
     charge.id,
     amountCents,
@@ -2200,7 +2219,7 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
     if (!charge.checkout_creation_token) {
       const { data: claimed, error: claimError } = await adminClient!.from("rental_charge_items")
         .update({ checkout_creation_token: chargeCheckoutToken })
-        .eq("id", charge.id).is("checkout_creation_token", null)
+        .eq("id", charge.id).eq("allocated_payment_cents", charge.allocated_payment_cents).eq("allocated_deposit_cents", charge.allocated_deposit_cents).eq("allocated_waiver_cents", charge.allocated_waiver_cents).is("checkout_creation_token", null)
         .in("status", ["pending", "failed", "checkout_open"]).select("id").maybeSingle();
       if (claimError) throw claimError;
       if (!claimed) throw new Error("Another collection started. Refresh before creating a payment link.");
@@ -2231,8 +2250,9 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
     .update({
       ...(chargeCheckoutToken ? { checkout_creation_token: null } : {}),
       status: "checkout_open",
-      payment_provider: "stripe",
+      payment_provider: Number(charge.allocated_deposit_cents || 0) > 0 ? "deposit" : "stripe",
       stripe_checkout_session_id: session.id,
+      stripe_payment_intent_id: null,
       payment_amount_cents: amountCents,
       payment_currency: "usd",
       updated_at: new Date().toISOString(),
@@ -2373,7 +2393,7 @@ async function recordAdminSavedCardCharge(
   paymentIntent: Stripe.PaymentIntent,
   admin: { user: { id: string; email?: string | null }; profile: { email?: string | null } },
 ) {
-  const amountCents = cents(Number(charge.total_amount || 0));
+  const amountCents = paymentIntent.amount_received;
   const { data, error } = await adminClient!.rpc("record_stripe_rental_charge_payment", {
     p_charge_id: charge.id,
     p_checkout_session_id: `off_session:${paymentIntent.id}`,
@@ -2419,7 +2439,7 @@ async function chargeSavedCard(req: Request, payload: CheckoutPayload) {
   assertPaymentCreationEnabled();
   const { data: charge, error: chargeError } = await adminClient!
     .from("rental_charge_items")
-    .select("id, rental_id, user_id, name, total_amount, included_in_initial_payment, status, stripe_customer_id, stripe_checkout_session_id, stripe_payment_intent_id, admin_charge_attempts")
+    .select("id, rental_id, user_id, name, total_amount, allocation_managed, allocated_payment_cents, allocated_deposit_cents, allocated_waiver_cents, included_in_initial_payment, status, stripe_customer_id, stripe_checkout_session_id, stripe_payment_intent_id, admin_charge_attempts, admin_charge_attempted_at, checkout_creation_token")
     .eq("id", payload.chargeId)
     .single();
   if (chargeError || !charge) throw new Error(chargeError?.message || "Rental charge not found.");
@@ -2429,9 +2449,17 @@ async function chargeSavedCard(req: Request, payload: CheckoutPayload) {
   }
   if (charge.status === "waived") throw new Error("A waived charge cannot be collected.");
 
-  // Recover safely if Stripe succeeded but the prior request stopped before the
-  // database ledger was updated.
-  if (charge.stripe_payment_intent_id) {
+  if (charge.checkout_creation_token || (charge.admin_charge_attempted_at && !charge.stripe_payment_intent_id)) return {status:"processing", reason:"A payment is already starting. Resume that collection first."};
+  // Posted Stripe funds must not be re-applied after another funding source was refunded.
+  let previouslyPosted = false;
+  if (charge.allocation_managed && charge.stripe_payment_intent_id) {
+    const { data: receipt, error: receiptError } = await adminClient!.from("external_payment_receipts")
+      .select("id").eq("stripe_payment_intent_id", charge.stripe_payment_intent_id).eq("status", "posted").maybeSingle();
+    if (receiptError) throw receiptError;
+    previouslyPosted = Boolean(receipt);
+  }
+  // Recover safely if Stripe succeeded but the ledger write was interrupted.
+  if (charge.stripe_payment_intent_id && !previouslyPosted) {
     const existingIntent = await stripe!.paymentIntents.retrieve(charge.stripe_payment_intent_id);
     if (existingIntent.status === "succeeded") {
       const recorded = await recordAdminSavedCardCharge(charge, existingIntent, admin);
@@ -2440,11 +2468,12 @@ async function chargeSavedCard(req: Request, payload: CheckoutPayload) {
     if (["processing", "requires_capture"].includes(existingIntent.status)) {
       return { status: "processing", paymentIntentId: existingIntent.id };
     }
+    if (existingIntent.status !== "canceled") await stripe!.paymentIntents.cancel(existingIntent.id);
   }
 
   // Close any customer Checkout session before attempting the saved card, so
   // the same charge cannot be paid through both paths.
-  if (charge.stripe_checkout_session_id?.startsWith("cs_")) {
+  if (charge.stripe_checkout_session_id?.startsWith("cs_") && !previouslyPosted) {
     const checkout = await stripe!.checkout.sessions.retrieve(charge.stripe_checkout_session_id);
     if (checkout.payment_status === "paid" || checkout.status === "complete") {
       return { status: "processing", reason: "The customer Checkout payment is already being confirmed." };
@@ -2523,12 +2552,18 @@ async function chargeSavedCard(req: Request, payload: CheckoutPayload) {
     .update({
       status: "checkout_open",
       admin_charge_attempts: nextAttempt,
+      stripe_payment_intent_id: null,
+      stripe_checkout_session_id: null,
       admin_charge_attempted_at: new Date().toISOString(),
       last_admin_charge_error: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", charge.id)
     .eq("admin_charge_attempts", currentAttempt)
+    .eq("allocated_payment_cents", charge.allocated_payment_cents)
+    .eq("allocated_deposit_cents", charge.allocated_deposit_cents)
+    .eq("allocated_waiver_cents", charge.allocated_waiver_cents)
+    .is("checkout_creation_token", null)
     .in("status", ["pending", "failed", "checkout_open"])
     .select("id")
     .maybeSingle();
@@ -2540,7 +2575,7 @@ async function chargeSavedCard(req: Request, payload: CheckoutPayload) {
     .select("email")
     .eq("id", charge.user_id)
     .maybeSingle();
-  const amountCents = cents(Number(charge.total_amount || 0));
+  const amountCents = chargeCollectionCents(charge);
   let paymentIntent: Stripe.PaymentIntent | null = null;
   try {
     paymentIntent = await stripe!.paymentIntents.create({
@@ -2563,9 +2598,10 @@ async function chargeSavedCard(req: Request, payload: CheckoutPayload) {
     const { data: intentClaim, error: intentClaimError } = await adminClient!
       .from("rental_charge_items")
       .update({
-      payment_provider: "stripe",
+      payment_provider: Number(charge.allocated_deposit_cents || 0) > 0 ? "deposit" : "stripe",
       stripe_customer_id: stripeCustomerId,
       stripe_payment_intent_id: paymentIntent.id,
+      stripe_checkout_session_id: null,
       payment_amount_cents: amountCents,
       payment_currency: "usd",
       updated_at: new Date().toISOString(),
@@ -2852,6 +2888,10 @@ async function recordExternalRentalCharge(req: Request, payload: CheckoutPayload
 async function recordCombinedExternalPayment(req: Request, payload: CheckoutPayload) {
   const admin = await requireAdmin(req);
   if (!payload.rentalId || !payload.idempotencyKey) throw new HttpError("Rental and payment key required.", 400);
+  if (payload.action === "admin_cancel_external_payment" && payload.externalPayment?.version === 2) {
+    const { data, error } = await adminClient!.rpc("service_cancel_flexible_payment", {p_id:payload.idempotencyKey,p_rental_id:payload.rentalId,p_actor_id:admin.user.id});
+    if(error)throw error;return data;
+  }
   if (payload.action === "admin_cancel_external_payment") {
     const { data, error } = await adminClient!.rpc("service_finish_external_payment", {
       p_id: payload.idempotencyKey, p_actor_id: admin.user.id, p_cancel: true,

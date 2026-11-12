@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import { chargeCollectionCents } from '../supabase/functions/_shared/charge-collection-amount.js';
 import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import { closeTollCollectionPaths } from '../supabase/functions/_shared/external-toll-payment.js';
 const source = readFileSync(new URL('../supabase/functions/stripe-web-hook/index.ts', import.meta.url), 'utf8');
 const edgeCode = stripTypeScriptTypes(source.slice(source.indexOf('async function recordCombinedExternalPayment('), source.indexOf('async function recordExternalTollPayment(')));
 const charges = [{ id: 'one', stripe_checkout_session_id: 'cs_one' }, { id: 'two', stripe_payment_intent_id: 'pi_two' }];
-function fixture({ checkout = 'open', intent = 'requires_confirmation', providerFailure = false, posted = false, denied = false } = {}) {
+function fixture({ checkout = 'open', intent = 'requires_confirmation', providerFailure = false, posted = false, denied = false, version = 1 } = {}) {
   const calls = [];
   const stripe = {
     checkout: { sessions: {
@@ -19,15 +20,15 @@ function fixture({ checkout = 'open', intent = 'requires_confirmation', provider
       cancel: async id => { calls.push(['cancelIntent', id]); return { id, status: 'canceled' }; },
     },
   };
-  const context = vm.createContext({ HttpError: Error, closeTollCollectionPaths, stripe, requireAdmin: async () => {
+  const context = vm.createContext({ chargeCollectionCents, HttpError: Error, closeTollCollectionPaths, stripe, requireAdmin: async () => {
     if (denied) throw Error('Permission denied'); return { user: { id: 'admin' } };
   }, adminClient: { rpc: async (name, args) => {
     calls.push([name, args]);
     return { data: name.includes('prepare') ? posted ? { status: 'posted', amountCents: 300 } : { status: 'pending', charges }
-      : { status: args.p_cancel ? 'cancelled' : 'posted', amountCents: 300 }, error: null };
+      : { status: args.p_cancel || name === 'service_cancel_flexible_payment' ? 'cancelled' : 'posted', amountCents: 300 }, error: null };
   } } });
   vm.runInContext(edgeCode, context);
-  return { calls, stripe, run: action => context.recordCombinedExternalPayment({}, { rentalId: 'rental', idempotencyKey: 'key', externalPayment: { amountCents: 20000, rentalAmountCents: 17400, charges: [{ id: 'one', amountCents: 2600 }] }, action }) };
+  return { calls, stripe, run: action => context.recordCombinedExternalPayment({}, { rentalId: 'rental', idempotencyKey: 'key', externalPayment: { version, amountCents: 20000, rentalAmountCents: 17400, charges: [{ id: 'one', amountCents: 2600 }] }, action }) };
 }
 test('reserves first, retires every checkout and intent, then posts once', async () => {
   const f = fixture(); await f.run('admin_record_external_payment');
@@ -64,7 +65,7 @@ const chargeCheckoutCode = stripTypeScriptTypes(source.slice(source.indexOf('asy
 function checkoutFixture(chargeType, blocked = false) {
   const calls = [];
   const charge = { id: 'charge', rental_id: 'rental', user_id: 'customer', name: 'Test charge', charge_type: chargeType, status: 'pending', total_amount: 26 };
-  const context = vm.createContext({
+  const context = vm.createContext({ chargeCollectionCents,
     assertPaymentCreationEnabled() {}, cents: n => Math.round(n * 100), crypto: { randomUUID: () => 'token' },
     findActiveAdminInstallment: async () => null,
     reusableCheckout: async () => ({}), checkoutUrls: () => ({ successUrl: 'https://example.com/success', cancelUrl: 'https://example.com/cancel' }),
@@ -95,3 +96,10 @@ for (const chargeType of ['manual', 'rental_amendment', 'rental_installment']) {
     assert.equal(blocked.calls.some(c => c[0] === 'create'), false);
   });
 }
+
+test('flexible cancellation writes a rental-scoped tombstone without provider calls', async () => {
+ const f = fixture({version:2}); const result = await f.run('admin_cancel_external_payment');
+ assert.equal(result.status,'cancelled');assert.equal(f.calls.length,1);
+ assert.equal(f.calls[0][0],'service_cancel_flexible_payment');
+ assert.equal(f.calls[0][1].p_rental_id,'rental');assert.equal(f.calls[0][1].p_actor_id,'admin');
+});
