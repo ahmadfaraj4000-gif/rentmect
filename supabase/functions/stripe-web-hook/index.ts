@@ -12,7 +12,7 @@ const corsHeaders = {
 };
 
 type CheckoutPayload = {
-  action?: "admin_create_allocated_stripe" | "admin_charge_allocated_stripe" | "admin_cancel_allocated_stripe" | "admin_record_external_payment" | "admin_cancel_external_payment" | "admin_record_external_tolls" | "admin_cancel_external_tolls" | "merchant_create_checkout" | "create_checkout" | "confirm_checkout" | "admin_create_checkout" | "admin_create_installment_checkout" | "admin_create_charge_checkout" | "admin_create_extension_checkout" | "admin_charge_saved_card" | "admin_waive_rental_charge" | "admin_record_external_charge" | "admin_apply_manual_discount" | "admin_apply_rental_amendment" | "admin_apply_vehicle_swap" | "admin_apply_rental_extension_revision" | "admin_apply_rental_extension" | "admin_record_external_balance" | "refund_rental_payment" | "cancel_before_pickup_refund_deposit" | "release_deposit" | "deduct_deposit_charges" | "settle_deposit_charges" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
+  action?: "review_deposit" | "admin_create_allocated_stripe" | "admin_charge_allocated_stripe" | "admin_cancel_allocated_stripe" | "admin_record_external_payment" | "admin_cancel_external_payment" | "admin_record_external_tolls" | "admin_cancel_external_tolls" | "merchant_create_checkout" | "create_checkout" | "confirm_checkout" | "admin_create_checkout" | "admin_create_installment_checkout" | "admin_create_charge_checkout" | "admin_create_extension_checkout" | "admin_charge_saved_card" | "admin_waive_rental_charge" | "admin_record_external_charge" | "admin_apply_manual_discount" | "admin_apply_rental_amendment" | "admin_apply_vehicle_swap" | "admin_apply_rental_extension_revision" | "admin_apply_rental_extension" | "admin_record_external_balance" | "refund_rental_payment" | "cancel_before_pickup_refund_deposit" | "release_deposit" | "deduct_deposit_charges" | "settle_deposit_charges" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
   targetType?: "rental" | "extension" | "charge";
   rentalId?: string;
   extensionRequestId?: string;
@@ -22,6 +22,7 @@ type CheckoutPayload = {
   tollPayment?: { charges: { id: string; amountCents: number }[]; amountCents: number; paymentMethod: string; receivedDate: string; reference: string };
   allocationId?: string;
   expectedRemaining?: number;
+  expectedHeld?: number;
   expectedApplied?: number;
   expectedRefund?: number;
   amountCents?: number;
@@ -2986,7 +2987,7 @@ async function allocatedStripePayment(req: Request, payload: CheckoutPayload) {
       intentId=intent.id;
     }else{
       const {successUrl,cancelUrl}=checkoutUrls(req,payload);
-      const session=await stripe!.checkout.sessions.create({mode:'payment',customer_creation:'always',success_url:successUrl,cancel_url:cancelUrl,client_reference_id:id,metadata,payment_intent_data:{metadata,setup_future_usage:'off_session'},line_items:[{quantity:1,price_data:{currency:'usd',unit_amount:request.amountCents,product_data:{name:'Rent Me CT — rental payment',description:`Rental $${(request.rentalAmountCents/100).toFixed(2)}; selected additional charges $${((request.amountCents-request.rentalAmountCents-request.creditAmountCents)/100).toFixed(2)}; customer credit $${(request.creditAmountCents/100).toFixed(2)}.`}}}]},{idempotencyKey:`allocated-checkout-${id}`});
+      const session=await stripe!.checkout.sessions.create({mode:'payment',customer_creation:'always',success_url:successUrl,cancel_url:cancelUrl,client_reference_id:id,metadata,payment_intent_data:{metadata,setup_future_usage:'off_session'},line_items:[{quantity:1,price_data:{currency:'usd',unit_amount:request.amountCents,product_data:{name:'Rent Me CT — rental payment',description:`Rental $${(request.rentalAmountCents/100).toFixed(2)}; security deposit $${((request.depositAmountCents||0)/100).toFixed(2)}; selected additional charges $${((request.amountCents-request.rentalAmountCents-(request.depositAmountCents||0)-request.creditAmountCents)/100).toFixed(2)}; customer credit $${(request.creditAmountCents/100).toFixed(2)}.`}}}]},{idempotencyKey:`allocated-checkout-${id}`});
       sessionId=session.id;
     }
     const {error}=await adminClient!.rpc('service_bind_allocated_stripe',{p_id:id,p_session:sessionId,p_intent:intentId});
@@ -3374,6 +3375,52 @@ async function deductDepositCharges(req: Request, payload: CheckoutPayload) {
   return await apply(charges, allocation);
 }
 
+async function reviewDeposit(req: Request, payload: CheckoutPayload) {
+  const admin = await requireAdmin(req, 'deposit.resolve');
+  if (!payload.rentalId || !payload.idempotencyKey || !Array.isArray(payload.chargeIds)) throw new Error('Rental, review key and charges are required.');
+  const request = { chargeIds: [...payload.chargeIds].sort(), expectedHeld: payload.expectedHeld, expectedCharges: payload.expectedApplied, reason: payload.reason };
+  const { data: prior, error: priorError } = await adminClient!.from('deposit_review_settlements').select('*').eq('id', payload.idempotencyKey).maybeSingle();
+  if (priorError) throw priorError;
+  if (prior && (prior.rental_id !== payload.rentalId || JSON.stringify(prior.request.chargeIds) !== JSON.stringify(request.chargeIds)
+    || prior.request.expectedHeld !== request.expectedHeld || prior.request.expectedCharges !== request.expectedCharges || prior.request.reason !== request.reason)) throw new Error('Review key belongs to different details.');
+  let result = prior?.result;
+  if (!result) {
+    if (payload.chargeIds.length) await requireAdmin(req, 'charge.manage');
+    const { data: allocations, error: allocationError } = await adminClient!.from('rental_deposit_allocations').select('*').eq('holder_rental_id', payload.rentalId);
+    if (allocationError) throw allocationError;
+    const { data: charges, error: chargeError } = payload.chargeIds.length
+      ? await adminClient!.from('rental_charge_items').select('*').eq('rental_id', payload.rentalId).in('id', payload.chargeIds)
+      : { data: [], error: null };
+    if (chargeError) throw chargeError;
+    if (payload.chargeIds.length) for (const a of allocations || []) {
+      if (a.payment_provider !== 'stripe' || Number(a.amount_held) <= Number(a.amount_applied) + Number(a.amount_released)) continue;
+      if (!a.stripe_payment_intent_id) throw new Error('A deposit has no captured Stripe source.');
+      const captures = await stripe!.charges.list({ payment_intent: a.stripe_payment_intent_id, limit: 100 });
+      const available = captures.data.filter(c => c.paid && c.captured && c.currency === 'usd').reduce((sum,c) => sum+c.amount-c.amount_refunded,0);
+      const { data: sources, error: sourceError } = await adminClient!.from('rental_deposit_allocations').select('amount_held,amount_released').eq('stripe_payment_intent_id',a.stripe_payment_intent_id);
+      if (sourceError) throw sourceError;
+      if (available < (sources || []).reduce((sum,s) => sum+cents(Number(s.amount_held)-Number(s.amount_released)),0)) throw new Error('Stripe deposit funds changed. Reconcile the payment before deductions.');
+      const refunds = await stripe!.refunds.list({payment_intent:a.stripe_payment_intent_id,limit:100}).autoPagingToArray({limit:10000});
+      if (refunds.length>=10000 || refunds.some(f=>f.metadata?.deposit_allocation_id===a.id)) throw new Error('A deposit refund already exists. Reconcile it before deductions.');
+    }
+    const applied = await adminClient!.rpc('service_apply_deposit_review', { p_id: payload.idempotencyKey, p_rental_id: payload.rentalId, p_actor_id: admin.user.id, p_request: request, p_charges: charges, p_allocations: allocations });
+    if (applied.error) throw applied.error;
+    result = applied.data;
+  }
+  const { data: sources, error: sourceError } = await adminClient!.from('rental_deposit_allocations').select('*').eq('holder_rental_id',payload.rentalId);
+  if (sourceError) throw sourceError;
+  const remaining = (provider: string) => (sources || []).filter(a=>a.payment_provider===provider).reduce((sum,a)=>sum+Math.max(0,Number(a.amount_held)-Number(a.amount_applied)-Number(a.amount_released)),0);
+  let refund = null, refundError = null;
+  const { data: blockers, error: blockerError } = await adminClient!.rpc('rentmect_deposit_chain_release_blockers', { p_rental_id: payload.rentalId });
+  if (blockerError) refundError = 'Review saved. Could not verify refund blockers; retry before returning money.';
+  else if (Array.isArray(blockers) && blockers.length) refundError = `Review saved. Resolve: ${blockers.map(b => b.label || b.type || 'pending review').join(', ')}.`;
+  if (!refundError && remaining('stripe') > 0) {
+    try { refund = await releaseSecurityDeposit(payload.rentalId,'manual',{userId:admin.user.id,reason:payload.reason}); }
+    catch (e) { refundError = e instanceof Error ? e.message : 'The refund needs another review.'; }
+  }
+  return {...result,status:'reviewed',externalRemaining:remaining('local'),refund,refundError};
+}
+
 async function settleDepositCharges(req: Request, payload: CheckoutPayload) {
   const admin = await requireAdmin(req, "deposit.resolve");
   await requireAdmin(req, "charge.manage");
@@ -3432,6 +3479,7 @@ async function handleApiAction(req: Request) {
 
   const payload = await req.json() as CheckoutPayload;
   if (['admin_create_allocated_stripe','admin_charge_allocated_stripe','admin_cancel_allocated_stripe'].includes(payload.action || '')) return json(await allocatedStripePayment(req,payload));
+  if (payload.action === 'review_deposit') return json(await reviewDeposit(req,payload));
   if (payload.action === "release_due_deposits") {
     const suppliedSecret = req.headers.get("x-rentmect-deposit-secret") || "";
     if (!depositReleaseSecret || suppliedSecret !== depositReleaseSecret) {
