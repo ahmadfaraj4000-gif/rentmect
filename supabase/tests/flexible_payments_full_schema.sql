@@ -221,6 +221,7 @@ begin
  assert (select sum(amount_held)=300 and bool_and(payment_provider='stripe') and bool_and(stripe_payment_intent_id='pi_allocated_test') from rental_deposit_allocations where holder_rental_id=rid);
  assert rentmect_rental_net_paid_amount(rid)=813.67;
  assert (select count(*)=1 from external_payment_receipts where stripe_payment_intent_id='pi_allocated_test');
+ assert (select received_date=(now() at time zone 'America/New_York')::date and received_time is not null from external_payment_receipts where id=k);
  set constraints all immediate;set constraints all deferred;
  raise notice 'PASS: allocated Stripe rent + partial toll + excess credit, deposit source, amount validation and webhook replay';
 
