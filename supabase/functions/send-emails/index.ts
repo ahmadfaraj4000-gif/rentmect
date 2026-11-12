@@ -1,3 +1,4 @@
+import { allocatedPaymentMessage } from '../_shared/allocated-payment-message.ts';
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -9,13 +10,14 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY") || "";
 const sendGridApiKey = Deno.env.get("SENDGRID_API_KEY") || "";
-const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL") || "bookings@rentmect.com";
+const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL") || "no-reply@rentmect.com";
 const fromName = Deno.env.get("SENDGRID_FROM_NAME") || "Rent Me CT";
 const replyToEmail = Deno.env.get("SENDGRID_REPLY_TO_EMAIL") || fromEmail;
 const workerSecret = Deno.env.get("RENTMECT_EMAIL_WORKER_SECRET") || "";
 const webhookSecret = Deno.env.get("SENDGRID_EVENT_WEBHOOK_SECRET") || "";
 const clientPortalUrl = Deno.env.get("RENTMECT_CLIENT_PORTAL_URL") || "https://login.rentmect.com";
 const businessPhone = Deno.env.get("RENTMECT_PHONE") || "860-558-6031";
+const emailLogoUrl = Deno.env.get("RENTMECT_EMAIL_LOGO_URL") || "https://admin.rentmect.com/assets/logo.png";
 const marketingGroupId = Number(Deno.env.get("SENDGRID_MARKETING_UNSUBSCRIBE_GROUP_ID") || 0);
 const adminClient = supabaseUrl && serviceRoleKey
   ? createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })
@@ -59,7 +61,7 @@ function emailShell(content: string, preheader = "", marketing = false) {
   const unsubscribe = marketing
     ? '<p style="margin:20px 0 0;font-size:12px;color:#6b7280"><a href="<%asm_group_unsubscribe_url%>" style="color:#374151">Unsubscribe from promotional emails</a></p>'
     : "";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Rent Me CT</title></head><body style="margin:0;background:#f3f4f6;font-family:Arial,sans-serif;color:#171717"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(preheader)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:24px 12px"><tr><td align="center"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="max-width:620px;width:100%;background:#fff;border:1px solid #ddd"><tr><td style="padding:22px 28px;background:#050505;color:#fff;font-size:22px;font-weight:800">RENT ME CT</td></tr><tr><td style="padding:30px 28px;line-height:1.6">${content}<hr style="border:0;border-top:1px solid #e5e7eb;margin:28px 0 18px"><p style="margin:0;font-size:12px;color:#6b7280">Rent Me CT · 12 Holmes Circle, Farmington, CT</p>${unsubscribe}</td></tr></table></td></tr></table></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Rent Me CT</title><style>.rentmect-email-content h1,.rentmect-email-content h2{color:#123d2b}.rentmect-email-content a{color:#0b6b3a;font-weight:700}.rentmect-email-content p{margin-top:0}.rentmect-email-content strong{color:#17211c}</style></head><body style="margin:0;background:#f3f5f4;font-family:Arial,sans-serif;color:#17211c"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(preheader)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f4;padding:24px 12px"><tr><td align="center"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="max-width:620px;width:100%;background:#fff;border:1px solid #dce3df;border-top:6px solid #d71920;border-radius:12px;overflow:hidden"><tr><td align="center" style="padding:18px 28px;background:#fff;border-bottom:4px solid #0b6b3a"><img src="${escapeHtml(emailLogoUrl)}" width="180" height="63" alt="Rent Me CT" style="display:block;width:180px;height:auto;max-width:100%;border:0;outline:none;text-decoration:none"><div style="display:none;color:#123d2b;font-size:20px;font-weight:800">Rent Me CT</div></td></tr><tr><td class="rentmect-email-content" style="padding:30px 28px;line-height:1.6">${content}<hr style="border:0;border-top:1px solid #dce3df;margin:28px 0 18px"><p style="margin:0;font-size:12px;color:#6e7a74">Rent Me CT · 12 Holmes Circle, Farmington, CT</p>${unsubscribe}</td></tr></table></td></tr></table></body></html>`;
 }
 
 async function requireAdmin(req: Request, permissionKey?: string) {
@@ -172,12 +174,6 @@ async function processOutbox(limit = 25) {
     }
   }
   return results;
-}
-
-async function queueReturnReminderEmails() {
-  const { data, error } = await adminClient!.rpc("queue_due_rental_return_email_reminders");
-  if (error) throw error;
-  return data || [];
 }
 
 async function campaignAudience(campaign: Json): Promise<Recipient[]> {
@@ -358,6 +354,7 @@ async function handleCustomerEmail(req: Request) {
   const templateId = String(payload.emailTemplateId || "").trim();
   const rentalId = String(payload.rentalId || "").trim();
   const chargeId = String(payload.chargeId || "").trim();
+  const extensionRequestId = String(payload.extensionRequestId || "").trim();
   if (!customerId || !templateId) return json({ error: "Customer and email template are required." }, 400);
 
   const [{ data: profile, error: profileError }, { data: template, error: templateError }] = await Promise.all([
@@ -381,48 +378,77 @@ async function handleCustomerEmail(req: Request) {
     if (chargeResult.error || (rentalId && chargeResult.data?.rental_id !== rentalId)) return json({ error: "The selected charge does not belong to this customer and rental." }, 400);
     charge = chargeResult.data;
   }
+  let extension: Record<string, unknown> | null = null;
+  let extensionVehicleName = "";
+  if (extensionRequestId) {
+    const extensionResult = await adminClient!
+      .from("rental_extension_requests")
+      .select("id,rental_id,user_id,status,request_kind,replacement_vehicle_id,requested_return_date,requested_return_time,extension_total_amount,payment_due_at")
+      .eq("id", extensionRequestId)
+      .eq("user_id", customerId)
+      .single();
+    if (
+      extensionResult.error ||
+      !extensionResult.data ||
+      (rentalId && extensionResult.data.rental_id !== rentalId) ||
+      extensionResult.data.status !== "approved_pending_payment" ||
+      (extensionResult.data.payment_due_at && new Date(extensionResult.data.payment_due_at).getTime() <= Date.now())
+    ) {
+      return json({ error: "The selected approved extension does not belong to this customer and rental." }, 400);
+    }
+    extension = extensionResult.data;
+    if (extension.replacement_vehicle_id) {
+      const vehicleResult = await adminClient!.from("vehicles").select("name").eq("id", extension.replacement_vehicle_id).single();
+      if (vehicleResult.error) return json({ error: "The extension replacement vehicle could not be loaded." }, 400);
+      extensionVehicleName = String(vehicleResult.data?.name || "");
+    }
+  }
   const vehicleRelation = rental?.vehicles;
   const vehicle = Array.isArray(vehicleRelation) ? vehicleRelation[0] : vehicleRelation as Record<string, unknown> | null;
   if (template.template_key === "manual_agreement_signature_required") {
     if (!rentalId || !rental) return json({ error: "Choose the unsigned rental before sending this agreement email." }, 400);
     if (rental.agreement_signed === true) return json({ error: "This rental agreement is already signed. Nothing was sent." }, 409);
   }
-  const agreementSigningUrl = rentalId
-    ? `${clientPortalUrl}?agreement=1&rental=${encodeURIComponent(rentalId)}`
-    : clientPortalUrl;
+  const agreementSigningUrl = rentalId ? `${clientPortalUrl}?agreement=1&rental=${encodeURIComponent(rentalId)}` : clientPortalUrl;
   const variables: Json = {
     customer_name: profile.full_name || "Customer",
     customer_first_name: String(profile.full_name || "Customer").trim().split(/\s+/)[0],
-    vehicle_name: vehicle?.name || "your rental vehicle",
+    vehicle_name: extensionVehicleName || vehicle?.name || "your rental vehicle",
     pickup_date: dateLabel(rental?.pickup_date),
     pickup_time: rental?.pickup_time || "your scheduled time",
     return_date: dateLabel(rental?.return_date),
     return_time: rental?.return_time || "your scheduled time",
-    manage_booking_url: charge ? `${clientPortalUrl}?billing=1` : clientPortalUrl,
+    manage_booking_url: charge || extension ? `${clientPortalUrl}?billing=1` : clientPortalUrl,
     agreement_signing_url: agreementSigningUrl,
     business_phone: businessPhone,
     business_address: "12 Holmes Circle, Farmington, CT",
     charge_name: charge?.name || "additional rental charge",
     charge_description: charge?.description || "Please contact Rent Me CT with any questions.",
     charge_total: charge?.total_amount == null ? "$0.00" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(charge.total_amount)),
+    continuation_type: extension?.request_kind === "switch_car_continuation" ? "vehicle switch" : "rental extension",
+    requested_return_date: dateLabel(extension?.requested_return_date),
+    requested_return_time: extension?.requested_return_time || "the approved return time",
+    extension_total: extension?.extension_total_amount == null ? "$0.00" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(extension.extension_total_amount)),
+    payment_due_at: extension?.payment_due_at ? new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(String(extension.payment_due_at))) : "the deadline shown in your portal",
   };
-  const subject = render(template.subject, variables);
-  const renderedBody = render(template.text_body || template.subject, variables);
+  const collection = await allocatedPaymentMessage(adminClient, String(payload.paymentReceiptId || ''), rentalId, customerId);
+  const subject = collection ? `Rent Me CT payment request · ${collection.amount}` : render(template.subject, variables);
+  const renderedBody = collection?.text || render(template.text_body || template.subject, variables);
   try {
     const messageId = await sendMail({
       to: recipient,
       toName: profile.full_name,
       subject,
-      html: emailShell(render(sanitizeTemplateHtml(template.html_body), variables), render(template.preheader, variables)),
+      html: emailShell(collection ? `<p>${escapeHtml(collection.text)}</p><p><a href="${escapeHtml(collection.url)}">Pay ${escapeHtml(collection.amount)} securely with Stripe</a></p>` : render(sanitizeTemplateHtml(template.html_body), variables), render(template.preheader, variables)),
       text: renderedBody,
-      customArgs: { email_type: "admin_customer_manual", customer_id: customerId, rental_id: rentalId, charge_id: chargeId },
+      customArgs: { email_type: "admin_customer_manual", customer_id: customerId, rental_id: rentalId, charge_id: chargeId, extension_request_id: extensionRequestId },
     });
     await adminClient!.from("admin_customer_messages").insert({
       user_id: customerId, rental_id: rentalId || null, channel: "email", email_template_id: templateId,
       recipient, subject, rendered_body: renderedBody, status: "sent", provider_message_id: messageId,
       created_by: admin.id, sent_at: new Date().toISOString(),
     });
-    await adminClient!.rpc("record_admin_audit_event", { p_action: "customer.email.sent", p_entity_type: "profile", p_entity_id: customerId, p_metadata: { template_id: templateId, rental_id: rentalId || null } });
+    await adminClient!.rpc("record_admin_audit_event", { p_action: "customer.email.sent", p_entity_type: "profile", p_entity_id: customerId, p_metadata: { template_id: templateId, rental_id: rentalId || null, extension_request_id: extensionRequestId || null } });
     return json({ sent: true, messageId });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Email send failed.";
@@ -480,12 +506,7 @@ Deno.serve(async (req) => {
     if (pathname.endsWith("/campaign")) return await handleCampaign(req);
     if (pathname.endsWith("/process")) {
       requireWorker(req);
-      const returnReminders = await queueReturnReminderEmails();
-      return json({
-        returnRemindersQueued: returnReminders.length,
-        outbox: await processOutbox(),
-        campaigns: await processDueCampaigns(),
-      });
+      return json({ outbox: await processOutbox(), campaigns: await processDueCampaigns() });
     }
     return json({ error: "Unknown email action." }, 404);
   } catch (error) {

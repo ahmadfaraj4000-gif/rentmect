@@ -36,7 +36,7 @@ function fixture(options={}){
   confirm:async()=>{calls.push(['confirm']);return {...intent,status:options.status||'succeeded'};},
  }};
  const context=vm.createContext({chargeCollectionCents,closeTollCollectionPaths,crypto,Date,Error,
- assertPaymentCreationEnabled(){},requireAdmin:async()=>({user:{id:'admin'}}),findActiveAdminInstallment:async()=>null,
+ assertPaymentCreationEnabled(){},resumeAllocatedCheckout:async()=>null,requireAdmin:async()=>({user:{id:'admin'}}),findActiveAdminInstallment:async()=>null,
  reusableCheckout:async id=>{calls.push(['reuse',id]);return{};},checkoutUrls:()=>({successUrl:'https://example.test',cancelUrl:'https://example.test'}),
  stripe,adminClient:{from:t=>new Query(t)},recordAdminSavedCardCharge:async(c,p)=>{calls.push(['post',p.amount_received]);return{...charge,status:'paid'};},openReconciliationIssue:async()=>{},
  });vm.runInContext(code,context);

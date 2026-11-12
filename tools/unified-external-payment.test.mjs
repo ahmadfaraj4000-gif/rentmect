@@ -66,7 +66,7 @@ function checkoutFixture(chargeType, blocked = false) {
   const calls = [];
   const charge = { id: 'charge', rental_id: 'rental', user_id: 'customer', name: 'Test charge', charge_type: chargeType, status: 'pending', total_amount: 26 };
   const context = vm.createContext({ chargeCollectionCents,
-    assertPaymentCreationEnabled() {}, cents: n => Math.round(n * 100), crypto: { randomUUID: () => 'token' },
+    assertPaymentCreationEnabled() {}, resumeAllocatedCheckout:async()=>null, cents: n => Math.round(n * 100), crypto: { randomUUID: () => 'token' },
     findActiveAdminInstallment: async () => null,
     reusableCheckout: async () => ({}), checkoutUrls: () => ({ successUrl: 'https://example.com/success', cancelUrl: 'https://example.com/cancel' }),
     adminClient: { from() {

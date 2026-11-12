@@ -12,7 +12,7 @@ const corsHeaders = {
 };
 
 type CheckoutPayload = {
-  action?: "admin_record_external_payment" | "admin_cancel_external_payment" | "admin_record_external_tolls" | "admin_cancel_external_tolls" | "merchant_create_checkout" | "create_checkout" | "confirm_checkout" | "admin_create_checkout" | "admin_create_installment_checkout" | "admin_create_charge_checkout" | "admin_create_extension_checkout" | "admin_charge_saved_card" | "admin_waive_rental_charge" | "admin_record_external_charge" | "admin_apply_manual_discount" | "admin_apply_rental_amendment" | "admin_apply_vehicle_swap" | "admin_apply_rental_extension_revision" | "admin_apply_rental_extension" | "admin_record_external_balance" | "refund_rental_payment" | "cancel_before_pickup_refund_deposit" | "release_deposit" | "deduct_deposit_charges" | "settle_deposit_charges" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
+  action?: "admin_create_allocated_stripe" | "admin_charge_allocated_stripe" | "admin_cancel_allocated_stripe" | "admin_record_external_payment" | "admin_cancel_external_payment" | "admin_record_external_tolls" | "admin_cancel_external_tolls" | "merchant_create_checkout" | "create_checkout" | "confirm_checkout" | "admin_create_checkout" | "admin_create_installment_checkout" | "admin_create_charge_checkout" | "admin_create_extension_checkout" | "admin_charge_saved_card" | "admin_waive_rental_charge" | "admin_record_external_charge" | "admin_apply_manual_discount" | "admin_apply_rental_amendment" | "admin_apply_vehicle_swap" | "admin_apply_rental_extension_revision" | "admin_apply_rental_extension" | "admin_record_external_balance" | "refund_rental_payment" | "cancel_before_pickup_refund_deposit" | "release_deposit" | "deduct_deposit_charges" | "settle_deposit_charges" | "release_due_deposits" | "create_identity_verification" | "get_identity_verification";
   targetType?: "rental" | "extension" | "charge";
   rentalId?: string;
   extensionRequestId?: string;
@@ -1725,7 +1725,11 @@ async function refundRentalPayment(req: Request, payload: CheckoutPayload) {
     (sum, charge) => sum + Number(charge.amount_refunded || 0),
     0,
   );
-  const capturedCents = Number(paymentIntent.amount_received || refundPayment.payment_amount_cents || 0);
+  const {data:allocatedReceipt,error:allocatedRefundError}=await adminClient!.from('external_payment_receipts')
+    .select('rental_amount_cents').eq('stripe_payment_intent_id',refundPayment.stripe_payment_intent_id).eq('funding_kind','stripe').eq('status','posted').maybeSingle();
+  if(allocatedRefundError)throw allocatedRefundError;
+  // Other charge allocations and reusable credit are not rental refund funds.
+  const capturedCents = allocatedReceipt ? Number(allocatedReceipt.rental_amount_cents) : Number(paymentIntent.amount_received || refundPayment.payment_amount_cents || 0);
   const refundableRentalCents = Math.max(0, capturedCents - alreadyRefundedCents - protectedDepositCents);
   if (amountCents > refundableRentalCents) {
     throw new Error(
@@ -1888,6 +1892,30 @@ async function releaseDueSecurityDeposits() {
   return { pending, released };
 }
 
+// A reserved allocation is the authoritative collection for this rental until paid or cancelled.
+async function resumeAllocatedCheckout(rentalId: string) {
+  const {data:r,error}=await adminClient!.from('external_payment_receipts').select('id,funding_kind,stripe_checkout_session_id,stripe_payment_intent_id')
+    .eq('rental_id',rentalId).eq('status','pending').maybeSingle();
+  if(error)throw error;
+  if(!r)return null;
+  if(r.funding_kind!=='stripe')throw new HttpError('An external payment is being recorded. Please wait for staff to finish it.',409);
+  if(!r.stripe_checkout_session_id)throw new HttpError('Staff are processing a card payment. Please wait for confirmation before paying again.',409);
+  const session=await stripe!.checkout.sessions.retrieve(r.stripe_checkout_session_id);
+  if(session.payment_status==='paid'){
+    const pi=typeof session.payment_intent==='string'?session.payment_intent:session.payment_intent?.id||'';
+    await confirmAllocatedStripe(r.id,session.id,pi,session.amount_total||0,session.currency||'');
+    throw new HttpError('Your payment was received. Refresh to see the updated balance.',409);
+  }
+  if(session.status==='expired'){
+    const pi=typeof session.payment_intent==='string'?session.payment_intent:session.payment_intent?.id||null;
+    if(pi)await closeTollCollectionPaths(stripe,[{stripe_payment_intent_id:pi}]);
+    const {error}=await adminClient!.rpc('service_confirm_allocated_stripe',{p_id:r.id,p_session:session.id,p_intent:r.stripe_payment_intent_id,p_amount:0,p_currency:'usd',p_cancel:true});
+    if(error)throw error;return null;
+  }
+  if(!session.url)throw new HttpError('Stripe is processing this payment. Check again shortly.',409);
+  return {url:session.url,sessionId:session.id};
+}
+
 async function createRentalCheckout(req: Request, payload: CheckoutPayload, userId: string, adminAssisted = false) {
   if (!adminClient) throw new Error("Payment service is not configured.");
   assertPaymentCreationEnabled();
@@ -1903,6 +1931,7 @@ async function createRentalCheckout(req: Request, payload: CheckoutPayload, user
   if (error || !initialRental) throw new Error(error?.message || "Rental not found.");
   let rental = initialRental;
   if (rental.user_id !== userId) throw new Error("This rental does not belong to the signed-in customer.");
+  const allocatedCheckout=await resumeAllocatedCheckout(rental.id);if(allocatedCheckout)return allocatedCheckout;
   if (String(rental.payment_status || "").toLowerCase() === "paid") {
     throw new Error("This rental is already paid.");
   }
@@ -2158,6 +2187,7 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
     .single();
   if (error || !charge) throw new Error(error?.message || "Rental charge not found.");
   if (charge.user_id !== userId) throw new Error("This charge does not belong to the signed-in customer.");
+  const allocatedCheckout=await resumeAllocatedCheckout(charge.rental_id);if(allocatedCheckout)return allocatedCheckout;
   if (charge.included_in_initial_payment) throw new Error("This fee is included in the original booking payment.");
   if (charge.status === "paid") throw new Error("This charge is already paid.");
   if (charge.status === "waived") throw new Error("This charge was waived.");
@@ -2886,6 +2916,111 @@ async function recordExternalRentalCharge(req: Request, payload: CheckoutPayload
   return { status: "paid", charge: recorded };
 }
 
+async function confirmAllocatedStripe(receiptId: string, sessionId: string | null, intentId: string, amount: number, currency: string) {
+  const { data, error } = await adminClient!.rpc('service_confirm_allocated_stripe', {
+    p_id: receiptId, p_session: sessionId, p_intent: intentId, p_amount: amount, p_currency: currency,
+  });
+  if (error) throw error;
+  const {error: recoveryError}=await adminClient!.from('stripe_reconciliation_issues')
+    .update({status:'resolved',resolved_at:new Date().toISOString(),error_message:null})
+    .eq('dedupe_key',`allocated-receipt:${receiptId}`).in('status',['open','processing']);
+  if(recoveryError)throw recoveryError;
+  return data;
+}
+async function allocatedSavedCard(rentalId: string, userId: string) {
+  const {data:latest,error:latestError}=await adminClient!.from('external_payment_receipts')
+    .select('stripe_payment_intent_id,rentals!inner(user_id)').eq('rentals.user_id',userId).eq('funding_kind','stripe').eq('status','posted')
+    .not('stripe_payment_intent_id','is',null).order('posted_at',{ascending:false}).limit(1).maybeSingle();
+  if(latestError)throw latestError;
+  if(latest?.stripe_payment_intent_id){
+    const previous=await stripe!.paymentIntents.retrieve(latest.stripe_payment_intent_id);
+    const customer=typeof previous.customer==='string'?previous.customer:previous.customer?.id;
+    const method=typeof previous.payment_method==='string'?previous.payment_method:previous.payment_method?.id;
+    if(customer&&method)return {customer,method};
+  }
+  const { data: sources, error } = await adminClient!.from('rentals').select('id,stripe_customer_id,stripe_payment_intent_id')
+    .eq('user_id', userId).not('stripe_customer_id','is',null).order('paid_at',{ascending:false}).limit(20);
+  if (error) throw error;
+  let source = sources?.find((r: {id:string}) => r.id === rentalId) || sources?.[0];
+  if (!source) {
+    const {data,error} = await adminClient!.from('rental_charge_items').select('id,stripe_customer_id,stripe_payment_intent_id')
+      .eq('user_id',userId).eq('status','paid').not('stripe_customer_id','is',null).order('paid_at',{ascending:false}).limit(1);
+    if(error)throw error;source=data?.[0];
+  }
+  if (!source?.stripe_customer_id) throw new HttpError('No saved card is available. Use Send Stripe link or Copy link.',409);
+  let method = '';
+  if(source.stripe_payment_intent_id){const prior=await stripe!.paymentIntents.retrieve(source.stripe_payment_intent_id);method=typeof prior.payment_method==='string'?prior.payment_method:prior.payment_method?.id||'';}
+  if(!method){const customer=await stripe!.customers.retrieve(source.stripe_customer_id);if(!customer.deleted){const value=customer.invoice_settings.default_payment_method;method=typeof value==='string'?value:value?.id||'';}}
+  if(!method){const cards=await stripe!.paymentMethods.list({customer:source.stripe_customer_id,type:'card',limit:1});method=cards.data[0]?.id||'';}
+  if(!method)throw new HttpError('No saved card is available. Use Send Stripe link or Copy link.',409);
+  return {customer:source.stripe_customer_id,method};
+}
+async function allocatedStripePayment(req: Request, payload: CheckoutPayload) {
+  assertPaymentCreationEnabled();
+  const admin = await requireAdmin(req,'payment.collect');
+  const id=payload.idempotencyKey;
+  if(!id||!payload.rentalId)throw new HttpError('Rental and payment key required.',400);
+  const {data:rental,error:rentalError}=await adminClient!.from('rentals').select('id,user_id').eq('id',payload.rentalId).single();
+  if(rentalError||!rental)throw new HttpError('Rental not found.',404);
+  const {data:existing,error:readError}=await adminClient!.from('external_payment_receipts').select('*').eq('id',id).maybeSingle();
+  if(readError)throw readError;
+  if(existing && (existing.rental_id!==rental.id || existing.funding_kind!=='stripe'))throw new HttpError('Payment key belongs to another collection.',409);
+  if(existing?.status==='posted')return existing.result;
+  if(existing?.status==='cancelled')return {status:'cancelled',receiptId:id};
+  const cancel=payload.action==='admin_cancel_allocated_stripe';
+  if(cancel&&!existing)return {status:'cancelled',receiptId:id};
+  const request=payload.externalPayment && !cancel
+    ? {...payload.externalPayment,funding:'stripe',paymentMethod:'card',collectionMode:existing?.request?.collectionMode || (payload.action==='admin_charge_allocated_stripe'?'saved_card':'checkout')}
+    : existing?.request;
+  if(!request)throw new HttpError('Payment allocations are required.',400);
+  if(!Number.isSafeInteger(request.amountCents)||request.amountCents<50)throw new HttpError('Enter a Stripe payment of at least $0.50.',400);
+  const card=request.collectionMode==='saved_card' && !existing?.stripe_payment_intent_id ? await allocatedSavedCard(rental.id,rental.user_id) : null;
+  const {data:prepared,error:prepareError}=await adminClient!.rpc('service_prepare_external_payment',{p_id:id,p_rental_id:rental.id,p_actor_id:admin.user.id,p_request:request});
+  if(prepareError)throw prepareError;if(prepared.status!=='pending')return prepared;
+  await closeTollCollectionPaths(stripe,prepared.charges);
+  const metadata={target_type:'allocated_payment',receipt_id:id,rental_id:rental.id,user_id:rental.user_id};
+  let sessionId=existing?.stripe_checkout_session_id || null, intentId=existing?.stripe_payment_intent_id || null;
+  if(!sessionId&&!intentId){
+    if(request.collectionMode==='saved_card'){
+      const intent=await stripe!.paymentIntents.create({amount:request.amountCents,currency:'usd',customer:card!.customer,payment_method:card!.method,metadata,description:'Rent Me CT — allocated rental payment'}, {idempotencyKey:`allocated-intent-${id}`});
+      intentId=intent.id;
+    }else{
+      const {successUrl,cancelUrl}=checkoutUrls(req,payload);
+      const session=await stripe!.checkout.sessions.create({mode:'payment',customer_creation:'always',success_url:successUrl,cancel_url:cancelUrl,client_reference_id:id,metadata,payment_intent_data:{metadata,setup_future_usage:'off_session'},line_items:[{quantity:1,price_data:{currency:'usd',unit_amount:request.amountCents,product_data:{name:'Rent Me CT — rental payment',description:`Rental $${(request.rentalAmountCents/100).toFixed(2)}; selected additional charges $${((request.amountCents-request.rentalAmountCents-request.creditAmountCents)/100).toFixed(2)}; customer credit $${(request.creditAmountCents/100).toFixed(2)}.`}}}]},{idempotencyKey:`allocated-checkout-${id}`});
+      sessionId=session.id;
+    }
+    const {error}=await adminClient!.rpc('service_bind_allocated_stripe',{p_id:id,p_session:sessionId,p_intent:intentId});
+    if(error){if(sessionId)await stripe!.checkout.sessions.expire(sessionId);if(intentId)await stripe!.paymentIntents.cancel(intentId);throw error;}
+  }
+  if(sessionId){
+    let session=await stripe!.checkout.sessions.retrieve(sessionId);
+    const pi=typeof session.payment_intent==='string'?session.payment_intent:session.payment_intent?.id||'';
+    if(session.payment_status==='paid')return await confirmAllocatedStripe(id,session.id,pi,session.amount_total||0,session.currency||'usd');
+    if(cancel || session.status==='expired'){
+      if(session.status==='open')session=await stripe!.checkout.sessions.expire(session.id);
+      if(session.status!=='expired')throw new HttpError('Stripe is still processing this payment. Check again before changing it.',409);
+      if(pi)await closeTollCollectionPaths(stripe,[{stripe_payment_intent_id:pi}]);
+    }else{
+      const {data,error}=await adminClient!.rpc('service_bind_allocated_stripe',{p_id:id,p_session:session.id,p_intent:null,p_url:session.url});
+      if(error)throw error;return {...data,url:session.url};
+    }
+  }else if(intentId){
+    let intent: Stripe.PaymentIntent=await stripe!.paymentIntents.retrieve(intentId);
+    if(intent.status==='succeeded')return await confirmAllocatedStripe(id,null,intent.id,intent.amount_received,intent.currency);
+    if(cancel){await closeTollCollectionPaths(stripe,[{stripe_payment_intent_id:intent.id}]);}
+    else{
+      if(intent.status==='requires_confirmation'){
+        try {intent=await stripe!.paymentIntents.confirm(intent.id,{off_session:true},{idempotencyKey:`allocated-confirm-${id}`});}
+        catch(e){const err=e as {payment_intent?:Stripe.PaymentIntent;raw?:{payment_intent?:Stripe.PaymentIntent}};if(!err.payment_intent&&!err.raw?.payment_intent)throw e;intent=err.payment_intent||err.raw!.payment_intent!;}
+      }
+      if(intent.status==='succeeded')return await confirmAllocatedStripe(id,null,intent.id,intent.amount_received,intent.currency);
+      return {status:'pending',receiptId:id,providerStatus:intent.status,message:'The card has not confirmed payment. Check payment status, or cancel this attempt and send a Stripe link.'};
+    }
+  }
+  const {data,error}=await adminClient!.rpc('service_confirm_allocated_stripe',{p_id:id,p_session:sessionId,p_intent:intentId,p_amount:0,p_currency:'usd',p_cancel:true});
+  if(error)throw error;return data;
+}
+
 async function recordCombinedExternalPayment(req: Request, payload: CheckoutPayload) {
   const admin = await requireAdmin(req);
   if (!payload.rentalId || !payload.idempotencyKey) throw new HttpError("Rental and payment key required.", 400);
@@ -2954,6 +3089,13 @@ async function confirmCheckout(req: Request, payload: CheckoutPayload) {
     throw new HttpError("Stripe has not confirmed this payment yet. Refresh in a moment.", 409);
   }
 
+  if(session.metadata?.target_type==='allocated_payment') {
+    const {data:owner,error}=await adminClient!.from('rentals').select('user_id').eq('id',session.metadata.rental_id).single();
+    if(error||owner?.user_id!==user.id)throw new HttpError('This payment belongs to another customer.',403);
+    const pi=typeof session.payment_intent==='string'?session.payment_intent:session.payment_intent?.id||'';
+    const result=await confirmAllocatedStripe(session.metadata.receipt_id,session.id,pi,session.amount_total||0,session.currency||'');
+    return {confirmed:true,targetType:'rental',targetId:session.metadata.rental_id,result};
+  }
   const targetType = String(session.metadata?.target_type || "");
   const targetId = targetType === "extension"
     ? session.metadata?.extension_request_id
@@ -3289,6 +3431,7 @@ async function handleApiAction(req: Request) {
   }
 
   const payload = await req.json() as CheckoutPayload;
+  if (['admin_create_allocated_stripe','admin_charge_allocated_stripe','admin_cancel_allocated_stripe'].includes(payload.action || '')) return json(await allocatedStripePayment(req,payload));
   if (payload.action === "release_due_deposits") {
     const suppliedSecret = req.headers.get("x-rentmect-deposit-secret") || "";
     if (!depositReleaseSecret || suppliedSecret !== depositReleaseSecret) {
@@ -3436,6 +3579,29 @@ async function handleWebhook(req: Request) {
     event = await stripe.webhooks.constructEventAsync(payload, signature, stripeWebhookSecret);
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Invalid Stripe webhook signature." }, 400);
+  }
+
+  const allocatedObject = event.data.object as unknown as {metadata?:Record<string,string>};
+  if (allocatedObject.metadata?.target_type === 'allocated_payment') {
+    const metadata=allocatedObject.metadata;
+    try {
+      if(event.type==='checkout.session.completed') {
+        const session=event.data.object as Stripe.Checkout.Session;
+        if(session.payment_status!=='paid')return json({received:true,pending:true});
+        const intent=typeof session.payment_intent==='string'?session.payment_intent:session.payment_intent?.id||'';
+        return json({received:true,result:await confirmAllocatedStripe(metadata.receipt_id,session.id,intent,session.amount_total||0,session.currency||'usd')});
+      }
+      if(event.type==='payment_intent.succeeded') {
+        const intent=event.data.object as Stripe.PaymentIntent;
+        const {data:receipt,error}=await adminClient.from('external_payment_receipts').select('stripe_checkout_session_id').eq('id',metadata.receipt_id).single();
+        if(error)throw error;
+        return json({received:true,result:await confirmAllocatedStripe(metadata.receipt_id,receipt.stripe_checkout_session_id,intent.id,intent.amount_received,intent.currency)});
+      }
+      return json({received:true,ignored:event.type});
+    } catch(error) {
+      await openReconciliationIssue({dedupeKey:`allocated-receipt:${metadata.receipt_id}`,issueType:'payment_reconciliation',stripeEventId:event.id,targetType:'rental',targetId:metadata.rental_id,rentalId:metadata.rental_id,errorMessage:error instanceof Error?error.message:String(error),payload:event as unknown as Record<string,unknown>});
+      return json({error:'Stripe payment confirmation is queued for recovery.',reconciliationQueued:true},500);
+    }
   }
 
   if (event.type.startsWith("identity.verification_session.")) {

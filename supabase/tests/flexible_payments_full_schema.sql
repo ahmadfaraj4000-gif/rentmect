@@ -198,5 +198,31 @@ begin
  raise notice 'PASS: recollect refunded external portion without retiring already posted Stripe funds';
 
 
+
+ -- A single verified Stripe payment can cover rent, extras, and future credit.
+ perform set_config('request.jwt.claim.role','service_role',true);
+ rid:=pg_temp.account_fixture(300,0);k:=gen_random_uuid();
+ insert into rental_charge_items(rental_id,user_id,name,charge_type,amount,taxable,total_amount,source_type)
+ select rid,user_id,'Allocated Stripe toll','toll',26,false,26,'manual' from rentals where id=rid returning id into cid;
+ req:=jsonb_build_object('version',2,'kind','rental_payment','funding','stripe','charges',jsonb_build_array(jsonb_build_object('id',cid,'amountCents',1000,'expectedRemainingCents',2600)),
+ 'amountCents',90000,'rentalAmountCents',81367,'creditAmountCents',7633,'expectedRentalDueCents',81367,'paymentMethod','card','receivedDate',current_date-1);
+ perform service_prepare_external_payment(k,rid,auth.uid(),req);
+ begin perform service_finish_external_payment(k,auth.uid());raise exception 'Unconfirmed Stripe posted';
+ exception when others then if sqlerrm not like '%Provider confirmation%' then raise;end if;end;
+ perform service_bind_allocated_stripe(k,'cs_allocated_test',null,'https://checkout.stripe.com/test');
+ begin perform service_confirm_allocated_stripe(k,'cs_wrong','pi_allocated_test',90000,'usd');raise exception 'Wrong session posted';
+ exception when others then if sqlerrm not like '%reservation%' then raise;end if;end;
+ begin perform service_confirm_allocated_stripe(k,'cs_allocated_test','pi_allocated_test',89999,'usd');raise exception 'Wrong amount posted';
+ exception when others then if sqlerrm not like '%amount and currency%' then raise;end if;end;
+ perform service_confirm_allocated_stripe(k,'cs_allocated_test','pi_allocated_test',90000,'usd');
+ perform service_confirm_allocated_stripe(k,'cs_allocated_test','pi_allocated_test',90000,'usd');
+ assert (select allocated_payment_cents=1000 and total_amount=26 and status='pending' from rental_charge_items where id=cid);
+ assert rental_available_credit_cents(rid)=7633;
+ assert (select sum(amount_held)=300 and bool_and(payment_provider='stripe') and bool_and(stripe_payment_intent_id='pi_allocated_test') from rental_deposit_allocations where holder_rental_id=rid);
+ assert rentmect_rental_net_paid_amount(rid)=813.67;
+ assert (select count(*)=1 from external_payment_receipts where stripe_payment_intent_id='pi_allocated_test');
+ set constraints all immediate;set constraints all deferred;
+ raise notice 'PASS: allocated Stripe rent + partial toll + excess credit, deposit source, amount validation and webhook replay';
+
 end $$;
 rollback;

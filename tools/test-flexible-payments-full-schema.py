@@ -46,8 +46,11 @@ with tempfile.TemporaryDirectory(prefix='rentme-discount-schema-') as temp:
             'supabase/migrations/20261111200000_flexible_payment_consumers.sql',
             'supabase/migrations/20261111210000_flexible_stripe_charge_remainders.sql',
             'supabase/migrations/20261111220000_clear_retired_collection_attempts.sql',
+            'supabase/migrations/20261111230000_allocated_stripe_collection.sql',
+            'supabase/migrations/20261112010000_payment_amount_corrections.sql',
             'supabase/tests/unified_external_payments_full_schema.sql',
             'supabase/tests/flexible_payments_full_schema.sql',
+            'supabase/tests/payment_amount_corrections.sql',
         ]:
             result = subprocess.run([str(BIN / 'psql'), *map(str, args), '-f', str(ROOT / file)],
                 text=True, capture_output=True)

@@ -35,7 +35,7 @@ function fixture(options = {}) {
     }
   }
   const context = vm.createContext({ chargeCollectionCents, crypto,
-    Date, HttpError: Error, assertPaymentCreationEnabled() {}, cents: v => Math.round(Number(v)*100),
+    Date, resumeAllocatedCheckout:async()=>null, HttpError: Error, assertPaymentCreationEnabled() {}, cents: v => Math.round(Number(v)*100),
     checkoutUrls: () => ({successUrl:'https://example.test/success',cancelUrl:'https://example.test/cancel'}),
     adminClient: { from: table => new Query(table), rpc: async (name,args) => {
       calls.push(['rpc',name]);
