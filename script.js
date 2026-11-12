@@ -613,34 +613,58 @@ async function copyWeekendPromoCode(button) {
   }, 1800);
 }
 
+function updateMobileNavigationHeight() {
+  const header = document.querySelector(".site-header");
+  if (!header || !header.querySelector("nav.open")) return;
+  header.style.setProperty("--mobile-nav-top", `${Math.max(0, header.getBoundingClientRect().bottom)}px`);
+}
+
+function setMobileNavigationOpen(isOpen) {
+  const nav = document.getElementById("mainNav");
+  const button = document.querySelector(".mobile-menu-btn");
+  if (!nav || !button) return;
+  nav.classList.toggle("open", isOpen);
+  button.setAttribute("aria-expanded", String(isOpen));
+  button.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
+  if (isOpen) updateMobileNavigationHeight();
+}
+
 function toggleMenu() {
   const nav = document.getElementById("mainNav");
-  if (!nav) return;
-
-  const isOpen = nav.classList.toggle("open");
-  const button = document.querySelector(".mobile-menu-btn");
-  if (button) {
-    button.setAttribute("aria-expanded", String(isOpen));
-    button.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
-  }
+  if (nav) setMobileNavigationOpen(!nav.classList.contains("open"));
 }
 
 function setupMobileNavigation() {
   const nav = document.getElementById("mainNav");
   const button = document.querySelector(".mobile-menu-btn");
-  if (!nav || !button) return;
+  const header = button?.closest(".site-header");
+  if (!nav || !button || !header) return;
 
+  nav.setAttribute("aria-label", "Main navigation");
   button.setAttribute("aria-controls", "mainNav");
-  button.setAttribute("aria-expanded", String(nav.classList.contains("open")));
-  button.setAttribute("aria-label", nav.classList.contains("open") ? "Close navigation" : "Open navigation");
-
-  nav.querySelectorAll("a").forEach((link) => {
-    link.addEventListener("click", () => {
-      nav.classList.remove("open");
-      button.setAttribute("aria-expanded", "false");
-      button.setAttribute("aria-label", "Open navigation");
-    });
+  setMobileNavigationOpen(false);
+  const currentPage = location.pathname.split("/").pop() || "index.html";
+  nav.querySelectorAll("a:not(.nav-cta)").forEach((link) => {
+    if (new URL(link.href).pathname.split("/").pop() === currentPage) link.setAttribute("aria-current", "page");
   });
+  nav.addEventListener("click", (event) => {
+    if (event.target.closest("a")) setMobileNavigationOpen(false);
+  });
+  document.addEventListener("click", (event) => {
+    if (!header.contains(event.target)) setMobileNavigationOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && nav.classList.contains("open")) {
+      setMobileNavigationOpen(false);
+      button.focus({ preventScroll: true });
+    }
+  });
+  header.addEventListener("focusout", (event) => {
+    if (!header.contains(event.relatedTarget)) setMobileNavigationOpen(false);
+  });
+  window.matchMedia("(max-width: 760px)").addEventListener("change", () => setMobileNavigationOpen(false));
+  window.addEventListener("resize", updateMobileNavigationHeight, { passive: true });
+  window.addEventListener("scroll", updateMobileNavigationHeight, { passive: true });
 }
 
 function setupContactModal() {
