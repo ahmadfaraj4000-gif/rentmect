@@ -185,6 +185,7 @@ begin
  assert (select allocated_payment_cents=1600 and rentmect_charge_remaining_amount(c)=10 from rental_charge_items c where id=cid);
  set constraints all immediate;set constraints all deferred;
  raise notice 'PASS: partial external receipt, Stripe remainder, original-price rejection, duplicate webhook and external-only refund';
+ update rental_charge_items set admin_charge_attempted_at=now() where id=cid;
  k:=gen_random_uuid();
  req:=req||jsonb_build_object('charges',jsonb_build_array(jsonb_build_object('id',cid,'amountCents',1000,'expectedRemainingCents',1000)));
  result:=service_prepare_external_payment(k,rid,auth.uid(),req);
@@ -193,6 +194,7 @@ begin
  perform service_finish_external_payment(k,auth.uid());
  assert (select allocated_payment_cents=2600 and status='paid' from rental_charge_items where id=cid);
  set constraints all immediate;set constraints all deferred;
+ assert (select admin_charge_attempted_at is null from rental_charge_items where id=cid);
  raise notice 'PASS: recollect refunded external portion without retiring already posted Stripe funds';
 
 

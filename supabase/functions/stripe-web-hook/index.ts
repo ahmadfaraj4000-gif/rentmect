@@ -2253,6 +2253,7 @@ async function createRentalChargeCheckout(req: Request, payload: CheckoutPayload
       payment_provider: Number(charge.allocated_deposit_cents || 0) > 0 ? "deposit" : "stripe",
       stripe_checkout_session_id: session.id,
       stripe_payment_intent_id: null,
+      admin_charge_attempted_at: null,
       payment_amount_cents: amountCents,
       payment_currency: "usd",
       updated_at: new Date().toISOString(),

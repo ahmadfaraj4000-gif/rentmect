@@ -45,6 +45,7 @@ with tempfile.TemporaryDirectory(prefix='rentme-discount-schema-') as temp:
             'supabase/migrations/20261111190000_flexible_payment_allocations.sql',
             'supabase/migrations/20261111200000_flexible_payment_consumers.sql',
             'supabase/migrations/20261111210000_flexible_stripe_charge_remainders.sql',
+            'supabase/migrations/20261111220000_clear_retired_collection_attempts.sql',
             'supabase/tests/unified_external_payments_full_schema.sql',
             'supabase/tests/flexible_payments_full_schema.sql',
         ]:
