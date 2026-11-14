@@ -6,7 +6,7 @@ set request.jwt.claim.role='service_role';
 do $$ declare rid uuid; k uuid:=gen_random_uuid(); req jsonb; parts jsonb; result jsonb; begin
  rid:=pg_temp.account_fixture(400,0);
  req:=jsonb_build_object('kind','rental_payment','charges','[]'::jsonb,'amountCents',27000,'rentalAmountCents',27000,
-  'expectedRentalDueCents',91367,'paymentMethod','cash','receivedDate',current_date-1,'receivedTime','','reference','','notes','');
+  'expectedRentalDueCents',91367,'paymentMethod','cash','receivedDate',(now() at time zone 'America/New_York')::date-1,'receivedTime','','reference','','notes','');
  perform service_prepare_external_payment(k,rid,auth.uid(),req);
  perform service_finish_external_payment(k,auth.uid(),false);
  result:=service_reclassify_legacy_deposit(k,27000,'Owner requested deposit-first classification of original receipt.');
@@ -18,7 +18,7 @@ do $$ declare rid uuid; k uuid:=gen_random_uuid(); req jsonb; parts jsonb; resul
  assert (select count(*)=1 from rental_audit_events where rental_id=rid and event_type='legacy_receipt_deposit_reclassified');
  req:=jsonb_build_object('version',2,'kind','rental_payment','funding','external','charges','[]'::jsonb,'allocationPriority','deposit_first',
   'amountCents',10000,'rentalAmountCents',10000,'depositAmountCents',0,'creditAmountCents',0,'expectedRentalDueCents',51367,
-  'expectedDepositDueCents',13000,'paymentMethod','cash','receivedDate',current_date);
+  'expectedDepositDueCents',13000,'paymentMethod','cash','receivedDate',(now() at time zone 'America/New_York')::date);
  begin
   perform service_prepare_external_payment(gen_random_uuid(),rid,auth.uid(),req);
   raise exception 'Rental-first payment accepted';
