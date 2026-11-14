@@ -17,7 +17,7 @@ begin
  req:=jsonb_build_object('version',2,'kind','rental_payment','funding','external',
  'charges',jsonb_build_array(jsonb_build_object('id',cid,'amountCents',1000,'expectedRemainingCents',2600)),
  'amountCents',30000,'rentalAmountCents',17400,'creditAmountCents',11600,'expectedRentalDueCents',18900,
- 'paymentMethod','cash_app','receivedDate',current_date-1,'receivedTime','23:00','reference','Synthetic','notes','Isolated test');
+ 'paymentMethod','cash_app','receivedDate',(now() at time zone 'America/New_York')::date-1,'receivedTime','23:00','reference','Synthetic','notes','Isolated test');
  result:=service_prepare_external_payment(k,rid,auth.uid(),req);
  result:=service_finish_external_payment(k,auth.uid());
  assert (result->>'balanceDue')::numeric=15;
@@ -60,7 +60,7 @@ begin
  req:=jsonb_build_object('version',2,'kind','rental_payment','funding','external',
  'charges',jsonb_build_array(jsonb_build_object('id',cid,'amountCents',1000,'expectedRemainingCents',2600)),
  'amountCents',2000,'rentalAmountCents',0,'creditAmountCents',1000,'expectedRentalDueCents',0,
- 'paymentMethod','cash','receivedDate',current_date-1,'reference','Mixed deposit test','notes','Synthetic');
+ 'paymentMethod','cash','receivedDate',(now() at time zone 'America/New_York')::date-1,'reference','Mixed deposit test','notes','Synthetic');
  perform service_prepare_external_payment(k,rid,auth.uid(),req); perform service_finish_external_payment(k,auth.uid());
  assert (get_rental_account(rid)->>'additional_balance_due')::numeric=16;
  assert rentmect_unpaid_charge_total(rid)=16;
@@ -94,7 +94,7 @@ begin
  rid:=pg_temp.account_fixture(300,0); k:=gen_random_uuid();
  req:=jsonb_build_object('version',2,'kind','rental_payment','funding','external','charges','[]'::jsonb,
  'amountCents',90000,'rentalAmountCents',81367,'creditAmountCents',8633,'expectedRentalDueCents',81367,
- 'paymentMethod','cash','receivedDate',current_date-1);
+ 'paymentMethod','cash','receivedDate',(now() at time zone 'America/New_York')::date-1);
  perform service_prepare_external_payment(k,rid,auth.uid(),req);
  result:=service_finish_external_payment(k,auth.uid());
  assert (result->>'balanceDue')::numeric=0;
@@ -144,7 +144,7 @@ begin
  rid:=pg_temp.account_fixture(300,0); k:=gen_random_uuid(); used:=gen_random_uuid();
  req:=jsonb_build_object('version',2,'kind','rental_payment','funding','external','charges','[]'::jsonb,
   'amountCents',90000,'rentalAmountCents',0,'creditAmountCents',90000,'expectedRentalDueCents',81367,
-  'paymentMethod','cash','receivedDate',current_date-1);
+  'paymentMethod','cash','receivedDate',(now() at time zone 'America/New_York')::date-1);
  perform service_prepare_external_payment(k,rid,auth.uid(),req); perform service_finish_external_payment(k,auth.uid());
  req:=req||jsonb_build_object('funding','credit','amountCents',81367,'rentalAmountCents',81367,'creditAmountCents',0);
  perform service_prepare_external_payment(used,rid,auth.uid(),req); perform service_finish_external_payment(used,auth.uid());
@@ -166,7 +166,7 @@ begin
  insert into rental_charge_items(rental_id,user_id,name,charge_type,amount,taxable,total_amount,source_type)
  select rid,user_id,'Stripe remainder toll','toll',26,false,26,'manual' from rentals where id=rid returning id into cid;
  req:=jsonb_build_object('version',2,'kind','rental_payment','funding','external','charges',jsonb_build_array(jsonb_build_object('id',cid,'amountCents',1000,'expectedRemainingCents',2600)),
- 'amountCents',1000,'rentalAmountCents',0,'creditAmountCents',0,'expectedRentalDueCents',0,'paymentMethod','cash','receivedDate',current_date-1);
+ 'amountCents',1000,'rentalAmountCents',0,'creditAmountCents',0,'expectedRentalDueCents',0,'paymentMethod','cash','receivedDate',(now() at time zone 'America/New_York')::date-1);
  perform service_prepare_external_payment(k,rid,auth.uid(),req);perform service_finish_external_payment(k,auth.uid());
  update rental_charge_items set checkout_creation_token=gen_random_uuid() where id=cid;
  update rental_charge_items set checkout_creation_token=null,status='checkout_open',payment_provider='stripe',stripe_checkout_session_id='cs_synthetic_remainder',payment_amount_cents=1600 where id=cid;
@@ -205,7 +205,7 @@ begin
  insert into rental_charge_items(rental_id,user_id,name,charge_type,amount,taxable,total_amount,source_type)
  select rid,user_id,'Allocated Stripe toll','toll',26,false,26,'manual' from rentals where id=rid returning id into cid;
  req:=jsonb_build_object('version',2,'kind','rental_payment','funding','stripe','charges',jsonb_build_array(jsonb_build_object('id',cid,'amountCents',1000,'expectedRemainingCents',2600)),
- 'amountCents',90000,'rentalAmountCents',81367,'creditAmountCents',7633,'expectedRentalDueCents',81367,'paymentMethod','card','receivedDate',current_date-1);
+ 'amountCents',90000,'rentalAmountCents',81367,'creditAmountCents',7633,'expectedRentalDueCents',81367,'paymentMethod','card','receivedDate',(now() at time zone 'America/New_York')::date-1);
  perform service_prepare_external_payment(k,rid,auth.uid(),req);
  begin perform service_finish_external_payment(k,auth.uid());raise exception 'Unconfirmed Stripe posted';
  exception when others then if sqlerrm not like '%Provider confirmation%' then raise;end if;end;
