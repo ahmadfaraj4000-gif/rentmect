@@ -23,7 +23,8 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.notify-admin-events]
-verify_jwt = true
+# Preserve production: the function validates its notification secret or user token.
+verify_jwt = false
 
 [functions.tollspot-webhook]
 verify_jwt = false
