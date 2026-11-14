@@ -1,3 +1,4 @@
+import { adminErrorMessage } from "../_shared/admin-errors.js";
 import { chargeCollectionCents } from '../_shared/charge-collection-amount.js';
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -90,7 +91,7 @@ function json(body: Record<string, unknown>, status = 200) {
 }
 
 function publicApiErrorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error || "");
+  const message = adminErrorMessage(error, "Complete this payment action");
   if (isIdentityResultsPermissionError(error)) {
     return "Your Stripe submission was received, but Rent Me CT must finish secure Identity-results setup. Do not submit your ID again.";
   }
@@ -1655,7 +1656,7 @@ async function refundRentalPayment(req: Request, payload: CheckoutPayload) {
     throw new Error("Refund amount must be at least $0.50.");
   }
   const reason = String(payload.reason || "").trim();
-  if (reason.length < 5) throw new Error("Enter a refund reason of at least 5 characters.");
+  if (reason.length < 1) throw new Error("Enter a refund reason.");
 
   const admin = await requireAdmin(req, "payment.refund");
   const { data: existingRequest, error: existingError } = await adminClient!
@@ -3258,7 +3259,7 @@ async function cancelBeforePickupAndRefundDeposit(req: Request, payload: Checkou
   await requireAdmin(req, "rental.cancel");
   await requireAdmin(req, "payment.refund");
   if (!payload.rentalId) throw new Error("Rental id is required.");
-  if (String(payload.reason || "").trim().length < 5) throw new Error("Enter a cancellation reason of at least 5 characters.");
+  if (String(payload.reason || "").trim().length < 1) throw new Error("Enter a cancellation reason.");
   const { data: rental, error } = await adminClient!.from("rentals")
     .select("id, status, cancelled_before_pickup_at, stripe_payment_intent_id")
     .eq("id", payload.rentalId).single();

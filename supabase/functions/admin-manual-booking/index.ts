@@ -1,3 +1,4 @@
+import { adminError } from "../_shared/admin-errors.js";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -43,8 +44,9 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const clientPortalUrl = (Deno.env.get("RENTMECT_CLIENT_PORTAL_URL") || "https://login.rentmect.com").replace(/\/$/, "");
+const emailLogoUrl = Deno.env.get("RENTMECT_EMAIL_LOGO_URL") || "https://admin.rentmect.com/assets/logo.png";
 const sendGridApiKey = Deno.env.get("SENDGRID_API_KEY") || "";
-const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL") || "bookings@rentmect.com";
+const fromEmail = Deno.env.get("SENDGRID_FROM_EMAIL") || "no-reply@rentmect.com";
 const fromName = Deno.env.get("SENDGRID_FROM_NAME") || "Rent Me CT";
 const replyToEmail = Deno.env.get("SENDGRID_REPLY_TO_EMAIL") || "rentmectservices@gmail.com";
 const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID") || "";
@@ -82,7 +84,7 @@ function escapeHtml(value: unknown) {
 async function createOnboardingLink(rentalId: string, expectedCustomerId?: string) {
   const { data: rental, error: rentalError } = await adminClient!
     .from("rentals")
-    .select("id,user_id,profiles!rentals_user_id_profiles_fkey(email,phone,full_name)")
+    .select("id,user_id,return_date,profiles!rentals_user_id_profiles_fkey(email,phone,full_name)")
     .eq("id", rentalId)
     .single();
   if (rentalError || !rental) throw new Error(rentalError?.message || "Rental not found.");
@@ -93,15 +95,36 @@ async function createOnboardingLink(rentalId: string, expectedCustomerId?: strin
   const email = String(profile?.email || authCustomer?.user?.email || "").trim().toLowerCase();
   if (!email) throw new Error("The customer does not have an email address.");
 
-  const redirectTo = `${clientPortalUrl}/?booking=${encodeURIComponent(rental.id)}&onboarding=1`;
-  const { data, error } = await adminClient!.auth.admin.generateLink({
-    type: "magiclink",
-    email,
-    options: { redirectTo },
+  const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
+  const token = btoa(String.fromCharCode(...tokenBytes))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  const tokenHash = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  const returnDeadline = new Date(`${rental.return_date || ""}T23:59:59-04:00`);
+  const fallbackDeadline = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+  const expiresAt = Number.isFinite(returnDeadline.getTime()) && returnDeadline > new Date()
+    ? returnDeadline
+    : fallbackDeadline;
+
+  await adminClient!.from("manual_booking_handoffs")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("rental_id", rental.id)
+    .is("revoked_at", null);
+  const { error: handoffError } = await adminClient!.from("manual_booking_handoffs").insert({
+    rental_id: rental.id,
+    user_id: rental.user_id,
+    token_hash: tokenHash,
+    expires_at: expiresAt.toISOString(),
+    last_sent_at: new Date().toISOString(),
   });
-  const actionLink = data?.properties?.action_link;
-  if (error || !actionLink) throw new Error(error?.message || "Could not generate a secure customer sign-in link.");
-  return { rental, profile, email, actionLink };
+  if (handoffError) throw new Error(handoffError.message || "Could not create the secure booking handoff.");
+
+  const { data: handoff } = await adminClient!.rpc("get_manual_booking_handoff", { p_token: token });
+  const customerPath = handoff?.customer_path === "returning" ? "returning" : "new";
+  const actionLink = `${clientPortalUrl}/?preview=1&adminBooking=${encodeURIComponent(token)}`;
+  return { rental, profile, email, actionLink, customerPath };
 }
 
 function normalizeUSPhone(value: unknown) {
@@ -111,12 +134,15 @@ function normalizeUSPhone(value: unknown) {
   return "";
 }
 
-async function emailOnboardingLink(params: { email: string; fullName?: string; actionLink: string }) {
+async function emailOnboardingLink(params: { email: string; fullName?: string; actionLink: string; customerPath: "new" | "returning" }) {
   if (!sendGridApiKey) throw new Error("SendGrid delivery is not configured; copy the secure link instead.");
   const firstName = escapeHtml(String(params.fullName || "Customer").trim().split(/\s+/)[0]);
   const link = escapeHtml(params.actionLink);
-  const html = `<!doctype html><html><body style="margin:0;background:#f3f5f4;font-family:Arial,sans-serif;color:#17211c"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px;background:#f3f5f4"><tr><td align="center"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #dce3df;border-radius:12px"><tr><td style="padding:20px 26px;background:#0b0e0c;color:#ffffff;font-size:22px;font-weight:800;border-radius:12px 12px 0 0">Rent Me CT</td></tr><tr><td style="padding:30px 26px"><h1 style="margin:0 0 16px;font-size:26px">Complete your booking</h1><p style="margin:0 0 14px;line-height:1.6">Hi ${firstName},</p><p style="margin:0 0 22px;line-height:1.6">Use the secure link below to finish phone and identity verification, upload required documents, sign your rental agreement, and pay.</p><p style="margin:0 0 24px"><a href="${link}" style="display:inline-block;padding:13px 20px;border-radius:7px;background:#17643f;color:#ffffff;text-decoration:none;font-weight:700">Complete booking securely</a></p><p style="margin:0;color:#6e7a74;font-size:13px;line-height:1.5">This link signs you in. Do not forward it. If you did not expect this message, contact Rent Me CT.</p></td></tr></table></td></tr></table></body></html>`;
-  const text = `Hi ${params.fullName || "Customer"}, securely complete verification, documents, agreement, and payment here: ${params.actionLink}`;
+  const steps = params.customerPath === "returning"
+    ? "Enter the email attached to your account. Your verified phone, Stripe Identity check, and approved driver license stay on file; finish any current insurance, agreement, and payment requirements."
+    : "Enter the email attached to this booking, then complete phone and identity verification, upload your driver license and insurance, review and sign the agreement, and pay.";
+  const html = `<!doctype html><html><body style="margin:0;background:#f3f5f4;font-family:Arial,sans-serif;color:#17211c"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px;background:#f3f5f4"><tr><td align="center"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #dce3df;border-top:6px solid #d71920;border-radius:12px;overflow:hidden"><tr><td align="center" style="padding:18px 26px;background:#ffffff;border-bottom:4px solid #0b6b3a"><img src="${escapeHtml(emailLogoUrl)}" width="180" height="63" alt="Rent Me CT" style="display:block;width:180px;height:auto;max-width:100%;border:0;outline:none;text-decoration:none"><div style="display:none;color:#123d2b;font-size:20px;font-weight:800">Rent Me CT</div></td></tr><tr><td style="padding:30px 26px"><h1 style="margin:0 0 16px;font-size:26px;color:#123d2b">Complete your booking</h1><p style="margin:0 0 14px;line-height:1.6">Hi ${firstName},</p><p style="margin:0 0 22px;line-height:1.6">${escapeHtml(steps)}</p><p style="margin:0 0 24px"><a href="${link}" style="display:inline-block;padding:13px 20px;border-radius:7px;background:#0b6b3a;color:#ffffff;text-decoration:none;font-weight:700">Review trip &amp; continue</a></p><p style="margin:0;color:#6e7a74;font-size:13px;line-height:1.5">The link does not sign anyone in automatically. The customer must verify the booking email. Do not forward it.</p></td></tr></table></td></tr></table></body></html>`;
+  const text = `Hi ${params.fullName || "Customer"}, Rent Me CT selected your vehicle and dates. ${steps} Review and continue: ${params.actionLink}`;
   const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
     method: "POST",
     headers: { Authorization: `Bearer ${sendGridApiKey}`, "Content-Type": "application/json" },
@@ -135,7 +161,7 @@ async function emailOnboardingLink(params: { email: string; fullName?: string; a
   if (!response.ok) throw new Error(`Email provider could not deliver the completion email (${response.status}).`);
 }
 
-async function textOnboardingLink(params: { phone?: string; fullName?: string; actionLink: string }) {
+async function textOnboardingLink(params: { phone?: string; fullName?: string; actionLink: string; customerPath: "new" | "returning" }) {
   if (!/^AC[a-zA-Z0-9]{32}$/.test(twilioAccountSid)) {
     throw new Error("Twilio messaging is unavailable because the Account SID is missing or invalid.");
   }
@@ -153,7 +179,9 @@ async function textOnboardingLink(params: { phone?: string; fullName?: string; a
   const firstName = String(params.fullName || "Customer").trim().split(/\s+/)[0];
   const values = new URLSearchParams({
     To: phone,
-    Body: `Hi ${firstName}, Rent Me CT created your booking. Securely complete phone and identity verification, documents, agreement, and payment here: ${params.actionLink} Do not forward this sign-in link.`,
+    Body: params.customerPath === "returning"
+      ? `Hi ${firstName}, Rent Me CT selected your vehicle and dates. Enter your account email; saved phone, Identity, and license checks will be reused. Finish here: ${params.actionLink}`
+      : `Hi ${firstName}, Rent Me CT selected your vehicle and dates. Enter your booking email, then complete the guided verification, documents, agreement, and payment: ${params.actionLink}`,
   });
   if (twilioMessagingServiceSid) values.set("MessagingServiceSid", twilioMessagingServiceSid);
   else values.set("From", twilioPhoneNumber);
@@ -175,28 +203,52 @@ async function textOnboardingLink(params: { phone?: string; fullName?: string; a
   if (!response.ok) {
     throw new Error(detail.message || `Twilio could not send the secure link (${response.status}).`);
   }
+  let finalStatus = {
+    status: String(detail.status || "accepted"),
+    error_code: detail.error_code || null,
+    error_message: detail.error_message || null,
+  };
   if (detail.sid) {
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    const statusResponse = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages/${detail.sid}.json`,
-      {
-        headers: {
-          Authorization: `Basic ${btoa(`${twilioAccountSid}:${twilioAuthToken}`)}`,
+    for (const waitMs of [1200, 1800, 2500]) {
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      const statusResponse = await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages/${detail.sid}.json`,
+        {
+          headers: {
+            Authorization: `Basic ${btoa(`${twilioAccountSid}:${twilioAuthToken}`)}`,
+          },
         },
-      },
-    );
-    const status = await statusResponse.json().catch(() => ({})) as {
-      status?: string;
-      error_code?: number | null;
-      error_message?: string | null;
-    };
-    if (status.status === "failed" || status.status === "undelivered") {
-      const code = status.error_code ? `Twilio ${status.error_code}` : "carrier rejection";
-      throw new Error(
-        status.error_message || `The carrier did not deliver the text (${code}). Check Twilio messaging compliance.`,
       );
+      const status = await statusResponse.json().catch(() => ({})) as {
+        status?: string;
+        error_code?: number | null;
+        error_message?: string | null;
+      };
+      if (statusResponse.ok) {
+        finalStatus = {
+          status: String(status.status || finalStatus.status),
+          error_code: status.error_code || null,
+          error_message: status.error_message || null,
+        };
+      }
+      if (["delivered", "failed", "undelivered"].includes(finalStatus.status)) break;
     }
   }
+  if (finalStatus.status === "failed" || finalStatus.status === "undelivered") {
+    if (Number(finalStatus.error_code) === 30034) {
+      throw new Error("Twilio 30034: the carrier blocked this text because the sending number is not registered to an approved US A2P 10DLC campaign.");
+    }
+    const code = finalStatus.error_code ? `Twilio ${finalStatus.error_code}` : "carrier rejection";
+    throw new Error(
+      finalStatus.error_message || `The carrier did not deliver the text (${code}). Check Twilio messaging compliance.`,
+    );
+  }
+  return {
+    sid: String(detail.sid || ""),
+    status: finalStatus.status,
+    errorCode: finalStatus.error_code,
+    errorMessage: finalStatus.error_message,
+  };
 }
 
 async function recentSmsDeliveryStatus(value: unknown) {
@@ -235,12 +287,15 @@ async function deliverOnboardingLink(
   const requested = delivery === "both" ? ["email", "text"] : [delivery];
   const sent: string[] = [];
   const warnings: string[] = [];
+  const details: Array<Record<string, unknown>> = [];
   for (const channel of requested) {
     try {
       if (channel === "email") {
-        await emailOnboardingLink({ email: link.email, fullName: link.profile?.full_name, actionLink: link.actionLink });
+        await emailOnboardingLink({ email: link.email, fullName: link.profile?.full_name, actionLink: link.actionLink, customerPath: link.customerPath });
+        details.push({ channel: "email", status: "accepted" });
       } else {
-        await textOnboardingLink({ phone: link.profile?.phone, fullName: link.profile?.full_name, actionLink: link.actionLink });
+        const textResult = await textOnboardingLink({ phone: link.profile?.phone, fullName: link.profile?.full_name, actionLink: link.actionLink, customerPath: link.customerPath });
+        details.push({ channel: "text", ...textResult });
       }
       sent.push(channel);
     } catch (error) {
@@ -248,7 +303,7 @@ async function deliverOnboardingLink(
     }
   }
   if (!sent.length) throw new Error(warnings.join(" "));
-  return { sent, warnings };
+  return { sent, warnings, details };
 }
 
 Deno.serve(async (req) => {
@@ -263,6 +318,8 @@ Deno.serve(async (req) => {
   if (!jwt) return json({ error: "You must be signed in as an admin." }, 401);
 
   let createdUserId = "";
+  let bookingCreated = false;
+  const requestId = crypto.randomUUID();
   try {
     const { data: authData, error: authError } = await adminClient.auth.getUser(jwt);
     if (authError || !authData.user?.id) return json({ error: "Your admin session is invalid." }, 401);
@@ -286,7 +343,7 @@ Deno.serve(async (req) => {
       if (!payload.rentalId) return json({ error: "Rental id is required." }, 400);
       const link = await createOnboardingLink(payload.rentalId);
       const delivery = payload.delivery === "both" ? "both" : payload.delivery === "text" ? "text" : payload.delivery === "email" ? "email" : null;
-      const deliveryResult = delivery ? await deliverOnboardingLink(link, delivery) : { sent: [], warnings: [] };
+      const deliveryResult = delivery ? await deliverOnboardingLink(link, delivery) : { sent: [], warnings: [], details: [] };
       await adminClient.from("rental_audit_events").insert({
         rental_id: link.rental.id,
         user_id: link.rental.user_id,
@@ -294,10 +351,15 @@ Deno.serve(async (req) => {
         event_type: delivery ? "manual_onboarding_link_sent" : "manual_onboarding_link_generated",
         event_payload: { source: "admin_portal", channels: deliveryResult.sent, warnings: deliveryResult.warnings },
       });
-      return json({ onboardingUrl: link.actionLink, onboardingSent: deliveryResult.sent.length > 0, deliveryChannels: deliveryResult.sent, onboardingWarning: deliveryResult.warnings.join(" ") });
+      return json({ onboardingUrl: link.actionLink, customerPath: link.customerPath, onboardingSent: deliveryResult.sent.length > 0, deliveryChannels: deliveryResult.sent, deliveryDetails: deliveryResult.details, onboardingWarning: deliveryResult.warnings.join(" ") });
     }
     if (!payload.vehicleId || !payload.pickupDate || !payload.returnDate) {
       return json({ error: "Choose a vehicle, pickup date, and return date." }, 400);
+    }
+
+    const paymentCollectionPreference = payload.paymentCollectionPreference || "customer_link";
+    if (!["customer_link", "admin_stripe", "external", "later"].includes(paymentCollectionPreference)) {
+      throw new Error("Choose a valid payment collection method.");
     }
 
     let customerId = payload.customerId || "";
@@ -311,20 +373,23 @@ Deno.serve(async (req) => {
     if (payload.customerMode === "new") {
       const fullName = String(payload.customer?.fullName || "").trim();
       const email = String(payload.customer?.email || "").trim().toLowerCase();
-      const phone = String(payload.customer?.phone || "").trim();
+      const phone = normalizeUSPhone(payload.customer?.phone);
       const dateOfBirth = String(payload.customer?.dateOfBirth || "").trim();
       const address = String(payload.customer?.address || "").trim();
       if (!fullName || !email || !phone || !validDate(dateOfBirth)) {
         return json({ error: "Enter a valid name, email, phone, and date of birth for the new customer." }, 400);
       }
 
-      const { data: matchingProfile } = await adminClient
-        .from("profiles")
-        .select("id")
-        .ilike("email", email)
-        .maybeSingle();
-      if (matchingProfile?.id) {
+      const { data: identityConflict, error: identityConflictError } = await adminClient.rpc(
+        "get_customer_identity_conflict",
+        { p_email: email, p_phone: phone },
+      );
+      if (identityConflictError) throw identityConflictError;
+      if (identityConflict === "email") {
         return json({ error: "A customer with that email already exists. Choose Existing customer instead." }, 409);
+      }
+      if (identityConflict === "phone") {
+        return json({ error: "A customer with that mobile number already exists. Choose Existing customer instead." }, 409);
       }
 
       const temporaryPassword = `${crypto.randomUUID()}Aa1!`;
@@ -334,7 +399,12 @@ Deno.serve(async (req) => {
         email_confirm: true,
         user_metadata: { full_name: fullName, phone, date_of_birth: dateOfBirth },
       });
-      if (createError || !created.user) throw new Error(createError?.message || "Could not create the customer account.");
+      if (createError || !created.user) {
+        if (/already|registered|exists|duplicate/i.test(createError?.message || "")) {
+          return json({ error: "A customer with that email already exists. Choose Existing customer instead." }, 409);
+        }
+        throw new Error(createError?.message || "Could not create the customer account.");
+      }
       createdUserId = created.user.id;
       customerId = createdUserId;
       customerCreated = true;
@@ -434,11 +504,8 @@ Deno.serve(async (req) => {
       p_return_time: payload.returnTime || "9:00 AM",
     });
     if (rentalError) throw rentalError;
+    bookingCreated = true;
 
-    const paymentCollectionPreference = payload.paymentCollectionPreference || "customer_link";
-    if (!["customer_link", "admin_stripe", "external", "later"].includes(paymentCollectionPreference)) {
-      throw new Error("Choose a valid payment collection method.");
-    }
     const { data: preferenceRental, error: preferenceError } = await adminClient
       .from("rentals")
       .update({ admin_payment_collection_preference: paymentCollectionPreference })
@@ -455,11 +522,13 @@ Deno.serve(async (req) => {
     let onboardingWarning = preferenceWarning;
     const onboardingDelivery = payload.onboardingDelivery;
     let deliveryChannels: string[] = [];
+    let deliveryDetails: Array<Record<string, unknown>> = [];
     if (onboardingDelivery && onboardingDelivery !== "none" && rental?.id) {
       try {
         const link = await createOnboardingLink(rental.id, customerId);
         const delivered = await deliverOnboardingLink(link, onboardingDelivery);
         deliveryChannels = delivered.sent;
+        deliveryDetails = delivered.details;
         onboardingSent = delivered.sent.length > 0;
         onboardingWarning = [preferenceWarning, ...delivered.warnings].filter(Boolean).join(" ");
       } catch (deliveryError) {
@@ -468,12 +537,13 @@ Deno.serve(async (req) => {
         console.warn("Manual booking created but onboarding delivery failed", deliveryError);
       }
     }
-    return json({ rental: savedRental, customerId, customerCreated, onboardingSent, onboardingWarning, deliveryChannels });
+    return json({ rental: savedRental, customerId, customerCreated, onboardingSent, onboardingWarning, deliveryChannels, deliveryDetails });
   } catch (error) {
-    if (createdUserId) {
+    if (createdUserId && !bookingCreated) {
       await adminClient.auth.admin.deleteUser(createdUserId);
     }
-    console.error("admin-manual-booking error", error);
-    return json({ error: error instanceof Error ? error.message : "Could not create the booking." }, 400);
+    console.error("admin-manual-booking error", { requestId, error });
+    const detail = adminError(error, "Create this booking");
+    return json({ error: detail.message, code: detail.code, field: detail.field, requestId }, 400);
   }
 });

@@ -1,3 +1,47 @@
+// Public search defaults are calendar days in Connecticut, never elapsed 24h.
+(function (root) {
+  'use strict';
+  const keys = ['pickupDate','returnDate','pickupTime','returnTime','pickupTimeCustomized','returnTimeCustomized','tripHandoff'];
+  const handoffKey = 'rentmect:public-trip-handoff:v1';
+  function nextDay(value) {
+    const [y,m,d] = value.split('-').map(Number);
+    return new Date(Date.UTC(y,m-1,d+1,12)).toISOString().slice(0,10);
+  }
+  function defaults(now = new Date()) {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit' }).formatToParts(now).map(p=>[p.type,p.value]));
+    const pickupDate = nextDay(`${parts.year}-${parts.month}-${parts.day}`);
+    return { pickupDate,returnDate:nextDay(pickupDate),pickupTime:'9:00 AM',returnTime:'9:00 AM' };
+  }
+  function cleanUrl(url) { keys.forEach(key=>url.searchParams.delete(key)); return url; }
+  function clearLegacyDates() {
+    for (const key of ['rentmect_pending_booking','rentMeCtBooking','pendingBooking','rentmect_period']) {
+      try { root.localStorage?.removeItem(key); } catch { /* Storage is optional. */ }
+    }
+  }
+  function createHandoff(url) {
+    // Only an opaque, one-use navigation token is kept, never visitor input.
+    const token = root.crypto.randomUUID();
+    try { root.sessionStorage.setItem(handoffKey,JSON.stringify({token,expires:Date.now()+60000})); url.searchParams.set('tripHandoff',token); }
+    catch { cleanUrl(url); } // Without storage, use fresh defaults on arrival.
+    return url;
+  }
+  function consumeHandoff(url) {
+    let result = null;
+    try {
+      const saved = JSON.parse(root.sessionStorage.getItem(handoffKey) || 'null');
+      root.sessionStorage.removeItem(handoffKey);
+      if(saved && saved.expires>=Date.now() && saved.token===url.searchParams.get('tripHandoff')) {
+        result=Object.fromEntries(keys.filter(k=>k!=='tripHandoff').map(k=>[k,url.searchParams.get(k)]));
+      }
+    } catch { /* Fresh defaults when navigation cannot be verified. */ }
+    cleanUrl(url);
+    root.history.replaceState(root.history.state,'',url);
+    clearLegacyDates();
+    return result;
+  }
+  root.RentMePublicTrip = {defaults,nextDay,cleanUrl,clearLegacyDates,createHandoff,consumeHandoff};
+})(window);
+
 
 let selectedVehicleName = "";
 let selectedRentalPeriod = "";
@@ -7,7 +51,6 @@ let quickBookingReturnTimeCustomized = false;
 const RENT_ME_CT_TIME_ZONE = "America/New_York";
 const RENTAL_OPENING_MINUTES = 9 * 60;
 const RENTAL_LAST_SLOT_MINUTES = 23 * 60 + 30;
-const RENTAL_DEFAULT_NOTICE_MINUTES = 3 * 60;
 const RENTAL_SLOT_MINUTES = 30;
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -851,19 +894,8 @@ function getRentalTimeOptions() {
 }
 
 function getDefaultRentalSlot(now = new Date()) {
-  const eastern = getEasternDateTimeParts(now);
-  let date = eastern.date;
-  const targetMinutes = eastern.minutes < RENTAL_OPENING_MINUTES
-    ? RENTAL_OPENING_MINUTES
-    : eastern.minutes + RENTAL_DEFAULT_NOTICE_MINUTES;
-  const roundedMinutes = Math.ceil(targetMinutes / RENTAL_SLOT_MINUTES) * RENTAL_SLOT_MINUTES;
-
-  if (roundedMinutes > RENTAL_LAST_SLOT_MINUTES) {
-    date = getNextDateInputValue(date);
-    return { date, time: minutesToRentalTime(RENTAL_OPENING_MINUTES) };
-  }
-
-  return { date, time: minutesToRentalTime(roundedMinutes) };
+  const trip = window.RentMePublicTrip.defaults(now);
+  return { date: trip.pickupDate, time: trip.pickupTime };
 }
 
 function getEasternDateTimeParts(value = new Date()) {
@@ -1166,51 +1198,26 @@ function normalizeRentalDateInputs() {
 }
 
 function loadBookingDatesIntoForm() {
-  let bookingData = {};
-
-  const saved =
-    localStorage.getItem("rentmect_pending_booking") ||
-    localStorage.getItem("rentMeCtBooking") ||
-    localStorage.getItem("pendingBooking");
-
-  try {
-    bookingData = saved ? JSON.parse(saved) : {};
-  } catch {
-    bookingData = {};
+  if (!document.getElementById('pickupDate')) return;
+  window.RentMePublicTrip.clearLegacyDates();
+  const trip = window.RentMePublicTrip.defaults();
+  quickBookingPickupTimeCustomized = false;
+  quickBookingReturnTimeCustomized = false;
+  for (const [id,value] of Object.entries(trip)) {
+    const input = document.getElementById(id);
+    if(input) input.value = value;
   }
-
-  const params = new URLSearchParams(window.location.search);
-
-  const defaultSlot = getDefaultRentalSlot();
-  const pickupDate = params.get("pickupDate") || bookingData.pickupDate || bookingData.pickup_date || defaultSlot.date;
-  const returnDate = params.get("returnDate") || bookingData.returnDate || bookingData.return_date || getNextDateInputValue(pickupDate);
-  const formDefaultTime = document.querySelector("[data-booking-widget]")?.dataset.defaultTime || "";
-  const requestedPickupTime = params.get("pickupTime");
-  const requestedReturnTime = params.get("returnTime");
-  const savedPickupTime = bookingData.pickupTime || bookingData.pickup_time || "";
-  const savedReturnTime = bookingData.returnTime || bookingData.return_time || "";
-  quickBookingPickupTimeCustomized =
-    params.get("pickupTimeCustomized") === "1"
-    || params.get("pickupTimeCustomized") === "true";
-  const pickupTime = requestedPickupTime || savedPickupTime || formDefaultTime || defaultSlot.time;
-
-  quickBookingReturnTimeCustomized =
-    params.get("returnTimeCustomized") === "1"
-    || params.get("returnTimeCustomized") === "true";
-  const returnTime = quickBookingReturnTimeCustomized
-    ? requestedReturnTime || savedReturnTime || pickupTime
-    : pickupTime;
-
-  const pickupInput = document.getElementById("pickupDate");
-  const returnInput = document.getElementById("returnDate");
-  const pickupSelect = document.getElementById("pickupTime");
-  const returnSelect = document.getElementById("returnTime");
-
-  if (pickupInput && pickupDate) pickupInput.value = pickupDate;
-  if (returnInput && returnDate) returnInput.value = returnDate;
-  if (pickupSelect && pickupTime) pickupSelect.value = decodeURIComponent(pickupTime).replace("%3A", ":");
-  if (returnSelect && returnTime) returnSelect.value = decodeURIComponent(returnTime).replace("%3A", ":");
+  const clean = window.RentMePublicTrip.cleanUrl(new URL(window.location.href));
+  history.replaceState(history.state, '', clean);
+  window.syncBookingRangePickers?.();
 }
+
+window.addEventListener('pageshow', event => {
+  if (!event.persisted || !document.querySelector('[data-booking-widget]')) return;
+  loadBookingDatesIntoForm();
+  normalizeRentalDateInputs();
+  normalizeRentalTimeInputs();
+});
 
 function startBooking(event) {
   event?.preventDefault();
@@ -1253,8 +1260,7 @@ function startBooking(event) {
     selectedVehicle: existingVehicle
   };
 
-  localStorage.setItem("rentmect_period", selectedRentalPeriod);
-  localStorage.setItem("rentmect_pending_booking", JSON.stringify(bookingData));
+  window.RentMePublicTrip.clearLegacyDates();
 
   const selectedPeriod = document.getElementById("selectedPeriod");
   if (selectedPeriod) selectedPeriod.textContent = selectedRentalPeriod;
@@ -1268,7 +1274,7 @@ function startBooking(event) {
     returnTimeCustomized: quickBookingReturnTimeCustomized ? "1" : "0",
   });
   updateQuickBookingSummary("Loading vehicles available for your dates…", "valid");
-  window.location.href = `${ACTIVE_BOOKING_PAGE_PATH}?${params.toString()}`;
+  window.location.href = window.RentMePublicTrip.createHandoff(new URL(`${ACTIVE_BOOKING_PAGE_PATH}?${params.toString()}`, window.location.href)).href;
 }
 
 function formatDate(value) {

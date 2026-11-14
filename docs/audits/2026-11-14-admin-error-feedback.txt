@@ -1,0 +1,599 @@
+ERROR FEEDBACK COVERAGE AND RECOVERY
+
+All Supabase REST/RPC JSON failures pass through portalTransport; all Edge invoke errors pass through installFunctionErrors. Existing domain explanations survive plain PostgREST objects, SDK wrappers, and HTTP error bodies. The full source-location inventory follows.
+
+Booking: customer open-rental and overlapping-reservation failures identify the customer conflict. The persistent booking error provides View customer rentals. Vehicle nonreturn, maintenance and calendar conflicts remain separate explanations. The actual production failure was P0001 customer date overlap swallowed by instanceof Error in admin-manual-booking. A handler regression reproduces that plain object.
+Return/inspection/holds: preserve exact mileage, damage, deposit disposition and physical-return explanations. Only arbitrary reason-length gates change; empty reasons still fail.
+Extensions/swaps/amendments: preserve availability, stale-review, payment and permission explanations. Review errors remain inside the dialog, edits invalidate review, and short reasons pass.
+Payments/refunds/deposits: preserve reconciliation, processing, underfunded and refund blockers. Known HTTP rejections do not create uncertain-write locks. Timeouts, network failure, malformed acknowledgements and 5xx retain Check saved result protection; never promise a failed payment did not save.
+Customer/documents/communications/merchants/tickets/settings: REST and Edge normalization preserves domain errors and identifies permission/session failures. Read failures retain their screen-specific retry paths and previously confirmed data.
+Infrastructure: missing RPC/schema updates explain deployment mismatch; constraint/internal SQL is not exposed. Unexpected booking failures include a request UUID logged by the function. Unknown failures honestly say the cause is unavailable and direct staff to check the saved result, rather than inventing a business cause.
+
+Boundaries: exact field-format validation and maximum payload sizes remain. Unknown third-party outages cannot always be translated into a specific business cause. Synthetic tests exercise mapped cases and transport behavior; they do not make real production charges, emails, or rental mutations.
+
+SOURCE LOCATION INVENTORY
+ADMIN ERROR FEEDBACK INVENTORY
+Each request uses normalized RPC/REST errors and Edge response extraction.
+Specific local validation remains next to its form. Unknown write outcomes retain transport replay guards.
+
+rentmect-admin-portal/src/CustomerDirectory.jsx:42: }).catch(error => { if (!controller.signal.aborted) setDetail({ error: error.message || 'Customer details could not load.' }); });
+rentmect-admin-portal/src/CustomerDirectory.jsx:60: {selection && !detail.profile && <div role="dialog" aria-label="Customer details" className="modal-backdrop"><div className="panel"><button onClick={close}>Close</button>{detail.loading ? <p>Loading selected customer…</p> : <p role="alert">{detail.error}<button onClick={() => setRetry(value => value + 1)}>Retry</button></p>}</div></div>}
+rentmect-admin-portal/src/DepositReview.jsx:24: async function confirm(){setBusy(true);setError('');try{request.current??={review:true,idempotencyKey:key,chargeIds:selected,expectedHeld:preview.held/100,expectedApplied:preview.chargesTotal/100,reason};const saved=await onConfirm(request.current);if(saved)setResult(saved);else setError('Deposit review was not completed. Refresh the rental before trying again.');}catch(e){setError(e.message);}finally{setBusy(false);}}
+rentmect-admin-portal/src/DepositReview.jsx:29: {result?<div role="status"><p><strong>{money(Math.round(result.applied*100))} applied to charges.</strong></p>{result.refundError?<p role="alert">Deductions are saved. Refund not completed: {result.refundError}</p>:result.refund?<p>Stripe refund {result.refund.status==='released'?'completed':'processing'}.</p>:null}{result.externalRemaining>0&&<p>{money(Math.round(result.externalRemaining*100))} remains to be returned externally. {result.refundError?'It stays held until the blockers are resolved.':'Record it after returning the money.'}</p>}{!result.refund&&result.externalRemaining<=0&&result.remaining<=0&&<p>The deposit has been fully applied. No refund remains.</p>}
+rentmect-admin-portal/src/DepositReview.jsx:43: {error&&<p role="alert">{error}</p>}
+rentmect-admin-portal/src/DepositReview.jsx:44: <div className="modal-actions">{result?<button type="button" onClick={close}>Done</button>:<><button type="button" disabled={busy} onClick={close}>Cancel</button><button type="button" disabled={busy||reason.trim().length<1||Boolean(request.current)} onClick={async()=>{if(!hold){setHold(true);return;}setBusy(true);try{if(await onHold(reason,followUp))onClose();}catch(e){setError(e.message);}finally{setBusy(false);}}}>{hold?'Save hold':'Hold for review'}</button>{!hold&&<button type="button" className="approve" disabled={busy||reason.trim().length<1||preview.held<=0||(dueAfter>0&&preview.applied===0)} onClick={confirm}>{busy?'Processing…':preview.applied>0?`Apply ${money(preview.applied)}${preview.refund===0?' to charges':dueAfter>0?' & hold remainder':` & refund ${money(preview.refund)}`}`:`Refund ${money(preview.refund)}`}</button>}</>}</div>
+rentmect-admin-portal/src/FlexibleReceivePayment.jsx:63: } catch (e) { if (active) setError(e.message); }
+rentmect-admin-portal/src/FlexibleReceivePayment.jsx:68: setError(''); setForm(f => {
+rentmect-admin-portal/src/FlexibleReceivePayment.jsx:80: submitLock.current = true; setBusy(true); setError('');
+rentmect-admin-portal/src/FlexibleReceivePayment.jsx:90: } catch (e) { setError(e.message || 'Payment confirmation is pending. Resume this same payment.'); }
+rentmect-admin-portal/src/FlexibleReceivePayment.jsx:94: if (submitLock.current) return; submitLock.current = true; setBusy(true); setError('');
+rentmect-admin-portal/src/FlexibleReceivePayment.jsx:99: } catch (e) { setError(e.message); } finally { setBusy(false); submitLock.current = false; }
+rentmect-admin-portal/src/FlexibleReceivePayment.jsx:142: </>}</div>{error && <p className="form-error" role="alert">{error}</p>}
+rentmect-admin-portal/src/HistoryScreens.jsx:12: }).catch(error => {
+rentmect-admin-portal/src/HistoryScreens.jsx:26: {state.error && <p role="alert" className="form-error">{state.error}</p>}
+rentmect-admin-portal/src/HistoryScreens.jsx:41: }).catch(error => { if (!controller.signal.aborted) setState({ error: error.message }); });
+rentmect-admin-portal/src/HistoryScreens.jsx:46: {open && (state.loading ? <p>Loading details…</p> : state.error ? <p role="alert">{state.error} <button onClick={() => setRetry(value => value + 1)}>Retry</button></p> : state.data && children(state.data, () => setRetry(value => value + 1)))}
+rentmect-admin-portal/src/Merchants.jsx:16: setBusy(true); setError('');
+rentmect-admin-portal/src/Merchants.jsx:22: } catch (failure) { if(request===requestRef.current) setError(failure.message || 'Merchant workspace could not load.'); }
+rentmect-admin-portal/src/Merchants.jsx:29: {error && <p role="alert" className="form-error">{error}</p>}
+rentmect-admin-portal/src/PaymentRevenueCards.jsx:40: {error && <p role="alert">Revenue totals are temporarily unavailable. <button type="button" onClick={onRetry}>Retry totals</button></p>}
+rentmect-admin-portal/src/PaymentRevenueCards.jsx:85: } catch (error) {
+rentmect-admin-portal/src/PerformanceTab.jsx:19: {report.health?.alerts?.length > 0 && <div className="form-error" role="alert"><strong>Performance alerts</strong><ul>{report.health.alerts.map((alert, i) => <li key={i}>{alert.kind === 'query_memory_pressure'
+rentmect-admin-portal/src/PerformanceTab.jsx:71: }).catch(()=>{if(current)setState({loading:false,data:null,error:'Performance data could not load. Your rental and payment operations are unaffected.'});}).finally(()=>clearTimeout(deadline));
+rentmect-admin-portal/src/PerformanceTab.jsx:94: {state.error && <p className="form-error" role="alert">{state.error}</p>}
+rentmect-admin-portal/src/PortalInbox.jsx:51: }catch(error){notify(error.message,'error');}finally{setSending(false);}
+rentmect-admin-portal/src/ReceiptActions.jsx:11: const change=(name,value)=>{setForm(f=>({...f,[name]:value}));setReview(null);setError('');};
+rentmect-admin-portal/src/ReceiptActions.jsx:14: if(lock.current)return;lock.current=true;setBusy(true);setError('');
+rentmect-admin-portal/src/ReceiptActions.jsx:23: }catch(e){setError(e.message);}finally{setBusy(false);lock.current=false;}
+rentmect-admin-portal/src/ReceiptActions.jsx:43: <button type="button" disabled={busy} onClick={()=>{setOpen(false);setReview(null);}}>Cancel editing</button>{error&&<p role="alert">{error}</p>}
+rentmect-admin-portal/src/ReceivePayment.jsx:56: }catch(e){if(active)setError(e.message);}finally{if(active)setLoading(false);}
+rentmect-admin-portal/src/ReceivePayment.jsx:58: const change=(key,value)=>{setError('');setForm(f=>({...f,[key==='selected'?'selectedJson':key]:key==='selected'?JSON.stringify(value):value,confirmed:false}));};
+rentmect-admin-portal/src/ReceivePayment.jsx:59: async function submit(e){e.preventDefault();if(tab!=='external'||saving||loading||!recoveryReady||!form.confirmed)return;setSaving(true);setError('');
+rentmect-admin-portal/src/ReceivePayment.jsx:63: }catch(e){setError(e.message||'Recording is unconfirmed. Resume this receipt.');}finally{setSaving(false);}
+rentmect-admin-portal/src/ReceivePayment.jsx:65: async function cancel(){setSaving(true);setError('');try{
+rentmect-admin-portal/src/ReceivePayment.jsx:69: }catch(e){setError(e.message);}finally{setSaving(false);}}
+rentmect-admin-portal/src/ReceivePayment.jsx:111: </>}{error&&<p role="alert" className="rp-error">{error}</p>}
+rentmect-admin-portal/src/RentalRateChange.jsx:12: function change(field,value){setForm(f=>({...f,[field]:value}));setPreview(null);setError('');setKey(crypto.randomUUID());}
+rentmect-admin-portal/src/RentalRateChange.jsx:14: async function check(e){e.preventDefault();setBusy(true);setError('');try{const{data,error}=await client.rpc('admin_preview_rental_rate_change',args());if(error)throw error;setPreview(data);requestAnimationFrame(()=>review.current?.scrollIntoView({block:'nearest'}));}catch(e){setError(e.message);}finally{setBusy(false);}}
+rentmect-admin-portal/src/RentalRateChange.jsx:15: async function save(){setBusy(true);setError('');try{const data=await onApply(rental,{...form,operation:'rate_change',revision:preview.revision},key);if(!data)throw Error('The price change was not saved.');clearDraft();onClose();}catch(e){setError(e.message);}finally{setBusy(false);}}
+rentmect-admin-portal/src/RentalRateChange.jsx:32: {error&&<p role="alert" className="form-error">{error}</p>}
+rentmect-admin-portal/src/ReturnEvidence.jsx:43: setError('');
+rentmect-admin-portal/src/ReturnEvidence.jsx:48: } catch (err) {
+rentmect-admin-portal/src/ReturnEvidence.jsx:49: setError(err.message || 'Unable to open evidence. Try again.');
+rentmect-admin-portal/src/ReturnEvidence.jsx:56: {error && <small role="alert">{error}</small>}
+rentmect-admin-portal/src/StripeAllocatedPayment.jsx:21: function change(key,value){setForm(f=>({...f,[key]:value,...(key==='amount'&&!active ? depositFirstAllocation({amount:value,depositDueCents:depositDue,rentalDueCents:due,charges}) : {})}));setReview(null);setError('');}
+rentmect-admin-portal/src/StripeAllocatedPayment.jsx:24: setError('');setNotice('');
+rentmect-admin-portal/src/StripeAllocatedPayment.jsx:30: }catch(e){setError(e.message);}
+rentmect-admin-portal/src/StripeAllocatedPayment.jsx:33: if(lock.current)return;lock.current=true;setBusy(true);onBusyChange?.(true);setError('');setNotice('');
+rentmect-admin-portal/src/StripeAllocatedPayment.jsx:48: }catch(e){setError(e.message);}
+rentmect-admin-portal/src/StripeAllocatedPayment.jsx:54: {blocked&&<p role="alert">An external payment is unfinished. Resume or cancel it in External payments first.</p>}
+rentmect-admin-portal/src/StripeAllocatedPayment.jsx:69: {active?.url&&<div className="rp-stripe-actions"><a href={active.url} target="_blank" rel="noopener noreferrer">Open Stripe payment link</a><button type="button" disabled={busy} onClick={async()=>{try{await navigator.clipboard.writeText(active.url);setNotice('Stripe payment link copied.');}catch{setError('Copy failed. Open the link and copy its address.');}}}>Copy link</button><button type="button" disabled={busy} onClick={()=>onEmail?.({id:rental.id,kind:'rental',rental,paymentReceiptId:active.id,amount:amount/100,label:'Allocated rental payment'},active.url,'email')}>Email link</button></div>}
+rentmect-admin-portal/src/StripeAllocatedPayment.jsx:70: {notice&&<p role="status">{notice}</p>}{error&&<p role="alert" className="form-error">{error}</p>}
+rentmect-admin-portal/src/StripeReceiveActions.jsx:14: if(!Number.isFinite(value)||value<0.5||Math.round(value*100)>Math.round(target.amount*100)||!/^\d+(\.\d{1,2})?$/.test(amount)){setError('Enter an amount from $0.50 to the selected balance, with no more than two decimal places.');return;}
+rentmect-admin-portal/src/StripeReceiveActions.jsx:15: if(target.id==='rental'&&value<target.amount&&target.amount-value<protectedDeposit-0.005){setError(`Leave the ${money(protectedDeposit)} refundable deposit for the final Stripe payment, or collect the full balance.`);return;}
+rentmect-admin-portal/src/StripeReceiveActions.jsx:16: lock.current=true;setBusy(true);setError('');setCopied(false);
+rentmect-admin-portal/src/StripeReceiveActions.jsx:23: if(kind==='copy'){try{await navigator.clipboard.writeText(link);setCopied(true);}catch{setError('Copy was blocked. Select the Stripe link below and copy it.');}}
+rentmect-admin-portal/src/StripeReceiveActions.jsx:25: }catch(e){setError(e.message||'The Stripe payment link could not be created.');}
+rentmect-admin-portal/src/StripeReceiveActions.jsx:30: {targets.length>0?<label className="rp-field"><span>Stripe payment for</span><select aria-label="Stripe payment for" value={selected} disabled={disabled||busy} onChange={e=>{setSelected(e.target.value);setAmount(amountText(targets.find(t=>t.id===e.target.value)?.amount));setPaid(false);setUrl('');setError('');setCopied(false);}}>{targets.map(t=><option key={t.id} value={t.id}>{t.label} · {money(t.amount)}</option>)}</select></label>:<p>No unpaid rental balance or additional charges are available for Stripe checkout.</p>}
+rentmect-admin-portal/src/StripeReceiveActions.jsx:31: {target&&<label className="rp-field"><span>Payment amount</span><MoneyInput aria-label="Stripe payment amount" type="text" inputMode="decimal" value={amount} disabled={disabled||busy||paid||target.id!=='rental'} onChange={e=>{setAmount(e.target.value);setUrl('');setError('');setCopied(false);}}/></label>}
+rentmect-admin-portal/src/StripeReceiveActions.jsx:40: {error&&<p role="alert">{error}</p>}
+rentmect-admin-portal/src/TaskRecovery.jsx:39: {result.error && <p role="alert">{result.error}</p>}
+rentmect-admin-portal/src/TicketQuickLookup.jsx:15: const timer = setTimeout(() => ticketRpc(supabase, 'admin_ticket_vehicles', { p_search: search }).then(rows => { if (live) setVehicles(rows); }).catch(err => { if (live) setError(err.message); }), 200);
+rentmect-admin-portal/src/TicketQuickLookup.jsx:19: async function run(fn) { setBusy(true); setError(''); try { await fn(); } catch (err) { setError(err.message); } finally { setBusy(false); } }
+rentmect-admin-portal/src/TicketQuickLookup.jsx:33: {error && <p className="ticket-error" role="alert">{error}</p>}
+rentmect-admin-portal/src/TicketResolution.jsx:32: try { const data = await rpc('admin_ticket_vehicles', { p_search: query }); if (active) { setRows(data); setError(''); } }
+rentmect-admin-portal/src/TicketResolution.jsx:33: catch (err) { if (active) setError(err.message); }
+rentmect-admin-portal/src/TicketResolution.jsx:45: {loading && <small role="status">Searching vehicles…</small>}{error && <small role="alert">{error}</small>}
+rentmect-admin-portal/src/TicketResolution.jsx:65: setLoading(true); setError('');
+rentmect-admin-portal/src/TicketResolution.jsx:69: } catch (err) { if (active) setError(err.message); }
+rentmect-admin-portal/src/TicketResolution.jsx:81: const seq = ++request.current; setSelected(id === 'new' ? `new:${crypto.randomUUID()}` : id); setDetail(null); setDetailError('');
+rentmect-admin-portal/src/TicketResolution.jsx:85: catch (err) { if (seq === request.current) setDetailError(err.message); }
+rentmect-admin-portal/src/TicketResolution.jsx:103: {error && <p className="ticket-error" role="alert">{error} <button onClick={() => setReload(x => x + 1)}>Retry list</button></p>}
+rentmect-admin-portal/src/TicketResolution.jsx:111: {detailBusy && <p role="status">Loading case…</p>}{detailError && <p role="alert">{detailError} <button onClick={() => open(selected)}>Retry case</button></p>}
+rentmect-admin-portal/src/TicketResolution.jsx:137: async function run(fn) { setBusy(true); setError(''); setMessage(''); try { await fn(); } catch (err) { setError(err.message || 'Please retry.'); } finally { setBusy(false); } }
+rentmect-admin-portal/src/TicketResolution.jsx:177: if (detail.case && !detail.case.rental_id) rpc('admin_ticket_candidates', { p_id: detail.case.id }).then(data => { if (live) setMatches(data); }).catch(err => { if (live) setError(err.message); });
+rentmect-admin-portal/src/TicketResolution.jsx:184: {error && <p className="ticket-error" role="alert">{error}</p>}{message && <p className="ticket-message" role="status">{message}</p>}
+rentmect-admin-portal/src/TicketResolution.jsx:238: setError('');
+rentmect-admin-portal/src/TicketResolution.jsx:239: } catch (err) { setError(err.message); }
+rentmect-admin-portal/src/lib/customerTicketFlags.js:38: } catch (error) {
+rentmect-admin-portal/src/lib/portalTransport.js:134: } catch (error) {
+rentmect-admin-portal/src/lib/rentalWorkspace.js:152: } catch (error) {
+rentmect-admin-portal/src/lib/rentalWorkspace.js:185: } catch (error) {
+rentmect-admin-portal/src/lib/supabase.js:19: } catch (error) {
+rentmect-admin-portal/src/main.jsx:763: function notify(text, type = 'info', action = null) {
+rentmect-admin-portal/src/main.jsx:780: } catch (error) {
+rentmect-admin-portal/src/main.jsx:810: notify(
+rentmect-admin-portal/src/main.jsx:852: if (error && !sessionEventReceived) setStartupError(userFacingPortalError(error));
+rentmect-admin-portal/src/main.jsx:870: if (error) setStartupError(userFacingPortalError(error));
+rentmect-admin-portal/src/main.jsx:890: setStartupError(userFacingPortalError(error, 'Staff permissions could not load. Please retry.'));
+rentmect-admin-portal/src/main.jsx:1370: setPaymentLoadError([depositAllocationsRes.error, rentalPaymentsRes.error, rentalRefundsRes.error, rentalChargesRes.error, externalActionsRes.error, reconciliationIssuesRes.error, flexibleReceiptsRes.error].filter(Boolean).map((error) => error.message).join(' '));
+rentmect-admin-portal/src/main.jsx:1425: void loadAllData({ silent: true, domains }).catch(() => {
+rentmect-admin-portal/src/main.jsx:1426: notify('The latest records could not refresh yet. Use Refresh data to check the saved result before repeating the task.', 'error');
+rentmect-admin-portal/src/main.jsx:1675: setPaymentLoadError(
+rentmect-admin-portal/src/main.jsx:1710: notify(data?.error || error.message);
+rentmect-admin-portal/src/main.jsx:1744: return notify('Open the rental row and enter starting mileage before marking pickup.');
+rentmect-admin-portal/src/main.jsx:1747: if (startingMileage === null) return notify('Starting mileage must be a whole number.');
+rentmect-admin-portal/src/main.jsx:1749: return notify(`Starting mileage cannot be below the vehicle's current mileage (${formatMiles(rental.vehicles.current_mileage)}).`);
+rentmect-admin-portal/src/main.jsx:1758: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:1773: notify(rentalTransitionNotice(rental, 'active'), 'success');
+rentmect-admin-portal/src/main.jsx:1783: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:1788: notify(rentalTransitionNotice(rental, 'completed'), 'success');
+rentmect-admin-portal/src/main.jsx:1805: notify(detail, 'error');
+rentmect-admin-portal/src/main.jsx:1808: notify(['released', 'succeeded'].includes(data?.status)
+rentmect-admin-portal/src/main.jsx:1812: } catch (error) {
+rentmect-admin-portal/src/main.jsx:1813: notify(error.message || 'Cancellation/refund could not be confirmed. Refresh the booking before retrying.', 'error');
+rentmect-admin-portal/src/main.jsx:1823: if (error) { notify(error.message, 'error'); return false; }
+rentmect-admin-portal/src/main.jsx:1825: notify(rentalTransitionNotice(rental, 'cancelled'), 'success');
+rentmect-admin-portal/src/main.jsx:1830: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:1836: if (vehicleError) return notify(vehicleError.message);
+rentmect-admin-portal/src/main.jsx:1839: notify(rentalTransitionNotice(rental, status), 'success');
+rentmect-admin-portal/src/main.jsx:1850: notify(error.message);
+rentmect-admin-portal/src/main.jsx:1858: notify(`Payment deadline changed to ${formatEasternDateTime(data?.payment_due_at || paymentDueAt)}.`, 'success');
+rentmect-admin-portal/src/main.jsx:1870: notify(error.message);
+rentmect-admin-portal/src/main.jsx:1878: notify(`Reservation restored. If it remains unpaid, it will cancel ${formatEasternDateTime(data?.payment_due_at || paymentDueAt)}.`, 'success');
+rentmect-admin-portal/src/main.jsx:1894: notify(error.message);
+rentmect-admin-portal/src/main.jsx:1899: notify('Emergency exception recorded. The rental is active, every incomplete procedure remains visible, and the owner alert was queued.', 'success');
+rentmect-admin-portal/src/main.jsx:1914: notify(error.message);
+rentmect-admin-portal/src/main.jsx:1925: notify(`${EMERGENCY_SCOPE_LABELS[form.scope] || prettyStatus(form.scope)} bypass recorded. No other step was bypassed and the vehicle was not released.`, 'success');
+rentmect-admin-portal/src/main.jsx:1936: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:1938: notify(`${prettyStatus(scope)} exception resolved from the actual booking record.`, 'success');
+rentmect-admin-portal/src/main.jsx:1953: if (uploadError) return notify(uploadError.message);
+rentmect-admin-portal/src/main.jsx:1975: if (inspectionError) return notify(inspectionError.message);
+rentmect-admin-portal/src/main.jsx:2005: notify(
+rentmect-admin-portal/src/main.jsx:2021: if (error) { notify(error.message, 'error'); return false; }
+rentmect-admin-portal/src/main.jsx:2022: refreshAfterSavedTask(); notify('Deposit held for review.', 'success'); return true;
+rentmect-admin-portal/src/main.jsx:2053: notify(detail, 'error');
+rentmect-admin-portal/src/main.jsx:2061: notify(data.refundError ? `Deductions saved. Refund needs attention: ${data.refundError}` : 'Deposit review saved.', data.refundError ? 'error' : 'success');
+rentmect-admin-portal/src/main.jsx:2072: notify(nextStatus === 'released' ? 'Security deposit refund submitted successfully.' : 'Security deposit refund is processing.', 'success');
+rentmect-admin-portal/src/main.jsx:2083: notify('Refund amount must be at least $0.50.');
+rentmect-admin-portal/src/main.jsx:2087: notify('Enter a refund reason.');
+rentmect-admin-portal/src/main.jsx:2110: notify(detail);
+rentmect-admin-portal/src/main.jsx:2125: notify(`Stripe refund of ${money(amount)} submitted. The security deposit remains protected separately.`, 'success');
+rentmect-admin-portal/src/main.jsx:2147: notify(data?.error || error?.message || 'The external payment adjustment could not be saved.');
+rentmect-admin-portal/src/main.jsx:2151: notify(
+rentmect-admin-portal/src/main.jsx:2173: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:2176: notify('External deposit return recorded and removed from the queue.', 'success');
+rentmect-admin-portal/src/main.jsx:2183: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:2185: notify('Deposit task escalated with an audit note.', 'success');
+rentmect-admin-portal/src/main.jsx:2194: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:2200: notify(`${data.label} ${enabled ? 'enabled' : 'disabled'} for Employees.`, 'success');
+rentmect-admin-portal/src/main.jsx:2208: if (error || data?.error) return notify(data?.error || error?.message || 'Employee invitation could not be sent.');
+rentmect-admin-portal/src/main.jsx:2210: notify(data.invited ? `Employee invitation sent to ${data.email}.` : `${data.email} is now classified as an Employee.`, 'success');
+rentmect-admin-portal/src/main.jsx:2242: notify(data?.error || error.message);
+rentmect-admin-portal/src/main.jsx:2263: notify(`${externalPaymentMethodLabel(paymentMethod)} installment of ${money(amount)} recorded. ${money(balanceRemaining)} remains due; payment and deposit are not complete.`, 'success');
+rentmect-admin-portal/src/main.jsx:2266: notify(`${externalPaymentMethodLabel(paymentMethod)} payment of ${money(amount)} recorded.`, 'success');
+rentmect-admin-portal/src/main.jsx:2271: if (alertError || alertData?.error) notify('Payment saved. The admin notification could not be confirmed; do not record the payment again.', 'error');
+rentmect-admin-portal/src/main.jsx:2281: notify('Open and approve the complete new extension insurance packet before approving this request.');
+rentmect-admin-portal/src/main.jsx:2291: if (!entered.trim() || !Number.isFinite(rate) || rate < 0) return notify('Enter a valid agreed extension rate.');
+rentmect-admin-portal/src/main.jsx:2293: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:2297: if (!reason || reason.trim().length < 1) return notify('A specific rate agreement reason is required.');
+rentmect-admin-portal/src/main.jsx:2315: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:2319: notify(approve ? 'Extension approved. The portal payment notice and transactional email were queued; opted-in SMS delivery will follow. The calendar hold is active.' : 'Extension rejected.', 'success');
+rentmect-admin-portal/src/main.jsx:2327: notify('Approve the complete new extension insurance packet before recording payment.');
+rentmect-admin-portal/src/main.jsx:2334: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:2335: notify('Extension payment recorded and the rental return window is updated.', 'success');
+rentmect-admin-portal/src/main.jsx:2344: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:2347: notify('Approved extension cancelled and its calendar hold released.', 'success');
+rentmect-admin-portal/src/main.jsx:2361: notify(error.message);
+rentmect-admin-portal/src/main.jsx:2365: notify('Charge added. The secure payment-link email was queued, and you can also text the link or charge the saved card now.', 'success');
+rentmect-admin-portal/src/main.jsx:2408: notify('Price change saved. Earlier dates and payments are unchanged. The updated agreement needs a signature.', 'success');
+rentmect-admin-portal/src/main.jsx:2447: notify(`Rental ${form.operation === 'extension_revision' ? 'revised' : 'extended'} through ${formatRentalDate(form.returnDate, form.returnTime)}. ${money(settlement?.balance_due ?? data?.total_due ?? 0)} remains due. ${Number(data?.credit_due || 0) > 0 ? `${money(data.credit_due)} customer credit is available for a separate refund. ` : ''}Use Take Payment to collect any balance. The updated agreement needs a signature.`, 'success');
+rentmect-admin-portal/src/main.jsx:2456: notify(`Rental updated. ${money(settlement.net_paid)} remains credited and only ${money(settlement.balance_due)} is due. Payment is now partially paid.${lateFeeResult}`, 'success');
+rentmect-admin-portal/src/main.jsx:2458: notify(`Rental updated. Customer credit due: ${money(settlement.credit_due)}. The original payment was preserved.${lateFeeResult}`, 'success');
+rentmect-admin-portal/src/main.jsx:2460: notify(`Rental updated and fully settled. The customer must sign the updated agreement before pickup.${lateFeeResult}`, 'success');
+rentmect-admin-portal/src/main.jsx:2462: notify(`Rental updated, payment reconciled, and calendar availability refreshed.${lateFeeResult}`, 'success');
+rentmect-admin-portal/src/main.jsx:2506: if (data?.checkoutWarning) notify(data.checkoutWarning);
+rentmect-admin-portal/src/main.jsx:2509: notify(`Discount saved. Customer credit due: ${money(credit)}. The captured payment was not rewritten.`, 'success');
+rentmect-admin-portal/src/main.jsx:2511: notify('Manual discount removed and the unpaid reservation total was recalculated.', 'success');
+rentmect-admin-portal/src/main.jsx:2513: notify(`Manual discount saved. Reservation total is now ${money(data?.preview?.new_total || 0)}.`, 'success');
+rentmect-admin-portal/src/main.jsx:2524: notify(data?.error || error.message);
+rentmect-admin-portal/src/main.jsx:2531: notify(data.reason || 'Stripe already collected this charge. It was recorded as paid and cannot be waived.');
+rentmect-admin-portal/src/main.jsx:2534: notify(data?.status === 'already_waived' ? 'Charge was already waived.' : 'Charge waived. Any open Stripe payment link was closed first.', 'success');
+rentmect-admin-portal/src/main.jsx:2552: notify(`${money(data.applied)} paid from the deposit. ${money(data.remaining)} remains in this deposit for a later refund.`, 'success');
+rentmect-admin-portal/src/main.jsx:2561: if (!options.silent) notify(data?.error || error.message);
+rentmect-admin-portal/src/main.jsx:2567: if (!options.silent) notify('Saved card charged successfully. Stripe recorded the payment.', 'success');
+rentmect-admin-portal/src/main.jsx:2571: if (!options.silent) notify(data?.reason || 'The saved card could not be charged. The customer payment link remains available.');
+rentmect-admin-portal/src/main.jsx:2635: notify(data?.error || error?.message || 'The external charge payment could not be recorded.');
+rentmect-admin-portal/src/main.jsx:2643: notify(data.reason || 'This charge was already settled.', 'success');
+rentmect-admin-portal/src/main.jsx:2646: notify(`${externalPaymentMethodLabel(payment.paymentMethod)} payment of ${money(charge.total_amount)} recorded for “${charge.name}”.`, 'success');
+rentmect-admin-portal/src/main.jsx:2654: notify('Reserved and On the Road are controlled by the rental schedule, not the vehicle condition control.', 'error');
+rentmect-admin-portal/src/main.jsx:2659: notify(error.message);
+rentmect-admin-portal/src/main.jsx:2668: notify(`Vehicle condition set to ${operationalVehicleStatusLabel(status)}.`, 'success');
+rentmect-admin-portal/src/main.jsx:2676: return notify('Select at least three customer-facing features before publishing this vehicle.');
+rentmect-admin-portal/src/main.jsx:2679: return notify('Add at least one vehicle picture before publishing this vehicle.');
+rentmect-admin-portal/src/main.jsx:2682: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:2686: notify(published ? 'Vehicle published to customer-facing fleet views.' : 'Vehicle unpublished and hidden from customer-facing fleet views.', 'success');
+rentmect-admin-portal/src/main.jsx:2692: if (currentMileage === null) return notify('Record the vehicle’s current mileage before completing maintenance.');
+rentmect-admin-portal/src/main.jsx:2702: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:2709: notify(`Maintenance recorded. Next service is due at ${formatMiles(currentMileage + interval)}.`, 'success');
+rentmect-admin-portal/src/main.jsx:2715: if (mileage === null) return notify('Enter the vehicle mileage recorded when this service was completed.');
+rentmect-admin-portal/src/main.jsx:2716: if (!completion.completedAt) return notify('Enter the service completion date.');
+rentmect-admin-portal/src/main.jsx:2723: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:2725: notify(`${schedule.label} recorded at ${formatMiles(mileage)}. The next milestone and calendar lock were recalculated.`, 'success');
+rentmect-admin-portal/src/main.jsx:2734: if (intervalMiles === null && intervalMonths === null) return notify('Set a mileage interval, time interval, or both.');
+rentmect-admin-portal/src/main.jsx:2750: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:2752: notify(`${updates.label || schedule.label} schedule saved.`, 'success');
+rentmect-admin-portal/src/main.jsx:2759: if (String(reason || '').trim().length < 1) return notify('Enter a specific maintenance override reason.');
+rentmect-admin-portal/src/main.jsx:2760: if (!Number.isInteger(duration) || duration < 1 || duration > 168) return notify('Choose an override between 1 and 168 hours.');
+rentmect-admin-portal/src/main.jsx:2766: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:2768: notify(`${vehicle.name} temporarily returned to service. The override is audited and will expire automatically.`, 'success');
+rentmect-admin-portal/src/main.jsx:2782: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:2784: notify('Damage case updated.', 'success');
+rentmect-admin-portal/src/main.jsx:2794: if (error) { notify(error.message); return false; }
+rentmect-admin-portal/src/main.jsx:2802: notify(customerStatus === 'blocked' ? 'Customer blocked. Their email and phone cannot be reused for signup or rentals.' : customerStatus === 'good' ? 'Customer block removed.' : 'Customer marked for review.', 'success');
+rentmect-admin-portal/src/main.jsx:2822: notify('Customer details updated.', 'success');
+rentmect-admin-portal/src/main.jsx:2835: notify('Customer deleted. Historical rental and payment records were retained.', 'success');
+rentmect-admin-portal/src/main.jsx:2846: if (error) { notify(userFacingPortalError(error, 'Vehicle details could not load.'), 'error'); return; }
+rentmect-admin-portal/src/main.jsx:2888: else notify(message);
+rentmect-admin-portal/src/main.jsx:2895: if (!vehicleName) return notify('Enter a vehicle name.');
+rentmect-admin-portal/src/main.jsx:2896: if (!vehicleType) return notify('Choose a vehicle type.');
+rentmect-admin-portal/src/main.jsx:2924: setVehiclePriceConfirmationError('');
+rentmect-admin-portal/src/main.jsx:2969: notify(`${vehicle?.name || 'Vehicle'} updated.`, 'success');
+rentmect-admin-portal/src/main.jsx:2978: return notify('This vehicle has rental history. Set it to unavailable instead of deleting it.');
+rentmect-admin-portal/src/main.jsx:2985: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:2995: () => notify('Discount code generated and copied.', 'success'),
+rentmect-admin-portal/src/main.jsx:2996: () => notify('Discount code generated. Use Copy after saving it.', 'success'),
+rentmect-admin-portal/src/main.jsx:3003: notify(`${code} copied.`, 'success');
+rentmect-admin-portal/src/main.jsx:3005: notify('Copy was blocked by the browser. Select the code and copy it manually.');
+rentmect-admin-portal/src/main.jsx:3013: if (!discountForm.code.trim()) return notify('Enter or generate a discount code.');
+rentmect-admin-portal/src/main.jsx:3014: if (!amount || amount <= 0) return notify('Discount amount must be greater than zero.');
+rentmect-admin-portal/src/main.jsx:3015: if (discountForm.discount_type === 'percentage' && amount > 100) return notify('Percentage discounts cannot be over 100%.');
+rentmect-admin-portal/src/main.jsx:3033: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:3042: notify('Discount code created and selected for the promotion manager.', 'success');
+rentmect-admin-portal/src/main.jsx:3053: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:3055: notify(active ? 'Discount code activated.' : 'Discount code paused.', 'success');
+rentmect-admin-portal/src/main.jsx:3063: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:3065: notify('Discount code deleted.', 'success');
+rentmect-admin-portal/src/main.jsx:3072: if (!serviceFeeForm.name.trim()) return notify('Enter a service fee name.');
+rentmect-admin-portal/src/main.jsx:3073: if (!serviceFeeForm.service_type.trim()) return notify('Enter a fee type.');
+rentmect-admin-portal/src/main.jsx:3074: if (!amount || amount <= 0) return notify('Service fee amount must be greater than zero.');
+rentmect-admin-portal/src/main.jsx:3090: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:3094: notify('Internal charge template added. It is available from Rental Charges and will not affect public booking prices.', 'success');
+rentmect-admin-portal/src/main.jsx:3105: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:3107: notify(active ? 'Internal charge template activated.' : 'Internal charge template paused.', 'success');
+rentmect-admin-portal/src/main.jsx:3115: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:3117: notify('Internal charge template deleted.', 'success');
+rentmect-admin-portal/src/main.jsx:3124: if (markup < 0 || markup > 100) return notify('Rental markup must be between 0 and 100 percent.');
+rentmect-admin-portal/src/main.jsx:3142: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:3144: notify('Under-25 pricing updated.', 'success');
+rentmect-admin-portal/src/main.jsx:3152: return notify('Automatic deposit release delay must be a whole number from 1 to 30 days.');
+rentmect-admin-portal/src/main.jsx:3170: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:3172: notify('Billing automation settings saved.', 'success');
+rentmect-admin-portal/src/main.jsx:3182: return notify('Minimum rental duration must be a whole number from 1 to 30 days.');
+rentmect-admin-portal/src/main.jsx:3185: return notify('Advance notice must be between immediate and 365 days.');
+rentmect-admin-portal/src/main.jsx:3188: return notify('Admin-created booking payment deadline must be between 5 minutes and 7 days.');
+rentmect-admin-portal/src/main.jsx:3198: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:3204: notify('Booking rules saved globally. Existing automatic staff-booking deadlines were recalculated; individual deadline exceptions and customer checkout holds were preserved.', 'success');
+rentmect-admin-portal/src/main.jsx:3229: if (!promotionForm.name.trim()) return notify('Enter an internal campaign name.');
+rentmect-admin-portal/src/main.jsx:3230: if (couponCode.length < 2) return notify('Enter a coupon code.');
+rentmect-admin-portal/src/main.jsx:3232: if (!selectedDiscount) return notify('Choose a saved discount code so the advertised offer changes the customer total.');
+rentmect-admin-portal/src/main.jsx:3233: if (!selectedDiscount.active) return notify('Activate this discount code before publishing the promotion.');
+rentmect-admin-portal/src/main.jsx:3234: if (!promotionForm.ends_at) return notify('Choose when the promotion ends.');
+rentmect-admin-portal/src/main.jsx:3235: if (!promotionForm.popup_enabled && !promotionForm.banner_enabled) return notify('Turn on the popup, the banner, or both.');
+rentmect-admin-portal/src/main.jsx:3236: if (promotionForm.popup_enabled && promotionForm.popup_pages.length === 0) return notify('Choose at least one page for the popup.');
+rentmect-admin-portal/src/main.jsx:3237: if (promotionForm.banner_enabled && promotionForm.banner_pages.length === 0) return notify('Choose at least one page for the banner.');
+rentmect-admin-portal/src/main.jsx:3241: if (!endsAt) return notify('Enter a valid ending date and time.');
+rentmect-admin-portal/src/main.jsx:3242: if (startsAt && new Date(endsAt) <= new Date(startsAt)) return notify('The ending time must be after the starting time.');
+rentmect-admin-portal/src/main.jsx:3268: if (payload.popup_enabled && (!promotionForm.popup_title.trim() || !promotionForm.popup_body.trim())) return notify('Enter the popup headline and message.');
+rentmect-admin-portal/src/main.jsx:3269: if (payload.banner_enabled && !promotionForm.banner_title.trim()) return notify('Enter the banner headline.');
+rentmect-admin-portal/src/main.jsx:3275: if (error) return notify(sitePromotionTableError(error), 'error');
+rentmect-admin-portal/src/main.jsx:3283: notify(editingPromotionId ? 'Promotion updated on the website.' : 'Promotion created for the website.', 'success');
+rentmect-admin-portal/src/main.jsx:3295: if (error) return notify(sitePromotionTableError(error), 'error');
+rentmect-admin-portal/src/main.jsx:3297: notify(active ? 'Promotion activated.' : 'Promotion paused and removed from the website.', 'success');
+rentmect-admin-portal/src/main.jsx:3305: if (error) return notify(sitePromotionTableError(error), 'error');
+rentmect-admin-portal/src/main.jsx:3308: notify('Promotion deleted.', 'success');
+rentmect-admin-portal/src/main.jsx:3315: if (!vehicleId) return notify('Choose a vehicle to block.');
+rentmect-admin-portal/src/main.jsx:3316: if (!availabilityBlockForm.start_date || !availabilityBlockForm.end_date) return notify('Choose start and end dates.');
+rentmect-admin-portal/src/main.jsx:3317: if (availabilityBlockForm.end_date < availabilityBlockForm.start_date) return notify('End date must be after the start date.');
+rentmect-admin-portal/src/main.jsx:3320: return notify('Reserved, On the Road, and extension holds are created by the rental schedule and cannot be added manually.', 'error');
+rentmect-admin-portal/src/main.jsx:3326: return notify('This is a system-created calendar hold. Manage it from the related rental or extension request.', 'error');
+rentmect-admin-portal/src/main.jsx:3344: if (error) return notify(availabilityTableError(error), 'error');
+rentmect-admin-portal/src/main.jsx:3359: notify(idsToClear.length ? 'Selected dates are available again.' : 'Those dates were already available.', 'success');
+rentmect-admin-portal/src/main.jsx:3389: if (error) return notify(availabilityTableError(error), 'error');
+rentmect-admin-portal/src/main.jsx:3408: notify(editingAvailabilityBlockId ? 'Availability block updated.' : 'Availability block added.', 'success');
+rentmect-admin-portal/src/main.jsx:3418: } catch (saveError) {
+rentmect-admin-portal/src/main.jsx:3419: notify(saveError instanceof Error ? saveError.message : 'The calendar block could not be saved.', 'error');
+rentmect-admin-portal/src/main.jsx:3519: notify('This is a system-created calendar hold. Manage it from the related rental or extension request.', 'info');
+rentmect-admin-portal/src/main.jsx:3533: notify('Block loaded into the calendar form. Update the details and save.', 'info');
+rentmect-admin-portal/src/main.jsx:3540: notify('System-created calendar holds cannot be removed here. Manage the related rental or extension request.', 'error');
+rentmect-admin-portal/src/main.jsx:3550: notify(availabilityTableError(error), 'error');
+rentmect-admin-portal/src/main.jsx:3554: notify('Availability block removed. Those dates are available again unless another rental or protected hold applies.', 'success');
+rentmect-admin-portal/src/main.jsx:3573: if (documentError) return notify(documentError.message, 'error');
+rentmect-admin-portal/src/main.jsx:3577: if (packetError) return notify(packetError.message, 'error');
+rentmect-admin-portal/src/main.jsx:3587: notify('This packet needs one combined file or both liability and collision files before approval.');
+rentmect-admin-portal/src/main.jsx:3592: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:3608: notify(`${documentMessage}${transitionMessage}`, 'success');
+rentmect-admin-portal/src/main.jsx:3632: notify(error.message);
+rentmect-admin-portal/src/main.jsx:3672: notify(storageError.message);
+rentmect-admin-portal/src/main.jsx:3683: notify(error.message);
+rentmect-admin-portal/src/main.jsx:3688: notify('Document deleted.');
+rentmect-admin-portal/src/main.jsx:3694: if(error) { notify(userFacingPortalError(error,'Document could not load.'),'error'); return; }
+rentmect-admin-portal/src/main.jsx:3711: notify('No document file path found for this upload.');
+rentmect-admin-portal/src/main.jsx:3719: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:3736: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:3751: if (error) notify(error.message);
+rentmect-admin-portal/src/main.jsx:3756: setManualBookingError('');
+rentmect-admin-portal/src/main.jsx:3759: if (manualBookingForm.customerMode === 'existing' && !manualBookingForm.customerId) return notify('Choose a customer.');
+rentmect-admin-portal/src/main.jsx:3763: return notify('Enter the existing customer’s first and last name so it can be saved to their profile.');
+rentmect-admin-portal/src/main.jsx:3766: return notify('Enter the new customer’s first name, last name, email, phone, and date of birth.');
+rentmect-admin-portal/src/main.jsx:3769: return notify('Enter a real birthday for a renter who is at least 21 years old.');
+rentmect-admin-portal/src/main.jsx:3774: return notify('Enter a real birthday for a renter who is at least 21 years old.');
+rentmect-admin-portal/src/main.jsx:3779: return notify('Enter a valid 10-digit US mobile number before sending the secure link by text.');
+rentmect-admin-portal/src/main.jsx:3781: if (!vehicle) return notify('Choose a vehicle.');
+rentmect-admin-portal/src/main.jsx:3784: if (!bookingWindow.valid) return notify(bookingWindow.error);
+rentmect-admin-portal/src/main.jsx:3793: if (policyQuoteError) return notify(policyQuoteError.message);
+rentmect-admin-portal/src/main.jsx:3794: if (!policyQuote?.valid) return notify(policyQuote?.error || 'These pickup and return times are not allowed.');
+rentmect-admin-portal/src/main.jsx:3797: if (!available) return notify('Vehicle is not available for that pickup and return time.');
+rentmect-admin-portal/src/main.jsx:3841: setManualBookingError(detail);
+rentmect-admin-portal/src/main.jsx:3842: return notify(detail, 'error');
+rentmect-admin-portal/src/main.jsx:3854: notify(`${data?.customerCreated ? 'Customer saved and booking created' : 'Booking created'}${data?.onboardingSent ? ` — secure completion link sent by ${deliveredBy}.` : ' — finish it from the workflow circles in Rental Manager.'}`, 'success');
+rentmect-admin-portal/src/main.jsx:3855: if (data?.onboardingWarning) notify(`Booking was saved, but one delivery method needs attention: ${data.onboardingWarning}`);
+rentmect-admin-portal/src/main.jsx:3858: notify(`Booking saved. Twilio status: ${prettySmsDeliveryStatus(textDelivery)}. Carrier delivery is not confirmed; use Email Only or Copy secure checklist link if the customer needs it now.`);
+rentmect-admin-portal/src/main.jsx:3868: notify(data?.error || error?.message || 'Could not create the secure customer link.');
+rentmect-admin-portal/src/main.jsx:3874: notify('Secure customer completion link copied. Treat it like a password and send it only to the customer.', 'success');
+rentmect-admin-portal/src/main.jsx:3882: notify(`Secure customer completion link delivered by text${channels.includes('email') ? ' and accepted by email' : ''}.`, 'success');
+rentmect-admin-portal/src/main.jsx:3884: notify(`Twilio accepted the text, but carrier delivery is not confirmed. Current status: ${prettySmsDeliveryStatus(textDelivery)}. Use Email Only or Copy secure checklist link if the customer needs it now.`);
+rentmect-admin-portal/src/main.jsx:3886: notify(`Secure customer completion link sent by ${channels}.`, 'success');
+rentmect-admin-portal/src/main.jsx:3888: if (data.onboardingWarning) notify(`One delivery method needs attention: ${data.onboardingWarning}`);
+rentmect-admin-portal/src/main.jsx:3900: notify('Choose one combined policy file or include both liability and collision files.');
+rentmect-admin-portal/src/main.jsx:3928: notify(documentType === 'insurance'
+rentmect-admin-portal/src/main.jsx:3932: } catch (error) {
+rentmect-admin-portal/src/main.jsx:3934: notify(error?.message || 'The document upload failed.');
+rentmect-admin-portal/src/main.jsx:3948: notify(error.message);
+rentmect-admin-portal/src/main.jsx:3962: notify(`${prettyStatus(stepKey)} marked complete and added to activity history.`, 'success');
+rentmect-admin-portal/src/main.jsx:3981: notify(error.message);
+rentmect-admin-portal/src/main.jsx:3989: notify('Signed rental agreement saved to the booking and activity history.', 'success');
+rentmect-admin-portal/src/main.jsx:3998: notify('The browser blocked the Stripe window. Allow pop-ups for the admin portal and try again.');
+rentmect-admin-portal/src/main.jsx:4019: notify('The 100% discount completed this booking with the security deposit waived. No Stripe payment link was needed.', 'success');
+rentmect-admin-portal/src/main.jsx:4025: notify(data?.error || error?.message || 'The secure Stripe payment session could not be created.');
+rentmect-admin-portal/src/main.jsx:4037: notify('Stripe Checkout was created, but the payment window could not navigate. Try opening the payment again.');
+rentmect-admin-portal/src/main.jsx:4041: notify(`Stripe checkout opened for ${money(selectedAmountCents / 100)}. The payment will be credited only after Stripe confirms it.`, 'success');
+rentmect-admin-portal/src/main.jsx:4047: notify('Secure Stripe payment link copied.', 'success');
+rentmect-admin-portal/src/main.jsx:4096: else notify(message);
+rentmect-admin-portal/src/main.jsx:4133: setVehiclePriceConfirmationError('');
+rentmect-admin-portal/src/main.jsx:4170: notify(wasPublished ? 'Vehicle added and published.' : 'Vehicle added as an unpublished draft.', 'success');
+rentmect-admin-portal/src/main.jsx:4177: setVehiclePriceConfirmationError('');
+rentmect-admin-portal/src/main.jsx:4180: const onError = (message) => setVehiclePriceConfirmationError(message);
+rentmect-admin-portal/src/main.jsx:4194: notify(`${channel} reminder placeholder for ${customer}. SendGrid delivery is still pending.`);
+rentmect-admin-portal/src/main.jsx:4199: notify(`No phone number found for ${customer}.`);
+rentmect-admin-portal/src/main.jsx:4220: return notify(detail);
+rentmect-admin-portal/src/main.jsx:4222: if (data?.error) return notify(data.error);
+rentmect-admin-portal/src/main.jsx:4223: notify(`Return reminder SMS sent to ${customer}.`, 'success');
+rentmect-admin-portal/src/main.jsx:4233: notify(`Your Employee access does not allow you to ${actionLabel}. Ask an authorized manager to enable it in Settings.`);
+rentmect-admin-portal/src/main.jsx:4325: if (startupError) return <div className="loading-screen" role="alert"><h1>Unable to connect to the admin portal</h1><p>{startupError}</p><p>Your saved session has not been cleared. Retry when the connection is available.</p><button type="button" className="primary-btn" onClick={() => { setStartupError(''); setLoading(true); setStartupAttempt((attempt) => attempt + 1); }}>Retry connection</button></div>;
+rentmect-admin-portal/src/main.jsx:4444: setVehiclePriceConfirmationError('');
+rentmect-admin-portal/src/main.jsx:4652: <p className="form-error" role="alert">
+rentmect-admin-portal/src/main.jsx:4657: {reconciliationCount > 0 && <p className="form-error" role="alert">{reconciliationCount} Stripe transactions require reconciliation. Choose Reconciliation issues to review them.</p>}
+rentmect-admin-portal/src/main.jsx:4659: {loadError && <p className="form-error" role="alert">Some payment sources could not be loaded: {loadError}</p>}
+rentmect-admin-portal/src/main.jsx:4856: setLoadError(errors.map((error) => error.message).join(' '));
+rentmect-admin-portal/src/main.jsx:4933: notify(message);
+rentmect-admin-portal/src/main.jsx:4938: notify(
+rentmect-admin-portal/src/main.jsx:4956: if (!vehicleConfig.tollspot_vehicle_type) return notify('Choose a TollSpot vehicle type.');
+rentmect-admin-portal/src/main.jsx:4957: if (!/^[A-Z]{2,3}$/.test(vehicleConfig.plate_state)) return notify('Enter a 2–3 letter plate state.');
+rentmect-admin-portal/src/main.jsx:4958: if (!/^[A-Z]{2,3}$/.test(vehicleConfig.plate_country)) return notify('Enter a 2–3 letter plate country.');
+rentmect-admin-portal/src/main.jsx:4959: if (!vehicleConfig.plate_assigned_at) return notify('Enter when this plate became active on the vehicle.');
+rentmect-admin-portal/src/main.jsx:4972: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:4974: notify(`${vehicle.name} TollSpot settings saved.`, 'success');
+rentmect-admin-portal/src/main.jsx:4981: if (!rentalId) return notify('Choose the customer rental that was responsible for this toll.');
+rentmect-admin-portal/src/main.jsx:4982: if (verificationNote.length < 1) return notify('Explain how you verified the rental.');
+rentmect-admin-portal/src/main.jsx:4992: notify(error.message || 'The toll could not be assigned.');
+rentmect-admin-portal/src/main.jsx:4998: notify(`${money(transaction.total_amount)} toll assigned to ${selected?.profiles?.full_name || selected?.profiles?.email || 'the selected customer'} and added as a pending rental charge.`, 'success');
+rentmect-admin-portal/src/main.jsx:5131: {candidateState.error && <p role="alert">{candidateState.error}</p>}
+rentmect-admin-portal/src/main.jsx:5217: setCalendarError(userFacingPortalError(error, 'Live calendar data could not refresh.'));
+rentmect-admin-portal/src/main.jsx:5220: setCalendarError('');
+rentmect-admin-portal/src/main.jsx:5420: {calendarError && <section className="calendar-refresh-error" role="alert">
+rentmect-admin-portal/src/main.jsx:5594: } catch (saveError) {
+rentmect-admin-portal/src/main.jsx:5667: {manager.error && <p role="alert" className="form-error">{manager.error} <button type="button" onClick={manager.retry}>Retry rentals</button></p>}
+rentmect-admin-portal/src/main.jsx:5668: {manager.detailError && <p role="alert" className="form-error">{manager.detailError} <button type="button" onClick={manager.retryDetail}>Retry rental</button></p>}
+rentmect-admin-portal/src/main.jsx:5750: {customerDirectoryState.error && <p className="form-error customer-directory-error" role="alert">Customer accounts could not refresh: {customerDirectoryState.error} <button type="button" onClick={refreshCustomerDirectory}>Try again</button></p>}
+rentmect-admin-portal/src/main.jsx:5871: .catch((linkError) => {
+rentmect-admin-portal/src/main.jsx:5885: notify('Stripe checkout link copied.', 'success');
+rentmect-admin-portal/src/main.jsx:5895: setError('');
+rentmect-admin-portal/src/main.jsx:5900: if (!canSendToDestination) return setError(channel === 'email' ? 'Add an email address before sending.' : 'A verified phone and active transactional SMS consent are required before sending a text.');
+rentmect-admin-portal/src/main.jsx:5901: if (!selectedTemplate) return setError(`No enabled ${channel === 'email' ? 'email' : 'text'} templates are available.`);
+rentmect-admin-portal/src/main.jsx:5903: setError('');
+rentmect-admin-portal/src/main.jsx:5912: const payload = await response.json().catch(() => ({}));
+rentmect-admin-portal/src/main.jsx:5920: notify(`${channel === 'email' ? 'Email' : 'Text message'} sent to ${profile.full_name || 'customer'}.`, 'success');
+rentmect-admin-portal/src/main.jsx:5922: } catch (sendError) {
+rentmect-admin-portal/src/main.jsx:5923: setError(sendError instanceof Error ? sendError.message : 'Message could not be sent.');
+rentmect-admin-portal/src/main.jsx:5955: }).catch((linkError) => {
+rentmect-admin-portal/src/main.jsx:5966: {error && <p className="form-error" role="alert">{error}</p>}
+rentmect-admin-portal/src/main.jsx:6012: setFormError('');
+rentmect-admin-portal/src/main.jsx:6028: setFormError('');
+rentmect-admin-portal/src/main.jsx:6037: setFormError('Enter the customer’s first name and last name. Put any middle name or initial in the first-name field.');
+rentmect-admin-portal/src/main.jsx:6041: setFormError('');
+rentmect-admin-portal/src/main.jsx:6053: } catch (error) {
+rentmect-admin-portal/src/main.jsx:6054: setFormError(error instanceof Error ? error.message : 'Customer changes could not be saved.');
+rentmect-admin-portal/src/main.jsx:6063: setBlockError('');
+rentmect-admin-portal/src/main.jsx:6066: if (!saved) setBlockError('Customer status could not be saved. Please try again.');
+rentmect-admin-portal/src/main.jsx:6067: } catch (error) {
+rentmect-admin-portal/src/main.jsx:6068: setBlockError(error instanceof Error ? error.message : 'Customer status could not be saved.');
+rentmect-admin-portal/src/main.jsx:6077: setFormError('');
+rentmect-admin-portal/src/main.jsx:6081: } catch (error) {
+rentmect-admin-portal/src/main.jsx:6082: setFormError(error instanceof Error ? error.message : 'Customer could not be deleted.');
+rentmect-admin-portal/src/main.jsx:6125: {blockError && <p className="form-error" role="alert">{blockError}</p>}
+rentmect-admin-portal/src/main.jsx:6158: {formError && <p className="form-error" role="alert">{formError}</p>}
+rentmect-admin-portal/src/main.jsx:6166: <label><span>Type <strong>DELETE CUSTOMER</strong> to confirm</span><input value={deleteConfirmation} onChange={(event) => { setDeleteConfirmation(event.target.value); setFormError(''); }} autoComplete="off"/></label>
+rentmect-admin-portal/src/main.jsx:6167: {formError && <p className="form-error" role="alert">{formError}</p>}
+rentmect-admin-portal/src/main.jsx:6204: {!isAdministrator && <button className="customer-delete-button" type="button" onClick={() => { setMode('delete'); setFormError(''); }}>Delete customer</button>}
+rentmect-admin-portal/src/main.jsx:6228: <button disabled={downloading} onClick={async()=>{setDownloading(true);setError('');try{downloadAgreement(await read());}catch(e){setError(e.message);}finally{setDownloading(false);}}}>Download</button></div>
+rentmect-admin-portal/src/main.jsx:6229: {error && <p role="alert">{error}</p>}
+rentmect-admin-portal/src/main.jsx:6352: } catch(error) { notify(error.message,'error'); }
+rentmect-admin-portal/src/main.jsx:6360: .then(({data,error}) => { if(controller.signal.aborted) return; if(error) notify(error.message,'error'); else setAudience(data); });
+rentmect-admin-portal/src/main.jsx:6365: if(error) { notify(error.message,'error'); return null; }
+rentmect-admin-portal/src/main.jsx:6385: const payload = await response.json().catch(() => ({}));
+rentmect-admin-portal/src/main.jsx:6392: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:6394: notify(`${template.name} ${template.enabled ? 'disabled' : 'enabled'}.`, 'success');
+rentmect-admin-portal/src/main.jsx:6399: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:6402: notify(`${template.name} ${template.enabled ? 'disabled' : 'enabled'}.`, 'success');
+rentmect-admin-portal/src/main.jsx:6407: if (!editingTemplate?.name?.trim() || !editingTemplate?.subject?.trim() || !editingTemplate?.html_body?.trim()) return notify('Template name, subject, and body are required.');
+rentmect-admin-portal/src/main.jsx:6423: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:6427: notify('Email template saved.', 'success');
+rentmect-admin-portal/src/main.jsx:6432: if (!editingTextTemplate?.name?.trim() || !editingTextTemplate?.body?.trim()) return notify('Text template name and message are required.');
+rentmect-admin-portal/src/main.jsx:6434: if (complianceError) return notify(complianceError);
+rentmect-admin-portal/src/main.jsx:6447: if (error) return notify(error.message);
+rentmect-admin-portal/src/main.jsx:6451: notify('Text template saved.', 'success');
+rentmect-admin-portal/src/main.jsx:6459: notify(`Test email sent to ${testEmail}.`, 'success');
+rentmect-admin-portal/src/main.jsx:6460: } catch (error) {
+rentmect-admin-portal/src/main.jsx:6461: notify(error.message);
+rentmect-admin-portal/src/main.jsx:6482: if (!composer.name.trim() || !composer.subject.trim() || !composer.htmlBody.trim()) return notify('Email name, subject, and body are required.');
+rentmect-admin-portal/src/main.jsx:6483: if (schedule && !composer.scheduledFor) return notify('Choose a scheduled date and time.');
+rentmect-admin-portal/src/main.jsx:6485: if (!audienceCount) return notify('No opted-in customers match this audience.');
+rentmect-admin-portal/src/main.jsx:6504: notify(schedule ? 'Email scheduled.' : 'Email sending started.', 'success');
+rentmect-admin-portal/src/main.jsx:6505: } catch (error) {
+rentmect-admin-portal/src/main.jsx:6506: notify(error.message);
+rentmect-admin-portal/src/main.jsx:6721: setTransponderLoadError(error.message || 'Verified transponders could not load.');
+rentmect-admin-portal/src/main.jsx:6730: setTransponderLoadError('');
+rentmect-admin-portal/src/main.jsx:6800: if (nextTransponder === currentTransponder) return notify(`${vehicle.name} already has this verified transponder.`, 'success');
+rentmect-admin-portal/src/main.jsx:6820: notify(message);
+rentmect-admin-portal/src/main.jsx:6825: notify(nextTransponder
+rentmect-admin-portal/src/main.jsx:6860: notify(`Keep each vehicle to ${MAX_VEHICLE_IMAGES} pictures or fewer. Remove an existing picture before uploading more.`);
+rentmect-admin-portal/src/main.jsx:6872: notify(`${uploadedUrls.length} vehicle ${uploadedUrls.length === 1 ? 'photo' : 'photos'} compressed and uploaded. Save the vehicle to publish.`, 'success');
+rentmect-admin-portal/src/main.jsx:6873: } catch (error) {
+rentmect-admin-portal/src/main.jsx:6874: notify(error?.message || 'Vehicle pictures could not be optimized and uploaded.');
+rentmect-admin-portal/src/main.jsx:7508: {bookingError && <p className="form-error full-field" role="alert">{bookingError}</p>}
+rentmect-admin-portal/src/main.jsx:7520: {customerDirectoryState.error && <p className="form-error customer-directory-error" role="alert">Customer accounts could not refresh: {customerDirectoryState.error}</p>}
+rentmect-admin-portal/src/main.jsx:8219: if (!error) { setFlexibleState(data); setFlexibleReadError(''); }
+rentmect-admin-portal/src/main.jsx:8220: else if (!['PGRST202', '42883'].includes(error.code)) setFlexibleReadError(error.message);
+rentmect-admin-portal/src/main.jsx:8602: {receivePaymentOpen && flexiblePaymentsEnabled && rental.pending_external_payment_id && !flexibleState && <RentalReceiptDialog title="Checking unfinished payment" onClose={() => setReceivePaymentOpen(false)}>{flexibleReadError ? <><p role="alert">{flexibleReadError}</p><button type="button" onClick={refreshFlexibleState}>Retry</button></> : <p role="status">Loading the saved payment…</p>}</RentalReceiptDialog>}
+rentmect-admin-portal/src/main.jsx:8605: onStripeOpen={async target => {if(target.id==='rental')return createAdminPaymentLink(rental,'open',target.amount);const win=window.open('about:blank','_blank');if(!win)throw Error('Allow pop-ups to open Stripe checkout.');win.opener=null;try{const url=await createManualStripePaymentLink({rental,charge:target.charge});win.location.replace(url);}catch(e){win.close();throw e;}}}
+rentmect-admin-portal/src/main.jsx:8614: onStripeOpen={async target => {if(target.id==='rental')return createAdminPaymentLink(rental,'open',target.amount);const win=window.open('about:blank','_blank');if(!win)throw Error('Allow pop-ups to open Stripe checkout.');win.opener=null;try{const url=await createManualStripePaymentLink({rental,charge:target.charge});win.location.replace(url);}catch(e){win.close();throw e;}}}
+rentmect-admin-portal/src/main.jsx:8650: <RentalLedger id={`ledger-${rental.id}`} payments={<>{flexibleReadError && <p role="alert">Allocated payment history could not load: {flexibleReadError} <button type="button" onClick={refreshFlexibleState}>Retry</button></p>}<RentalPaymentHistory compact payments={paymentHistory} rental={rental} allocations={depositAllocations} onReceiptAction={recordExternalTollPayment ? async (id, form, action) => { const result = await recordExternalTollPayment(rental.id, id, form, action); await refreshFlexibleState(); return result; } : null} canRefund={Boolean(refundRentalPayment)} /></>}
+rentmect-admin-portal/src/main.jsx:8983: setError('');
+rentmect-admin-portal/src/main.jsx:8985: setError('Choose a cancellation deadline before restoring this reservation.');
+rentmect-admin-portal/src/main.jsx:8990: setError('Choose a cancellation deadline at least five minutes from now in Eastern Time.');
+rentmect-admin-portal/src/main.jsx:8994: setError('The cancellation deadline cannot be more than seven days away.');
+rentmect-admin-portal/src/main.jsx:8998: setError('Enter a restore reason for the audit log.');
+rentmect-admin-portal/src/main.jsx:9003: catch (error) { setError(error?.message || 'Could not confirm the saved result.'); }
+rentmect-admin-portal/src/main.jsx:9008: <form ref={dialogRef} className="admin-modal rental-deadline-modal restore-rental-modal" role="alertdialog" aria-modal="true" aria-label="Restore cancelled reservation with a required cancellation deadline" onSubmit={submit}>
+rentmect-admin-portal/src/main.jsx:9015: <div className="restore-deadline-warning" role="alert">
+rentmect-admin-portal/src/main.jsx:9032: {error && <p className="form-error" role="alert">{error}</p>}
+rentmect-admin-portal/src/main.jsx:9071: setError('');
+rentmect-admin-portal/src/main.jsx:9074: setError('Choose a future deadline in Eastern Time.');
+rentmect-admin-portal/src/main.jsx:9078: setError('Enter a short reason so the deadline change is clear in activity history.');
+rentmect-admin-portal/src/main.jsx:9083: catch (error) { setError(error?.message || 'Could not confirm the saved result.'); }
+rentmect-admin-portal/src/main.jsx:9109: {error && <p className="form-error" role="alert">{error}</p>}
+rentmect-admin-portal/src/main.jsx:9160: if (availability.error) return <p role="alert" className="form-error">{availability.error} <button type="button" onClick={availability.retry}>Retry availability</button></p>;
+rentmect-admin-portal/src/main.jsx:9181: setContextError('');
+rentmect-admin-portal/src/main.jsx:9184: if (error || !data) { setContextError(error?.message || 'The saved rental price could not load.'); return; }
+rentmect-admin-portal/src/main.jsx:9204: setPreview(null); setError(''); setKey(crypto.randomUUID());
+rentmect-admin-portal/src/main.jsx:9208: if (!form.dailyRate.trim()) { setError('Enter the customer’s agreed daily rate before reviewing the extension.'); return; }
+rentmect-admin-portal/src/main.jsx:9209: if (!availabilityReady) { setError('Choose available dates and a vehicle before reviewing.'); return; }
+rentmect-admin-portal/src/main.jsx:9210: setBusy(true); setError('');
+rentmect-admin-portal/src/main.jsx:9212: catch (e) { setError(e.message); }
+rentmect-admin-portal/src/main.jsx:9216: if (!availabilityReady) { setPreview(null); setError('Availability must be checked before saving.'); return; }
+rentmect-admin-portal/src/main.jsx:9217: setBusy(true); setError('');
+rentmect-admin-portal/src/main.jsx:9220: } catch (e) { setPreview(null); setError(e.message); }
+rentmect-admin-portal/src/main.jsx:9250: {error && <p role="alert" className="form-error">{error}</p>}
+rentmect-admin-portal/src/main.jsx:9292: setPreview(null); setError(''); setKey(crypto.randomUUID());
+rentmect-admin-portal/src/main.jsx:9296: if (!form.handoverConfirmed) { setError('Confirm the old vehicle has been physically received before reviewing the swap.'); return; }
+rentmect-admin-portal/src/main.jsx:9297: if (parseMileageInput(form.outgoingMileage) === null || parseMileageInput(form.incomingMileage) === null) { setError('Record both vehicles’ verified odometer readings.'); return; }
+rentmect-admin-portal/src/main.jsx:9298: if (!availabilityReady) { setError('Choose available dates and a vehicle before reviewing.'); return; }
+rentmect-admin-portal/src/main.jsx:9299: setBusy(true); setError('');
+rentmect-admin-portal/src/main.jsx:9301: catch (e) { setError(e.message); }
+rentmect-admin-portal/src/main.jsx:9305: if (!availabilityReady) { setPreview(null); setError('Availability must be checked before saving.'); return; }
+rentmect-admin-portal/src/main.jsx:9306: setBusy(true); setError('');
+rentmect-admin-portal/src/main.jsx:9310: } catch (e) { setPreview(null); setError(e.message); }
+rentmect-admin-portal/src/main.jsx:9318: {timeProblem && <div role="alert" className="form-error swap-time-warning"><p>{timeProblem}</p>{onExtend && effectiveIso && returnIso && new Date(effectiveIso) >= new Date(returnIso) && <button type="button" className="secondary-btn" disabled={busy} onClick={onExtend}>Update return date</button>}</div>}
+rentmect-admin-portal/src/main.jsx:9341: {error && <p role="alert" className="form-error">{error}</p>}
+rentmect-admin-portal/src/main.jsx:9400: setError('');
+rentmect-admin-portal/src/main.jsx:9410: setError('');
+rentmect-admin-portal/src/main.jsx:9425: } catch (quoteError) {
+rentmect-admin-portal/src/main.jsx:9426: if (request === depositRequest.current) setError(quoteError?.message || 'Could not check the replacement deposit.');
+rentmect-admin-portal/src/main.jsx:9444: setError('');
+rentmect-admin-portal/src/main.jsx:9448: } catch (previewError) {
+rentmect-admin-portal/src/main.jsx:9450: setError(previewError?.message || 'The rental changes could not be reviewed.');
+rentmect-admin-portal/src/main.jsx:9462: setError('');
+rentmect-admin-portal/src/main.jsx:9466: } catch (applyError) {
+rentmect-admin-portal/src/main.jsx:9467: setError(applyError?.message || 'The rental changes could not be applied.');
+rentmect-admin-portal/src/main.jsx:9476: setError(`Enter a specific reason.`);
+rentmect-admin-portal/src/main.jsx:9480: setError('Confirm that this is an intentional correction to a completed rental.');
+rentmect-admin-portal/src/main.jsx:9538: <label className="rental-amendment-reason"><span>Reason for change (required)</span><textarea maxLength="1000" value={form.reason} onChange={(event) => update('reason', event.target.value)} onInvalid={() => setError(`Enter a reason for change. Admin notes do not replace the required reason.`)} placeholder="Example: Customer requested a later return and a $250 deposit." required /></label>
+rentmect-admin-portal/src/main.jsx:9585: <section className="late-fee-decision-dialog" role="alertdialog" aria-modal="true" aria-labelledby={`late-fee-decision-title-${rental.id}`}>
+rentmect-admin-portal/src/main.jsx:9783: setError('');
+rentmect-admin-portal/src/main.jsx:9785: setError('Stripe payments must be at least $0.50.');
+rentmect-admin-portal/src/main.jsx:9789: setError(`The Stripe payment cannot exceed the remaining balance of ${money(amountDue)}.`);
+rentmect-admin-portal/src/main.jsx:9793: setError(largestStripeInstallment >= 0.5
+rentmect-admin-portal/src/main.jsx:9830: setError('Add a completion note so staff can see what was verified.');
+rentmect-admin-portal/src/main.jsx:9834: if (!agreementReviewed) return setError('Scroll through the complete rental agreement before signing.');
+rentmect-admin-portal/src/main.jsx:9835: if (!agreementChecked) return setError('The customer must check “I Agree to the Terms.”');
+rentmect-admin-portal/src/main.jsx:9836: if (signatureName.trim().length < 2) return setError('Enter the customer’s full legal signature name.');
+rentmect-admin-portal/src/main.jsx:9837: if (!signatureImage) return setError('Use the typed name or draw an e-signature.');
+rentmect-admin-portal/src/main.jsx:9840: setError('');
+rentmect-admin-portal/src/main.jsx:9863: <div className="money-input-shell"><span>$</span><MoneyInput type="number" min="0.50" max={Number(amountDue || 0).toFixed(2)} step="0.01" inputMode="decimal" value={stripeAmount} onFocus={(event) => event.target.select()} onChange={(event) => { setStripeAmount(event.target.value); setError(''); }} /></div>
+rentmect-admin-portal/src/main.jsx:9876: {error && <small className="form-error" role="alert">{error}</small>}
+rentmect-admin-portal/src/main.jsx:9911: try { setSignatureImage(typedSignatureImage(signatureName)); setSignatureMethod('typed_name'); setError(''); }
+rentmect-admin-portal/src/main.jsx:9912: catch (error) { setError(error.message); }
+rentmect-admin-portal/src/main.jsx:9918: {(!alreadySigned || scope !== 'agreement') && <label><span>{scope === 'agreement' ? 'In-office signing note' : 'Completion note'}</span><textarea value={note} onChange={(event) => { setNote(event.target.value); setError(''); }} maxLength="500" placeholder={scope === 'agreement' ? 'Customer reviewed and signed while physically present.' : 'Describe what you inspected or how this requirement was completed.'}/></label>}
+rentmect-admin-portal/src/main.jsx:9919: {error && <p className="form-error" role="alert">{error}</p>}
+rentmect-admin-portal/src/main.jsx:10148: if (depositOnly && source === 'card') { setError('Choose an available deposit.'); return; }
+rentmect-admin-portal/src/main.jsx:10149: setBusy(true); setError('');
+rentmect-admin-portal/src/main.jsx:10155: if (saved) onCancel(); else setError('Payment was not completed. Refresh the rental before trying again.');
+rentmect-admin-portal/src/main.jsx:10156: } catch (e) { setError(e.message); }
+rentmect-admin-portal/src/main.jsx:10169: {error && <p role="alert" className="form-error">{error}</p>}
+rentmect-admin-portal/src/main.jsx:10408: } catch (e) { if (active) setError(e.message || 'Could not check pending receipts. Close and reopen to retry.'); }
+rentmect-admin-portal/src/main.jsx:10422: setError('');
+rentmect-admin-portal/src/main.jsx:10431: } catch (e) { setError(e.message || 'Payment recording is unconfirmed. Resume the same receipt to check and retry.'); }
+rentmect-admin-portal/src/main.jsx:10436: setSaving(true); setError('');
+rentmect-admin-portal/src/main.jsx:10446: } catch (e) { setError(e.message || 'Cancellation is unconfirmed. Resume this recording to check it.'); }
+rentmect-admin-portal/src/main.jsx:10471: {error && <small className="form-error" role="alert">{error}</small>}
+rentmect-admin-portal/src/main.jsx:10486: setError('');
+rentmect-admin-portal/src/main.jsx:10488: setError('Choose how the payment was received.');
+rentmect-admin-portal/src/main.jsx:10492: setError('Confirm that the payment cleared before recording it.');
+rentmect-admin-portal/src/main.jsx:10500: else setError('The result could not be confirmed. Check the saved record before trying again.');
+rentmect-admin-portal/src/main.jsx:10501: } catch (error) {
+rentmect-admin-portal/src/main.jsx:10502: setError(error?.message || 'The result could not be confirmed. Check the saved record before trying again.');
+rentmect-admin-portal/src/main.jsx:10520: {error && <small className="form-error" role="alert">{error}</small>}
+rentmect-admin-portal/src/main.jsx:10574: setError('');
+rentmect-admin-portal/src/main.jsx:10577: if (!submitted) setError('Check the saved refund status before trying again.');
+rentmect-admin-portal/src/main.jsx:10578: } catch (error) { setError(error?.message || 'Could not confirm the refund result.'); }
+rentmect-admin-portal/src/main.jsx:10606: {error && <p role="alert" className="form-error">{error}</p>}
+rentmect-admin-portal/src/main.jsx:10645: setError('');
+rentmect-admin-portal/src/main.jsx:10649: } catch (previewError) {
+rentmect-admin-portal/src/main.jsx:10652: setError(previewError.message || 'This discount could not be calculated.');
+rentmect-admin-portal/src/main.jsx:10668: setError('Enter a specific internal reason.');
+rentmect-admin-portal/src/main.jsx:10672: setError('Wait for a valid total preview before saving.');
+rentmect-admin-portal/src/main.jsx:10676: setError('');
+rentmect-admin-portal/src/main.jsx:10680: } catch (applyError) {
+rentmect-admin-portal/src/main.jsx:10681: setError(applyError.message || 'The discount could not be saved.');
+rentmect-admin-portal/src/main.jsx:10731: {error && <small className="form-error" role="alert">{error}</small>}
+rentmect-admin-portal/src/main.jsx:10766: {refundBlocked && <span role="alert">{rentalRefundPending ? 'The rental refund is still processing. Wait for it to finish before returning the deposit.' : `First use Refund to return the remaining ${money(rentalRefundRemaining)} rental payment. Then use this action to return the deposit and cancel.`}</span>}
+rentmect-admin-portal/src/main.jsx:10793: role="alertdialog"
+rentmect-admin-portal/src/main.jsx:10825: {error && <div className="price-confirmation-error" role="alert">
+rentmect-admin-portal/src/main.jsx:10873: setError('');
+rentmect-admin-portal/src/main.jsx:10876: setError('Enter starting mileage as a whole number.');
+rentmect-admin-portal/src/main.jsx:10880: setError(`Starting mileage cannot be below current vehicle mileage (${formatMiles(currentMileage)}).`);
+rentmect-admin-portal/src/main.jsx:11004: setError('');
+rentmect-admin-portal/src/main.jsx:11006: setError('Choose one combined policy file or include both liability and collision files.');
+rentmect-admin-portal/src/main.jsx:11024: {error && <p className="form-error" role="alert">{error}</p>}
+rentmect-admin-portal/src/main.jsx:11467: setError('');
+rentmect-admin-portal/src/main.jsx:11468: if (!selected) return setError('Choose an external receipt to edit.');
+rentmect-admin-portal/src/main.jsx:11469: if (reason.trim().length < 1) return setError('Enter an audit reason.');
+rentmect-admin-portal/src/main.jsx:11470: if (actionType === 'method_correction' && !paymentMethod) return setError('Choose the corrected payment type.');
+rentmect-admin-portal/src/main.jsx:11471: if (actionType === 'refund' && !confirmedReturned) return setError('Confirm that the full receipt amount was actually returned to the customer.');
+rentmect-admin-portal/src/main.jsx:11481: if (!saved) setError('The result could not be confirmed. Check the saved record before trying again.');
+rentmect-admin-portal/src/main.jsx:11482: } catch (error) { setError(error?.message || 'Could not confirm the saved result.'); }
+rentmect-admin-portal/src/main.jsx:11508: {error && <p className="modal-error" role="alert">{error}</p>}
+rentmect-admin-portal/src/main.jsx:11540: setError('');
+rentmect-admin-portal/src/main.jsx:11543: setError('Enter the actual external payment amount received.');
+rentmect-admin-portal/src/main.jsx:11547: setError(`The recorded payment cannot exceed the balance due: ${money(amountDue)}.`);
+rentmect-admin-portal/src/main.jsx:11551: setError('Choose how the external payment was received.');
+rentmect-admin-portal/src/main.jsx:11555: setError('Confirm that the external payment cleared before recording it.');
+rentmect-admin-portal/src/main.jsx:11563: else setError('The result could not be confirmed. Check the saved record before trying again.');
+rentmect-admin-portal/src/main.jsx:11564: } catch (error) {
+rentmect-admin-portal/src/main.jsx:11565: setError(error?.message || 'The result could not be confirmed. Check the saved record before trying again.');
+rentmect-admin-portal/src/main.jsx:11620: {error && <small className="form-error" role="alert">{error}</small>}
+rentmect-admin-portal/src/main.jsx:11658: setMileageError('');
+rentmect-admin-portal/src/main.jsx:11661: setMileageError('Enter the ending mileage as a whole number.');
+rentmect-admin-portal/src/main.jsx:11665: setMileageError(`Ending mileage cannot be below this vehicle’s recorded mileage (${formatMiles(mileage.minimum)}).`);
+rentmect-admin-portal/src/main.jsx:11669: setMileageError('Complete the required mileage, fuel, and condition checks before closing the rental.');
+rentmect-admin-portal/src/main.jsx:11673: setMileageError('Explain the missing mileage or override.'); return;
+rentmect-admin-portal/src/main.jsx:11676: setMileageError('Add a note explaining the damage or deposit hold.');
+rentmect-admin-portal/src/main.jsx:11680: setMileageError('Choose Hold deposit to save this evidence for review, or remove the selected files.');
+rentmect-admin-portal/src/main.jsx:11687: } catch (error) {
+rentmect-admin-portal/src/main.jsx:11688: setMileageError(error.message || 'Unable to complete the return. Please try again.');
+rentmect-admin-portal/src/main.jsx:11713: {inspection.mileageOverride && <div className="return-mileage-override-warning" role="alert"><AlertTriangle size={20}/><span><strong>Mileage is being skipped.</strong> Tracking maintenance will be difficult. Make sure to input the returning mileage as soon as possible.</span></div>}
+rentmect-admin-portal/src/main.jsx:11909: return <section className="portal-data-health error" role="alert" aria-live="assertive">
+rentmect-admin-portal/src/main.jsx:11988: return <div className="portal-fatal-state" role="alert">
+rentmect-admin-portal/src/requestDeadline.js:14: return Promise.race([Promise.resolve(request).catch((error) => ({ data: null, error })), deadline])
+rentmect-admin-portal/src/useVehicleAvailability.js:23: } catch (error) {

@@ -1,0 +1,127 @@
+ADMIN REASON MINIMUM INVENTORY
+UI locations before change:
+src/RentalRateChange.jsx:23: <label className="wide"><span>Reason and customer agreement</span><textarea required minLength={10} maxLength={1000} value={form.reason} onChange={e=>change('reason',e.target.value)}/></label>
+src/DepositReview.jsx:44: <div className="modal-actions">{result?<button type="button" onClick={close}>Done</button>:<><button type="button" disabled={busy} onClick={close}>Cancel</button><button type="button" disabled={busy||reason.trim().length<5||Boolean(request.current)} onClick={async()=>{if(!hold){setHold(true);return;}setBusy(true);try{if(await onHold(reason,followUp))onClose();}catch(e){setError(e.message);}finally{setBusy(false);}}}>{hold?'Save hold':'Hold for review'}</button>{!hold&&<button type="button" className="approve" disabled={busy||reason.trim().length<5||preview.held<=0||(dueAfter>0&&preview.applied===0)} onClick={confirm}>{busy?'Processing…':preview.applied>0?`Apply ${money(preview.applied)}${preview.refund===0?' to charges':dueAfter>0?' & hold remainder':` & refund ${money(preview.refund)}`}`:`Refund ${money(preview.refund)}`}</button>}</>}</div>
+src/ReceiptActions.jsx:39: {review?<div className="receipt-confirmation"><strong>Review payment correction</strong><p>Amount paid: {money(review.beforeCents)} → {money(review.afterCents)}</p>{review.allocations?.map(a=><p key={a.id}>{a.name}: {money(a.beforeCents)} → {money(a.afterCents)}</p>)}<p>Customer credit: {money(review.creditCents)}. Rental balance after correction: {money(review.rentalBalanceAfterCents)}.</p><p>The original record and your reason will remain in the audit history. Any additional money is retained as credit; reductions remove unused credit first, then additional-charge allocations, then rental allocations.</p><button className="approve" type="button" disabled={busy} onClick={()=>save('confirm')}>{busy?'Saving changes…':'Confirm payment changes'}</button><button type="button" disabled={busy} onClick={()=>setReview(null)}>Back to edit</button></div>:<button className="approve" type="button" disabled={busy||form.reason.trim().length<5||!form.receivedDate} onClick={()=>save('review')}>{busy?'Checking balances…':'Review changes'}</button>}
+src/ReceiptActions.jsx:42: {canRefund&&!payment.legacySource&&!payment.refundBlockReason&&payment.provider!=='stripe'&&!review&&<><label><input type="checkbox" checked={form.confirmRefund} disabled={busy} onChange={e=>change('confirmRefund',e.target.checked)}/>{payment.provider==='credit'?'Reverse this credit application. Its allocations will become due again and the credit will be restored.':'I confirm the entire payment has been returned externally. Its allocations will become due again.'}</label>{!editable&&<label>Reason for reversal<textarea value={form.reason} onChange={e=>change('reason',e.target.value)}/></label>}<button type="button" disabled={busy||!form.confirmRefund||form.reason.trim().length<5} onClick={()=>save('refund')}>{payment.provider==='credit'?'Reverse credit application':'Record full receipt refund'}</button></>}
+src/main.jsx:2084: if (reason.length < 5) {
+src/main.jsx:2085: notify('Enter a refund reason of at least 5 characters.');
+src/main.jsx:2294: const reason = window.prompt('Record the customer’s agreement to this extension rate (at least 10 characters).');
+src/main.jsx:2295: if (!reason || reason.trim().length < 10) return notify('A specific rate agreement reason is required.');
+src/main.jsx:2757: if (String(reason || '').trim().length < 10) return notify('Enter a specific maintenance override reason of at least 10 characters.');
+src/main.jsx:4587: <button type="button" className="approve" disabled={saving || reason.trim().length < 5} onClick={async () => {
+src/main.jsx:4588: if (saving || reason.trim().length < 5) return;
+src/main.jsx:4978: if (verificationNote.length < 10) return notify('Explain how you verified the rental using at least 10 characters.');
+src/main.jsx:5151: <button type="button" className="approve tollspot-assign-rental" disabled={Boolean(busy) || !rentalSelections[transaction.id] || String(rentalVerificationNotes[transaction.id] || '').trim().length < 10} onClick={() => assignTollToRental(transaction)}>{busy === `assign_rental:${transaction.id}` ? 'Assigning and creating charge…' : 'Confirm rental & create toll charge'}</button>
+src/main.jsx:7262: <label><span>Specific operational reason</span><textarea required minLength="10" maxLength="1000" value={overrideReason} onChange={(event) => setOverrideReason(event.target.value)} placeholder="Explain why this vehicle is safe to release before service…"/></label>
+src/main.jsx:8992: if (reason.trim().length < 5) {
+src/main.jsx:8993: setError('Enter a restore reason of at least five characters for the audit log.');
+src/main.jsx:9026: <label><span>Reason for restoring this reservation</span><textarea required minLength="5" maxLength="500" value={reason} onChange={(event) => setReason(limitText(event.target.value, 500))} placeholder="Why is this cancelled reservation being restored?"/></label>
+src/main.jsx:9031: <button type="submit" className="primary-btn restore-rental-confirm" disabled={saving || !deadline || reason.trim().length < 5}>{saving ? 'Restoring…' : 'Restore With This Deadline'}</button>
+src/main.jsx:9072: if (reason.trim().length < 5) {
+src/main.jsx:9103: <label><span>Reason for activity history</span><textarea required minLength="5" maxLength="500" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why this customer needs a different payment deadline."/></label>
+src/main.jsx:9232: <label className="wide"><span>Reason and customer agreement</span><textarea required minLength={10} maxLength={1000} value={form.reason} onChange={(e) => change('reason', e.target.value)}/></label>
+src/main.jsx:9324: <label className="wide"><span>Reason and agreement details</span><textarea required minLength={10} maxLength={1000} value={form.reason} onChange={(e) => change('reason', e.target.value)}/></label>
+src/main.jsx:9469: const minimumReasonLength = completed ? 20 : 10;
+src/main.jsx:9471: setError(`Enter a specific reason of at least ${minimumReasonLength} characters.`);
+src/main.jsx:9533: <label className="rental-amendment-reason"><span>Reason for change (required)</span><textarea minLength={completed ? 20 : 10} maxLength="1000" value={form.reason} onChange={(event) => update('reason', event.target.value)} onInvalid={() => setError(`Enter a reason for change of at least ${completed ? 20 : 10} characters. Admin notes do not replace the required reason.`)} placeholder="Example: Customer requested a later return and a $250 deposit." required /></label>
+src/main.jsx:9717: <label><span>Emergency reason</span><textarea required minLength="20" maxLength="1000" value={form.reason} onChange={(event) => update('reason', event.target.value)} placeholder="Explain the extraordinary circumstances, who authorized the decision, and why waiting is not practical."/></label>
+src/main.jsx:9824: if (note.trim().length < 5) {
+src/main.jsx:9825: setError('Add a completion note of at least 5 characters so staff can see what was verified.');
+src/main.jsx:9913: {(!alreadySigned || scope !== 'agreement') && <label><span>{scope === 'agreement' ? 'In-office signing note' : 'Completion note'}</span><textarea value={note} onChange={(event) => { setNote(event.target.value); setError(''); }} maxLength="500" placeholder={scope === 'agreement' ? 'Customer reviewed and signed while physically present.' : 'Describe what you inspected or how this requirement was completed.'}/><small>{Math.min(note.trim().length, 5)}/5 minimum characters</small></label>}
+src/main.jsx:10065: const reasonValid = reasonLength >= 20;
+src/main.jsx:10097: <label className={!reasonValid && (submitted || form.reason.length > 0) ? 'field-has-error' : ''}><span>Emergency reason <strong>Required — minimum 20 characters</strong></span><textarea ref={reasonRef} required minLength="20" maxLength="1000" aria-invalid={!reasonValid && (submitted || form.reason.length > 0)} aria-describedby="step-bypass-reason-help" value={form.reason} onChange={(event) => update('reason', event.target.value)} placeholder="Explain exactly why this one requirement must be bypassed and who authorized it."/><small id="step-bypass-reason-help" className={`field-requirement ${reasonValid ? 'valid' : ''}`}><span>{reasonValid ? 'Reason requirement met.' : `Add ${20 - reasonLength} more character${20 - reasonLength === 1 ? '' : 's'} to continue.`}</span><strong>{reasonLength}/20 minimum</strong></small></label>
+src/main.jsx:10102: {reasonValid && confirmationValid ? <><CheckCircle2 size={16}/><span>Ready to record this one-step bypass.</span></> : <><AlertTriangle size={16}/><span>{!reasonValid ? 'Emergency reason must contain at least 20 characters.' : 'Enter BYPASS STEP exactly to continue.'}</span></>}
+src/main.jsx:10162: {selected && <><p><strong>{money(selected.applied)} deducted · {money(selected.remaining)} left in this {selected.provider === 'stripe' ? 'Stripe' : 'external'} deposit.</strong> The remainder stays held until you refund it. No money is refunded now.</p><label>Deduction note<input required minLength={5} maxLength={1000} value={reason} onChange={e => setReason(e.target.value)}/></label></>}
+src/main.jsx:10166: <footer className="rental-amendment-actions"><button type="button" disabled={busy} onClick={onCancel}>Cancel</button><button className="primary-btn" disabled={busy || (depositOnly && source === 'card') || (source !== 'card' && (!selected?.available || reason.trim().length < 5))}>{busy ? 'Processing…' : source === 'card' ? `Charge card ${money(total)}` : `Deduct ${money(total)} from deposit`}</button></footer>
+src/main.jsx:10562: && reason.trim().length >= 5;
+src/main.jsx:10594: <textarea value={reason} minLength="5" maxLength="500" onChange={(event) => setReason(limitText(event.target.value, 500))} placeholder="Explain exactly why this amount is being refunded." required />
+src/main.jsx:10662: if (form.reason.trim().length < 10) {
+src/main.jsx:10663: setError('Enter a specific internal reason of at least 10 characters.');
+src/main.jsx:10723: <textarea minLength="10" maxLength="500" value={form.reason} onChange={(event) => setForm((current) => ({ ...current, reason: limitText(event.target.value, 500) }))} placeholder="Example: Cash price approved by manager for this reservation." required />
+src/main.jsx:10731: <button type="submit" className="approve" disabled={saving || previewing || !previewValid || form.reason.trim().length < 10}><CheckCircle2 size={15}/> {saving ? 'Saving…' : form.mode === 'remove' ? 'Confirm Removal' : 'Apply Discount'}</button>
+src/main.jsx:10741: const minimumReason = refundDeposit ? 5 : 3;
+src/main.jsx:10765: <textarea value={reason} minLength={minimumReason} disabled={submitting} maxLength="500" onChange={(event) => setReason(limitText(event.target.value, 500))} placeholder="For example: customer did not complete payment before the deadline." required />
+src/main.jsx:11464: if (reason.trim().length < 5) return setError('Enter an audit reason of at least five characters.');
+src/main.jsx:11667: if ((inspection.mileageOverride || mileage.missingBaseline) && inspection.damageNote.trim().length < 10) {
+src/main.jsx:11668: setMileageError('Explain the missing mileage or override in at least 10 characters.'); return;
+src/main.jsx:11670: if ((inspection.damageFound || inspection.depositDecision === 'hold') && inspection.damageNote.trim().length < 5) {
+src/Merchants.jsx:45: {revoke?.rental_id === r.rental_id && <form onSubmit={(e) => { e.preventDefault(); act('revoke_verification', revoke); }}><label>Reason<input value={revoke.reason} minLength={5} required onChange={(e) => setRevoke({ ...revoke, reason: e.target.value })} /></label><button disabled={busy} className="primary-btn">Revoke and block pickup</button><button type="button" className="secondary-btn" onClick={() => setRevoke(null)}>Cancel</button></form>}
+
+Audited database functions:
+admin_activate_rental_with_emergency_exception
+admin_add_rental_emergency_exception_scope
+admin_adjust_external_rental_payment
+admin_agree_extension_rate
+admin_apply_manual_rental_discount
+admin_apply_rental_amendment
+admin_assign_tollspot_transaction_to_rental
+admin_cancel_rental
+admin_complete_rental_step
+admin_correct_external_payment
+admin_correct_legacy_external_payment
+admin_correct_payment_amount
+admin_hold_deposit_review
+admin_ignore_tollspot_transaction
+admin_inspect_and_complete_rental_return
+admin_merchant_workspace
+admin_override_vehicle_maintenance
+admin_preview_rental_extension
+admin_preview_rental_extension_revision
+admin_preview_rental_rate_change
+admin_preview_vehicle_swap
+admin_refund_external_payment
+admin_restore_cancelled_unpaid_rental
+admin_set_rental_payment_deadline
+admin_sign_rental_agreement_in_office
+admin_ticket_action
+admin_ticket_customer_flag
+prepare_before_pickup_deposit_refund
+reserve_rental_payment_refund
+service_apply_deposit_review
+service_apply_deposit_to_charges
+service_deduct_deposit_charges
+service_reclassify_legacy_deposit
+
+Keep genuine formats: VIN 17 characters, legal signature name, OTP, phone, IDs.
+Keep deliberate confirmation phrases; remove arbitrary reason/note minimums.
+
+Verified production function inventory (36 definitions, aggregate MD5 393f56bb328067fdb63c4017b9555fec):
+admin_activate_rental_with_emergency_exception
+admin_add_rental_emergency_exception_scope
+admin_adjust_external_rental_payment
+admin_agree_extension_rate
+admin_apply_manual_rental_discount
+admin_apply_rental_amendment
+admin_assign_tollspot_transaction_to_rental
+admin_cancel_rental
+admin_complete_rental_step
+admin_correct_external_payment_v1
+admin_correct_flexible_payment
+admin_correct_legacy_external_payment
+admin_correct_payment_amount
+admin_hold_deposit_review
+admin_ignore_tollspot_transaction
+admin_inspect_and_complete_rental_return_core
+admin_merchant_workspace
+admin_override_vehicle_maintenance
+admin_preview_rental_extension
+admin_preview_rental_extension_revision
+admin_preview_rental_rate_change
+admin_preview_vehicle_swap
+admin_refund_external_payment
+admin_refund_external_payment_v1
+admin_restore_cancelled_unpaid_rental
+admin_set_rental_payment_deadline
+admin_sign_rental_agreement_in_office
+admin_ticket_action
+admin_ticket_customer_flag
+enforce_rental_odometer_gate
+prepare_before_pickup_deposit_refund
+reserve_rental_payment_refund
+service_apply_deposit_review
+service_apply_deposit_to_charges
+service_deduct_deposit_charges
+service_reclassify_legacy_deposit
+
+The return odometer trigger is included, not only callable admin/service functions. SQL CHECK constraints on reason/note fields are relaxed to nonblank in the same transaction. No inspection, permission, money, availability, confirmation-phrase, or idempotency check is removed.
