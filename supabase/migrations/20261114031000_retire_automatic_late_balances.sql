@@ -3,6 +3,15 @@ begin;
 set local lock_timeout='2s';
 set local statement_timeout='30s';
 do $$ begin
+ perform 1 from public.rental_charge_items
+ where source_type='late_return' and status in ('pending','failed','checkout_open')
+ order by id for update;
+ if exists(select 1 from public.external_payment_receipts r
+   join public.external_payment_allocations a on a.receipt_id=r.id
+   join public.rental_charge_items c on c.id=a.charge_id
+   where r.status='pending' and c.source_type='late_return') then
+  raise exception 'Retire pending allocated payments containing automatic late charges before this cleanup.';
+ end if;
  if exists(select 1 from public.rental_charge_items where source_type='late_return'
    and status in ('pending','failed','checkout_open')
    and (stripe_checkout_session_id is not null or stripe_payment_intent_id is not null
