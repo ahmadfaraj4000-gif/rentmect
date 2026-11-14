@@ -24,6 +24,10 @@ begin
       where status = 'approved_pending_payment'
         and lower(coalesce(payment_status, 'pending')) not in ('paid','partial','partial_paid','partially_paid')
         and coalesce(payment_amount_cents,0)=0
+        and not exists(select 1 from public.rental_payments p
+          where (p.stripe_payment_intent_id=rental_extension_requests.stripe_payment_intent_id
+             or p.stripe_checkout_session_id=rental_extension_requests.stripe_checkout_session_id)
+          and p.status in ('paid','succeeded','complete','completed','partial','partial_paid','partially_paid') and p.total_amount>0)
         and payment_due_at <= now()
       returning id, rental_id, user_id
   loop
@@ -48,6 +52,9 @@ begin
           updated_at = now()
       where coalesce(lower(payment_status), 'pending') not in ('paid','partial','partial_paid','partially_paid')
         and coalesce(payment_amount_cents,0)=0
+        and coalesce(deposit_held_amount,0)=0
+        and not exists(select 1 from public.rental_charge_items c where c.rental_id=rentals.id
+          and c.charge_type in ('rental_amendment','rental_installment') and c.status='paid' and c.total_amount>0)
         and not exists (select 1 from public.rental_payments p where p.rental_id=rentals.id
           and p.status in ('paid','succeeded','complete','completed','partial','partial_paid','partially_paid')
           and p.total_amount>0)

@@ -23,7 +23,7 @@ begin;
 set request.jwt.claim.sub='11111111-1111-4111-8111-111111111111';
 set request.jwt.claim.role='authenticated';
 \ir fixtures/account_fixture.sql
-do $$ declare paid_id uuid; unpaid_id uuid; partial_id uuid; data jsonb; begin
+do $$ declare paid_id uuid; unpaid_id uuid; partial_id uuid; toll_id uuid; data jsonb; begin
  paid_id:=pg_temp.account_fixture(300,813.67);
  unpaid_id:=pg_temp.account_fixture(300,0);
  partial_id:=pg_temp.account_fixture(300,100);
@@ -39,6 +39,10 @@ do $$ declare paid_id uuid; unpaid_id uuid; partial_id uuid; data jsonb; begin
  perform admin_operation_summaries();
  perform admin_communication_threads();
  perform admin_merchant_workspace();
+ insert into tollspot_transactions(tollspot_transaction_id,occurred_at,toll_amount,vehicle_id)
+ select 'synthetic-page-test',now(),10,vehicle_id from rentals where id=paid_id returning id into toll_id;
+ data:=admin_toll_rental_candidates(toll_id);
+ assert jsonb_typeof(data->'rows')='array';
 end $$;
 rollback;
 begin;
