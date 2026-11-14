@@ -17,18 +17,14 @@ const publicPolicyFiles = [
   'llms.txt',
 ];
 const publicPolicy = publicPolicyFiles.map(read).join('\n');
-const migration = read('supabase/migrations/20260808233000_late_fee_and_250_mileage_policy.sql');
 
 check('public policy has no legacy 200-mile allowance', !/200\s+miles|200\s+miles\/day/i.test(publicPolicy));
 check('public policy publishes the 250-mile allowance', /250\s+miles/i.test(publicPolicy));
 check('homepage daily-mileage stat displays 250', /<strong>250<\/strong>\s*<span>Miles Included Daily<\/span>/.test(read('index.html')));
-check('public agreement publishes the 30-minute fee', /At 30 minutes after the scheduled return time/.test(read('agreement.html')));
-check('public agreement publishes the more-than-two-hour daily charge', /more than 2 hours after the scheduled return time/.test(read('agreement.html')));
-check('backend stages the fee at 30 minutes', /p_as_of >= late_rentals\.due_at \+ interval '30 minutes'/.test(migration));
-check('backend stages the daily charge strictly after two hours', /p_as_of > late_rentals\.due_at \+ interval '2 hours'/.test(migration));
-check('backend uses separate idempotency references', migration.includes("|| ':late-fee'") && migration.includes("|| ':period:'"));
-check('backend never attempts payment', /Payment requires administrator action/.test(migration) && /'payment_attempted', false/.test(migration));
-check('backend preserves the three-hour physical lock', read('supabase/migrations/20260804023000_stage_late_return_charges.sql').includes("+ interval '3 hours'"));
+check('public agreement requires explicit approval instead of automatic fees', /no automatic late-return fee or automatic additional rental-day charge/.test(read('agreement.html')));
+const returnPolicy = read('supabase/migrations/20261114030000_admin_return_availability.sql');
+check('backend disables automatic assessment', returnPolicy.includes('select 0;') && returnPolicy.includes('aaaa_no_automatic_late_charge'));
+check('backend protects physical returns', returnPolicy.includes('aaaa_physical_return_transition'));
 
 if (failures.length) {
   for (const failure of failures) console.error(`FAIL: ${failure}`);
