@@ -71,7 +71,8 @@ with tempfile.TemporaryDirectory(prefix='rentme-discount-schema-') as temp:
             'supabase/migrations/20261114032000_admin_return_agreement_version.sql',
             'supabase/migrations/20261114040000_manual_late_agreement_compatibility.sql',
             'supabase/migrations/20261114041000_manual_late_agreement_current.sql',
-            'supabase/tests/load_reduction.sql']:
+            'supabase/tests/load_reduction.sql',
+            'supabase/tests/screen_reads.sql']:
             if file.endswith('20261114030000_admin_return_availability.sql') and os.environ.get('RENTMECT_LIVE_FUNCTION_CSV'):
                 import csv
                 csv.field_size_limit(10000000)
