@@ -45,21 +45,22 @@
   const RENT_ME_CT_TIME_ZONE = "America/New_York";
   const RENTAL_OPENING_MINUTES = 9 * 60;
   const RENTAL_LAST_SLOT_MINUTES = 23 * 60 + 30;
-  const RENTAL_DEFAULT_NOTICE_MINUTES = 3 * 60;
   const RENTAL_SLOT_MINUTES = 30;
 
   const url = new URL(window.location.href);
-  const requestedPickupDate = validDateParam(url.searchParams.get("pickupDate"));
-  const requestedPickupTime = validTimeParam(url.searchParams.get("pickupTime"));
-  const requestedReturnTime = validTimeParam(url.searchParams.get("returnTime"));
+  const handedOffTrip = window.RentMePublicTrip.consumeHandoff(new URL(url));
+  const defaultTrip = window.RentMePublicTrip.defaults();
+  const requestedPickupDate = validDateParam(handedOffTrip?.pickupDate);
+  const requestedPickupTime = validTimeParam(handedOffTrip?.pickupTime);
+  const requestedReturnTime = validTimeParam(handedOffTrip?.returnTime);
   const requestedReturnTimeCustomized =
-    url.searchParams.get("returnTimeCustomized") === "1"
-    || url.searchParams.get("returnTimeCustomized") === "true";
+    handedOffTrip?.returnTimeCustomized === "1"
+    || handedOffTrip?.returnTimeCustomized === "true";
   const initialPickupTime = requestedPickupTime || "9:00 AM";
   const state = {
     trip: {
-      pickupDate: requestedPickupDate || dateInput(0),
-      returnDate: validDateParam(url.searchParams.get("returnDate")) || dateInput(1),
+      pickupDate: requestedPickupDate || defaultTrip.pickupDate,
+      returnDate: validDateParam(handedOffTrip?.returnDate) || defaultTrip.returnDate,
       pickupTime: initialPickupTime,
       returnTime: requestedReturnTimeCustomized && requestedReturnTime ? requestedReturnTime : initialPickupTime,
     },
@@ -253,7 +254,15 @@
       if (event.key === "Escape" && !elements.cars2InsuranceModal.hidden) closeInsuranceReminder();
     });
     window.addEventListener("popstate", applyUrlState);
-    window.addEventListener("pageshow", () => {
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) {
+        state.trip = window.RentMePublicTrip.defaults();
+        returnTimeCustomized = false;
+        state.quote = null; state.quoteRequest += 1; state.availabilityRequest += 1;
+        window.RentMePublicTrip.cleanUrl(url);
+        history.replaceState(history.state, "", window.RentMePublicTrip.cleanUrl(new URL(window.location.href)));
+        syncTripFields(); scheduleAvailabilityCheck();
+      }
       if (new URL(window.location.href).searchParams.has("abandonBooking")) {
         abandonReturnedCheckout().then(() => checkAvailability());
       } else if (!state.loading && !state.vehicles.length) {
@@ -955,8 +964,8 @@
     }
     if (!validTimeParam(state.trip.pickupTime)) state.trip.pickupTime = "9:00 AM";
     if (!validTimeParam(state.trip.returnTime)) state.trip.returnTime = "9:00 AM";
-    if (!validDateParam(state.trip.returnDate) || rentalMinutes() < state.policy.minimumRentalHours * 60) {
-      state.trip.returnDate = addDays(state.trip.pickupDate, state.policy.minimumRentalDays);
+    if (!validDateParam(state.trip.returnDate) || rentalMinutes() <= 0) {
+      state.trip.returnDate = addDays(state.trip.pickupDate, 1);
       state.trip.returnTime = state.trip.pickupTime;
       returnTimeCustomized = false;
     }
@@ -979,9 +988,7 @@
   }
 
   function syncTripToUrl(targetUrl) {
-    Object.entries(state.trip).forEach(([key, value]) => targetUrl.searchParams.set(key, value));
-    targetUrl.searchParams.set("pickupTimeCustomized", "1");
-    targetUrl.searchParams.set("returnTimeCustomized", returnTimeCustomized ? "1" : "0");
+    window.RentMePublicTrip.cleanUrl(targetUrl);
   }
 
   function selectedVehicle() {
@@ -1160,19 +1167,8 @@
   }
 
   function earliestPickupSlot() {
-    const eastern = easternDateTimeParts(new Date(state.policy.serverNow));
-    let date = eastern.date;
-    const requestedNotice = Math.max(0, Number(state.policy.advanceNoticeMinutes) || 0);
-    const standardTarget = eastern.minutes < RENTAL_OPENING_MINUTES
-      ? RENTAL_OPENING_MINUTES
-      : eastern.minutes + RENTAL_DEFAULT_NOTICE_MINUTES;
-    const targetMinutes = Math.max(standardTarget, eastern.minutes + requestedNotice);
-    const roundedMinutes = Math.ceil(targetMinutes / RENTAL_SLOT_MINUTES) * RENTAL_SLOT_MINUTES;
-    if (roundedMinutes > RENTAL_LAST_SLOT_MINUTES) {
-      date = addDays(date, 1);
-      return { date, time: minutesToTime(RENTAL_OPENING_MINUTES) };
-    }
-    return { date, time: minutesToTime(roundedMinutes) };
+    const trip = window.RentMePublicTrip.defaults(new Date(state.policy.serverNow));
+    return { date: trip.pickupDate, time: trip.pickupTime };
   }
 
   function easternDateTimeParts(value) {
