@@ -23,6 +23,10 @@ type CheckoutPayload = {
   tollPayment?: { charges: { id: string; amountCents: number }[]; amountCents: number; paymentMethod: string; receivedDate: string; reference: string };
   allocationId?: string;
   expectedRemaining?: number;
+  includeCredit?: boolean;
+  expectedCreditCents?: number;
+  recordExternalReturn?: boolean;
+  expectedExternalCents?: number;
   expectedHeld?: number;
   expectedApplied?: number;
   expectedRefund?: number;
@@ -1659,6 +1663,9 @@ async function refundRentalPayment(req: Request, payload: CheckoutPayload) {
   if (reason.length < 1) throw new Error("Enter a refund reason.");
 
   const admin = await requireAdmin(req, "payment.refund");
+  const creditReturn=await adminClient!.from('rental_return_credit_sources').select('review_id').eq('rental_id',payload.rentalId).limit(1);
+  if(creditReturn.error) throw creditReturn.error;
+  if(creditReturn.data?.length) throw new Error('Use the deposit and credit return workspace for this account.');
   const { data: existingRequest, error: existingError } = await adminClient!
     .from("rental_payment_refunds")
     .select("*")
@@ -3376,14 +3383,35 @@ async function deductDepositCharges(req: Request, payload: CheckoutPayload) {
   return await apply(charges, allocation);
 }
 
+async function finishReturnCredits(reviewId: string) {
+  const {data: sources,error} = await adminClient!.from('rental_return_credit_sources').select('*').eq('review_id',reviewId);
+  if(error) throw error;
+  for(const source of sources || []) {
+    if(source.provider!=='stripe' || source.refund_cents<=0 || source.status==='succeeded') continue;
+    if(!source.stripe_payment_intent_id) throw new Error('Credit has no original Stripe payment. Reconcile its source.');
+    // Search the provider before every retry, including retries beyond Stripe's key retention.
+    const refunds=await stripe!.refunds.list({payment_intent:source.stripe_payment_intent_id,limit:100}).autoPagingToArray({limit:10000});
+    if(refunds.length>=10000) throw new Error('Refund history needs reconciliation.');
+    let refund=refunds.find(f=>f.metadata?.return_review_id===reviewId && f.metadata?.credit_source_id===source.source_receipt_id);
+    if(!refund && source.stripe_refund_id) refund=await stripe!.refunds.retrieve(source.stripe_refund_id);
+    if(!refund) refund=await stripe!.refunds.create({payment_intent:source.stripe_payment_intent_id,amount:Number(source.refund_cents),metadata:{refund_type:'return_credit',rental_id:source.rental_id,return_review_id:reviewId,credit_source_id:source.source_receipt_id}}, {idempotencyKey:`return-credit-${reviewId}-${source.source_receipt_id}`});
+    if(refund.amount!==Number(source.refund_cents)) throw new Error('Credit refund amount differs from its reservation. Reconcile it.');
+    const status=refund.status||'pending';
+    const saved=await adminClient!.from('rental_return_credit_sources').update({stripe_refund_id:refund.id,status,returned_at:status==='succeeded'?new Date().toISOString():null}).eq('review_id',reviewId).eq('source_receipt_id',source.source_receipt_id).neq('status','succeeded');
+    if(saved.error) throw saved.error;
+    if(['failed','canceled','requires_action'].includes(status)) throw new Error('Stripe could not return the credit. Its reservation is retained for reconciliation.');
+  }
+}
+
 async function reviewDeposit(req: Request, payload: CheckoutPayload) {
   const admin = await requireAdmin(req, 'deposit.resolve');
   if (!payload.rentalId || !payload.idempotencyKey || !Array.isArray(payload.chargeIds)) throw new Error('Rental, review key and charges are required.');
-  const request = { chargeIds: [...payload.chargeIds].sort(), expectedHeld: payload.expectedHeld, expectedCharges: payload.expectedApplied, reason: payload.reason };
+  const request = { chargeIds: [...payload.chargeIds].sort(), expectedHeld: payload.expectedHeld, expectedCharges: payload.expectedApplied, reason: payload.reason, ...(payload.includeCredit ? {includeCredit:true,expectedCreditCents:payload.expectedCreditCents} : {}) };
   const { data: prior, error: priorError } = await adminClient!.from('deposit_review_settlements').select('*').eq('id', payload.idempotencyKey).maybeSingle();
   if (priorError) throw priorError;
   if (prior && (prior.rental_id !== payload.rentalId || JSON.stringify(prior.request.chargeIds) !== JSON.stringify(request.chargeIds)
-    || prior.request.expectedHeld !== request.expectedHeld || prior.request.expectedCharges !== request.expectedCharges || prior.request.reason !== request.reason)) throw new Error('Review key belongs to different details.');
+    || prior.request.expectedHeld !== request.expectedHeld || prior.request.expectedCharges !== request.expectedCharges || prior.request.reason !== request.reason || Boolean(prior.request.includeCredit)!==Boolean(request.includeCredit) || prior.request.expectedCreditCents!==request.expectedCreditCents)) throw new Error('Review key belongs to different details.');
+  if(payload.includeCredit || payload.recordExternalReturn) await requireAdmin(req,'payment.refund');
   let result = prior?.result;
   if (!result) {
     if (payload.chargeIds.length) await requireAdmin(req, 'charge.manage');
@@ -3404,6 +3432,18 @@ async function reviewDeposit(req: Request, payload: CheckoutPayload) {
       const refunds = await stripe!.refunds.list({payment_intent:a.stripe_payment_intent_id,limit:100}).autoPagingToArray({limit:10000});
       if (refunds.length>=10000 || refunds.some(f=>f.metadata?.deposit_allocation_id===a.id)) throw new Error('A deposit refund already exists. Reconcile it before deductions.');
     }
+    if(payload.includeCredit) {
+      const {data: credits,error} = await adminClient!.rpc('service_return_credit_sources',{p_rental_id:payload.rentalId});
+      if(error) throw error;
+      for(const credit of credits || []) {
+        if(!credit.available_cents) continue;
+        if(!credit.stripe_payment_intent_id) throw new Error('Credit has no verified Stripe payment.');
+        const captures=await stripe!.charges.list({payment_intent:credit.stripe_payment_intent_id,limit:100});
+        const available=captures.data.filter(c=>c.paid&&c.captured&&c.currency==='usd').reduce((sum,c)=>sum+c.amount-c.amount_refunded,0);
+        const needed=Number(credit.available_cents)+(allocations||[]).filter(a=>a.stripe_payment_intent_id===credit.stripe_payment_intent_id).reduce((sum,a)=>sum+cents(Number(a.amount_held)-Number(a.amount_released)),0);
+        if(available<needed) throw new Error('Stripe funds changed. Reconcile previous refunds before returning credit.');
+      }
+    }
     const applied = await adminClient!.rpc('service_apply_deposit_review', { p_id: payload.idempotencyKey, p_rental_id: payload.rentalId, p_actor_id: admin.user.id, p_request: request, p_charges: charges, p_allocations: allocations });
     if (applied.error) throw applied.error;
     result = applied.data;
@@ -3419,7 +3459,20 @@ async function reviewDeposit(req: Request, payload: CheckoutPayload) {
     try { refund = await releaseSecurityDeposit(payload.rentalId,'manual',{userId:admin.user.id,reason:payload.reason}); }
     catch (e) { refundError = e instanceof Error ? e.message : 'The refund needs another review.'; }
   }
-  return {...result,status:'reviewed',externalRemaining:remaining('local'),refund,refundError};
+  if(!refundError && payload.includeCredit) {
+    try { await finishReturnCredits(payload.idempotencyKey); } catch(e) { refundError=e instanceof Error?e.message:'Credit refund needs reconciliation.'; }
+  }
+  if(payload.recordExternalReturn && !refundError) {
+    const recorded=await adminClient!.rpc('service_record_return_external',{p_review_id:payload.idempotencyKey,p_actor_id:admin.user.id,p_method:payload.paymentMethod,p_reference:payload.paymentReference||'',p_expected_cents:payload.expectedExternalCents});
+    if(recorded.error) throw recorded.error;
+  }
+  let creditReturns=[];
+  if(payload.includeCredit) {
+    const read=await adminClient!.from('rental_return_credit_sources').select('*').eq('review_id',payload.idempotencyKey);
+    if(read.error) throw read.error;
+    creditReturns=read.data||[];
+  }
+  return {...result,status:'reviewed',externalRemaining:payload.recordExternalReturn&&!refundError?0:remaining('local')+creditReturns.filter(c=>c.provider==='external'&&c.status!=='succeeded').reduce((sum,c)=>sum+Number(c.refund_cents)/100,0),creditReturns,refund,refundError};
 }
 
 async function settleDepositCharges(req: Request, payload: CheckoutPayload) {
@@ -3753,6 +3806,14 @@ async function handleWebhook(req: Request) {
 
   if (["refund.created", "refund.updated", "refund.failed"].includes(event.type)) {
     const refund = event.data.object as Stripe.Refund;
+    if(refund.metadata?.refund_type==='return_credit') {
+      const latest=await stripe!.refunds.retrieve(refund.id);
+      const saved=await adminClient!.from('rental_return_credit_sources').update({stripe_refund_id:latest.id,status:latest.status||'pending',returned_at:latest.status==='succeeded'?new Date().toISOString():null})
+        .eq('review_id',latest.metadata.return_review_id).eq('source_receipt_id',latest.metadata.credit_source_id)
+        .neq('status','succeeded').eq('provider','stripe').eq('refund_cents',latest.amount).eq('stripe_payment_intent_id',await paymentIntentForRefund(latest));
+      if(saved.error) throw saved.error;
+      return json({received:true});
+    }
     const rentalId = refund.metadata?.rental_id || "";
     const refundType = refund.metadata?.refund_type || "";
     const paymentIntentId = await paymentIntentForRefund(refund);
