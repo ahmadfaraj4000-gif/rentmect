@@ -44,6 +44,10 @@ begin
    perform set_config('request.jwt.claim.role','service_role',true);
   end if;
   begin
+   insert into rental_payment_refunds(id,rental_id,stripe_payment_intent_id,amount,reason) values(gen_random_uuid(),rid,'pi_old_tab',10,'Synthetic conflicting refund');
+   raise exception 'Competing refund reservation accepted';
+  exception when others then if sqlerrm not like '%saved deposit and credit return%' then raise; end if; end;
+  begin
    update external_payment_receipts set status='refunded' where id=receipt;
    raise exception 'Source refund was not protected';
   exception when others then if sqlerrm not like '%return settlement%' then raise; end if; end;

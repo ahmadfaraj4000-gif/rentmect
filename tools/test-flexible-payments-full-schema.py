@@ -57,6 +57,7 @@ with tempfile.TemporaryDirectory(prefix='rentme-discount-schema-') as temp:
             'supabase/migrations/20261112080000_dated_rental_rate_changes.sql',
             'supabase/migrations/20261114072000_payment_activity_pages.sql',
             'supabase/migrations/20261115010000_unified_deposit_credit_returns.sql',
+            'supabase/migrations/20261115011000_return_refund_reservation_guards.sql',
             'supabase/tests/unified_deposit_credit_returns.sql',
             'supabase/tests/dated_rental_rate_changes.sql',
             'supabase/tests/deposit_first_priority.sql',

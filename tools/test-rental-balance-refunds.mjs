@@ -10,13 +10,14 @@ const handler = source.slice(source.indexOf('async function refundRentalPayment(
   .replaceAll('adminClient!', 'adminClient').replaceAll('stripe!', 'stripe');
 const request = { rentalId: 'rental', chargeId: 'balance', amountCents: 10000,
   refundRequestId: '00000000-0000-4000-8000-000000000001', reason: 'Customer adjustment' };
-function fixture({ allocations = [], chargeRentalId = 'rental', existing = null, fail = false, allocatedRentalCents = null } = {}) {
+function fixture({ allocations = [], chargeRentalId = 'rental', existing = null, fail = false, allocatedRentalCents = null, returnCredits = [] } = {}) {
   const calls = [], writes = [];
   const rental = { id: 'rental', user_id: 'customer', payment_status: 'paid', payment_provider: 'stripe', stripe_payment_intent_id: null, payment_amount_cents: 82835 };
   const balance = { id: 'balance', rental_id: chargeRentalId, charge_type: 'rental_amendment', status: 'paid', payment_provider: 'stripe', stripe_payment_intent_id: 'pi_balance', payment_amount_cents: 52835 };
   class Query {
     constructor(table) { this.table=table; this.filters=[]; this.mode='read'; }
     select(){return this;}
+    limit(){return this;}
     eq(k,v){this.filters.push([k,v]);return this;}
     is(k,v){return this.eq(k,v);}
     insert(v){this.mode='insert'; this.values=v;return this;}
@@ -25,7 +26,7 @@ function fixture({ allocations = [], chargeRentalId = 'rental', existing = null,
     maybeSingle(){return this;}
     then(resolve,reject){
       if(this.mode!=='read'){writes.push({table:this.table,values:this.values,filters:this.filters});return Promise.resolve({error:null}).then(resolve,reject);}
-      let data = this.table==='rentals'?rental:this.table==='rental_charge_items'?balance:this.table==='rental_deposit_allocations'?allocations:this.table==='external_payment_receipts'&&allocatedRentalCents!==null?{rental_amount_cents:allocatedRentalCents,stripe_payment_intent_id:'pi_balance',funding_kind:'stripe',status:'posted'}:existing;
+      let data = this.table==='rental_return_credit_sources'?returnCredits:this.table==='rentals'?rental:this.table==='rental_charge_items'?balance:this.table==='rental_deposit_allocations'?allocations:this.table==='external_payment_receipts'&&allocatedRentalCents!==null?{rental_amount_cents:allocatedRentalCents,stripe_payment_intent_id:'pi_balance',funding_kind:'stripe',status:'posted'}:existing;
       if(data&&!Array.isArray(data)&&!this.filters.every(([k,v])=>data[k]===v))data=null;
       return Promise.resolve({data,error:null}).then(resolve,reject);
     }
@@ -75,3 +76,5 @@ test('allocated Stripe rental refunds cannot consume toll allocations or reusabl
  const f=fixture({allocatedRentalCents:5000});await assert.rejects(f.run(request),/maximum rental-payment refund is \$50.00/);assert.equal(f.calls.some(c=>c.refund),false);
  const permitted=fixture({allocatedRentalCents:5000});assert.equal((await permitted.run({...request,amountCents:5000})).status,'succeeded');
 });
+
+test('legacy rental refund cannot reuse a source already in a return settlement',async()=>{const f=fixture({returnCredits:[{review_id:'saved'}]});await assert.rejects(f.run(request),/return workspace/);assert.equal(f.calls.some(c=>c.refund),false);});
