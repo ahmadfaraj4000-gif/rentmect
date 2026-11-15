@@ -1,3 +1,4 @@
+import { agreementCopy } from "../_shared/agreementCopy.js";
 import { allocatedPaymentMessage } from '../_shared/allocated-payment-message.ts';
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -96,6 +97,7 @@ async function sendMail(params: {
   text?: string;
   marketing?: boolean;
   customArgs?: Record<string, string>;
+  attachments?: Array<{ content: string; type: string; filename: string; disposition: string }>;
 }) {
   const payload: Json = {
     personalizations: [{
@@ -111,6 +113,7 @@ async function sendMail(params: {
     ],
     categories: [params.marketing ? "rentmect_marketing" : "rentmect_transactional"],
   };
+  if (params.attachments) payload.attachments = params.attachments;
   if (params.marketing && marketingGroupId > 0) payload.asm = { group_id: marketingGroupId };
 
   const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
@@ -460,6 +463,33 @@ async function handleCustomerEmail(req: Request) {
   }
 }
 
+async function handleAgreementEmail(req: Request) {
+  const admin = await requireAdmin(req, "communications.send");
+  const { rentalId } = await req.json();
+  if (!rentalId) return json({ error: "Rental is required." }, 400);
+  const { data: rental, error } = await adminClient!.from("rentals")
+    .select("id,user_id,pickup_date,return_date,agreement_signed,agreement_snapshot,agreement_signature_name")
+    .eq("id", rentalId).single();
+  if (error || !rental) return json({ error: "Rental not found." }, 404);
+  if (!rental.agreement_signed || !rental.agreement_snapshot) return json({ error: "This rental has no saved signed agreement." }, 409);
+  const { data: profile, error: profileError } = await adminClient!.from("profiles").select("email,full_name").eq("id", rental.user_id).single();
+  const recipient = String(profile?.email || "").trim();
+  if (profileError || !/^\S+@\S+\.\S+$/.test(recipient)) return json({ error: "No valid customer email is on file. Update the customer profile first." }, 400);
+  const copy = agreementCopy({ ...rental, profiles: profile });
+  const bytes = new TextEncoder().encode(copy.html);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  const text = `Hi ${profile!.full_name || "Customer"}, your signed Rent Me CT rental agreement for ${dateLabel(rental.pickup_date)} through ${dateLabel(rental.return_date)} is attached.`;
+  const messageId = await sendMail({ to: recipient, toName: profile!.full_name, subject: copy.title,
+    html: emailShell(`<p>${escapeHtml(text)}</p>`, "Your signed rental agreement"), text,
+    attachments: [{ content: btoa(binary), type: "text/html", filename: copy.filename, disposition: "attachment" }],
+    customArgs: { email_type: "signed_agreement", rental_id: rental.id, customer_id: rental.user_id },
+  });
+  await adminClient!.from("admin_customer_messages").insert({ user_id: rental.user_id, rental_id: rental.id, channel: "email", recipient,
+    subject: copy.title, rendered_body: text, status: "sent", provider_message_id: messageId, created_by: admin.id, sent_at: new Date().toISOString() });
+  return json({ sent: true, recipient, messageId });
+}
+
 async function handleWebhook(req: Request) {
   const url = new URL(req.url);
   if (!webhookSecret || url.searchParams.get("token") !== webhookSecret) return json({ error: "Webhook authorization failed." }, 401);
@@ -502,6 +532,7 @@ Deno.serve(async (req) => {
       return await handleWebhook(req);
     }
     if (pathname.endsWith("/test")) return await handleTest(req);
+    if (pathname.endsWith("/agreement")) return await handleAgreementEmail(req);
     if (pathname.endsWith("/customer")) return await handleCustomerEmail(req);
     if (pathname.endsWith("/campaign")) return await handleCampaign(req);
     if (pathname.endsWith("/process")) {
