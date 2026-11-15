@@ -63,6 +63,8 @@ with tempfile.TemporaryDirectory(prefix='rentme-discount-schema-') as temp:
             'supabase/migrations/20261115014000_damage_cases_pagination.sql',
             'supabase/migrations/20261115015000_damage_case_deposit_holds.sql',
             'supabase/migrations/20261115016000_global_deposit_holds.sql',
+            'supabase/migrations/20261115017000_damage_case_evidence.sql',
+            'supabase/tests/damage_case_evidence.sql',
             'supabase/tests/damage_case_actions.sql',
             'supabase/tests/global_deposit_holds.sql',
             'supabase/tests/damage_cases_pagination.sql',
