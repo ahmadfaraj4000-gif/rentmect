@@ -38,7 +38,7 @@ type CheckoutPayload = {
   reason?: string;
   returnUrl?: string;
   sessionId?: string;
-  discountMode?: "fixed" | "percentage" | "remove";
+  discountMode?: "fixed" | "percentage" | "remove" | "target";
   discountValue?: number;
   idempotencyKey?: string;
   paymentMethod?: string;
@@ -629,7 +629,7 @@ async function applyAdminRentalAmendment(req: Request, payload: CheckoutPayload)
 async function applyAdminManualDiscount(req: Request, payload: CheckoutPayload) {
   const admin = await requireAdmin(req, "rental.discount");
   if (!payload.rentalId) throw new HttpError("Rental id is required.", 400);
-  if (!payload.discountMode || !["fixed", "percentage", "remove"].includes(payload.discountMode)) {
+  if (!payload.discountMode || !["fixed", "percentage", "remove", "target"].includes(payload.discountMode)) {
     throw new HttpError("Choose a valid discount mode.", 400);
   }
   if (!payload.idempotencyKey) throw new HttpError("Idempotency key is required.", 400);
