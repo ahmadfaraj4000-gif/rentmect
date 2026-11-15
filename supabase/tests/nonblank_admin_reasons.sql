@@ -47,7 +47,7 @@ do $$ declare rid uuid; cid uuid; result jsonb; preview jsonb; req jsonb; key uu
  result:=record_admin_rental_balance_payment(rid,813.67,'cash','Synthetic receipt',auth.uid());
  cid:=(result->'payment'->>'id')::uuid; key:=gen_random_uuid();
  perform set_config('request.jwt.claim.role','authenticated',true);
- req:=jsonb_build_object('expectedAmountCents',81367,'amountCents',70000,'paymentMethod','cash','receivedDate',current_date,'reason','x');
+ req:=jsonb_build_object('expectedAmountCents',81367,'amountCents',70000,'paymentMethod','cash','receivedDate',(now() at time zone 'America/New_York')::date,'reason','x');
  preview:=admin_correct_payment_amount('rental_charge',cid,req,key);
  result:=admin_correct_payment_amount('rental_charge',cid,req,key,preview->>'reviewToken');
  assert result->>'status'='corrected';
