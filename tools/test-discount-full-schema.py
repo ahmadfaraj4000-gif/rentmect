@@ -52,6 +52,7 @@ with tempfile.TemporaryDirectory(prefix='rentme-discount-schema-') as temp:
         ]
         for file in migrations:
             run('psql', *args, '-f', ROOT / file, stdout=subprocess.DEVNULL)
+        run('psql', *args, '-f', ROOT / 'supabase/migrations/20261115018000_desired_discount_balance.sql', stdout=subprocess.DEVNULL)
         # Configuration rows are part of the disposable fixture, never copied from customers.
         run('psql', *args, input="""begin; set local session_replication_role='replica';
           insert into auth.users(id) values('11111111-1111-4111-8111-111111111111');
@@ -63,7 +64,7 @@ with tempfile.TemporaryDirectory(prefix='rentme-discount-schema-') as temp:
           insert into employee_permissions(permission_key,label,category,description,enabled) values
            ('tab.tickets','View tickets','Visible tabs','Synthetic fixture',false),('ticket.manage','Manage tickets','Rentals','Synthetic fixture',false);
           commit;""", text=True, stdout=subprocess.DEVNULL)
-        tests = ['discount_history_rounding','extension_discount_safety','rental_account_consistency',
+        tests = ['desired_discount_balance','discount_history_rounding','extension_discount_safety','rental_account_consistency',
           'customer_availability','unified_external_payments_full_schema','admin_direct_rental_extensions',
           'dated_vehicle_swaps_and_pricing','discounts_and_legacy_assignments','client_extension_and_deposit_changes',
           'deposit_rental_balance_closeout','linked_continuation_accounting','vehicle_conflict_checks',
