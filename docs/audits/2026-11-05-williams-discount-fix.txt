@@ -1,0 +1,24 @@
+ERROL C WILLIAMS — DODGE VAN #451
+November 5, 2026 — refreshed account review and deployed discount fix
+
+CURRENT CLIENT FIGURES (verified 12:34 PM Eastern)
+The November 3 balance of $101.62 is historical. Staff restored the original discount's dollar value at 11:42 AM Eastern on November 5: $26.55 rental discount plus $1.69 tax savings. It is stored as a fixed $26.55 discount, equal to the original booking's 5% discount; it is not a new 5% discount across later extensions.
+
+Staff then extended the return to November 5 at 6 PM. Current balance: $220.14 for three extension days at $69 plus $4.38 tax per day ($73.38/day). The first extension contributes $73.38; the two-day extension added November 5 contributes $146.76.
+
+Current booking invoice: $1,056.62. Booking receipts: $836.48. Paid insurance: $257.95. Total recorded receipts: $1,094.43. The only collectible charge is the $220.14 remaining rental balance. All staged late fees are waived. Deposit: $300 held, none applied or released. The revised agreement remains unsigned.
+
+All figures are application-ledger amounts. No new money was collected, no refund was sent, and no customer message was sent during this work.
+
+DEPLOYED FIX
+Migration 20261105180000_preserve_discount_period_allocations stores an undiscounted period basis with each new discount. Existing before/after discount audit snapshots recover historical allocations. Later extension periods do not receive a share of an earlier booking discount when that discount is removed. Dated vehicle swaps can split a discounted interval while preserving its allocated cents and later rate changes. Missing or inconsistent history fails validation instead of inferring a new rate.
+
+Discount settlement status and credit amounts now use actual recorded booking receipts and the resulting invoice, rather than treating any payment_status other than 'paid' as unpaid. Existing paid-invoice credit protections remain in force. Recorded payment snapshot amounts are preserved when payments already exist.
+
+The current Williams pricing periods were already corrected by staff before this work: $504.45 + $32.03 tax originally, $69 + $4.38 for the first extension, $138 + $8.76 for the next two days. An explicit audit-only basis reconciliation preserves the original undiscounted booking of $531 + $33.72 and the extension quotes, preventing the earlier erroneous proportional allocation from becoming a future baseline. Existing invoice, discount, period amounts, payment/deposit records, and historical action snapshots were not changed by this reconciliation.
+
+VALIDATION
+Actual captured discount RPC, preview, and rental guard tested in disposable PostgreSQL: removal after extension; reconstruction of pre-fix snapshots; replacement discounts; actual credits/partial payments; unchanged receipts; retries; vehicle-split allocation; date mismatch rejection; fully comped booking restoration. Production dry run of the migration and guarded account basis reconciliation passed and rolled back before application. Production canonical invoice, receipts, current periods, discount and recovered basis were verified after deployment.
+
+CLIENT TEXT
+Errol's current balance for Dodge Van #451 is $220.14 for three extension days at $73.38 per day including tax, through November 5 at 6 PM. His $1,094.43 in recorded payments is credited, all late fees are waived, and his $300 deposit remains held. The original discount was removed November 3, but its full $28.24 value including tax savings was restored today. Please confirm the restored discount should remain.
