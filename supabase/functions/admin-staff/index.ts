@@ -21,7 +21,7 @@ async function requireStaffManager(req: Request) {
   if (error || !data.user?.id) throw new Response(JSON.stringify({ error: "Manager session expired." }), { status: 401 });
   const { data: profile } = await adminClient.from("profiles").select("id,email,role,staff_role").eq("id", data.user.id).single();
   const allowed = profile?.role === "admin" && (
-    profile.staff_role === "owner" || String(profile.email || "").toLowerCase() === "anconamgt@aol.com"
+    profile.staff_role === "owner" || ["anconamgt@aol.com", "jennifer@rentmect.com"].includes(String(profile.email || "").toLowerCase())
   );
   if (!allowed) throw new Response(JSON.stringify({ error: "Only an authorized manager can invite Employees." }), { status: 403 });
   return { user: data.user, profile };
@@ -40,9 +40,30 @@ Deno.serve(async (req) => {
 
     let userId = "";
     let invited = false;
-    const { data: existingProfile } = await adminClient.from("profiles").select("id").ilike("email", email).maybeSingle();
+    let reactivated = false;
+    const { data: existingProfile } = await adminClient
+      .from("profiles")
+      .select("id,email,full_name,role,staff_role,customer_deleted_at,customer_deleted_by")
+      .ilike("email", email)
+      .maybeSingle();
     if (existingProfile?.id) {
       userId = existingProfile.id;
+      const { data: authRecord, error: authReadError } = await adminClient.auth.admin.getUserById(userId);
+      if (authReadError || !authRecord.user) {
+        throw new Error(authReadError?.message || "The existing Employee login could not be loaded.");
+      }
+      const bannedUntil = authRecord.user.banned_until ? new Date(authRecord.user.banned_until).getTime() : 0;
+      reactivated = Number.isFinite(bannedUntil) && bannedUntil > Date.now();
+
+      const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(userId, {
+        ban_duration: "none",
+        user_metadata: {
+          ...(authRecord.user.user_metadata || {}),
+          full_name: fullName,
+          staff_role: "employee",
+        },
+      });
+      if (authUpdateError) throw new Error(authUpdateError.message || "The existing Employee login could not be reactivated.");
     } else {
       const { data: invite, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
         redirectTo: adminPortalUrl,
@@ -59,6 +80,8 @@ Deno.serve(async (req) => {
       full_name: fullName,
       role: "admin",
       staff_role: "employee",
+      customer_deleted_at: null,
+      customer_deleted_by: null,
     }, { onConflict: "id" });
     if (profileError) throw profileError;
 
@@ -66,12 +89,12 @@ Deno.serve(async (req) => {
       actor_user_id: actor.user.id,
       actor_email: actor.profile.email,
       actor_role: actor.profile.staff_role,
-      action: invited ? "employee.invited" : "employee.access_updated",
+      action: invited ? "employee.invited" : reactivated ? "employee.reactivated" : "employee.access_updated",
       entity_type: "staff_profile",
       entity_id: userId,
-      metadata: { employee_email: email, employee_name: fullName, staff_role: "employee" },
+      metadata: { employee_email: email, employee_name: fullName, staff_role: "employee", login_reactivated: reactivated },
     });
-    return json({ ok: true, invited, userId, email, staffRole: "employee" });
+    return json({ ok: true, invited, reactivated, userId, email, staffRole: "employee" });
   } catch (error) {
     if (error instanceof Response) return new Response(error.body, { status: error.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     return json({ error: error instanceof Error ? error.message : "Staff invite failed." }, 400);
