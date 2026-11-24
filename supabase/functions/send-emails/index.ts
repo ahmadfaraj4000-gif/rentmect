@@ -1,3 +1,4 @@
+import { balanceBreakdown, balanceHtml, balanceText } from "./balanceLayout.js";
 import { agreementCopy } from "../_shared/agreementCopy.js";
 import { allocatedPaymentMessage } from '../_shared/allocated-payment-message.ts';
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -65,8 +66,12 @@ function emailShell(content: string, preheader = "", marketing = false) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Rent Me CT</title><style>.rentmect-email-content h1,.rentmect-email-content h2{color:#123d2b}.rentmect-email-content a{color:#0b6b3a;font-weight:700}.rentmect-email-content p{margin-top:0}.rentmect-email-content strong{color:#17211c}</style></head><body style="margin:0;background:#f3f5f4;font-family:Arial,sans-serif;color:#17211c"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(preheader)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f4;padding:24px 12px"><tr><td align="center"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="max-width:620px;width:100%;background:#fff;border:1px solid #dce3df;border-top:6px solid #d71920;border-radius:12px;overflow:hidden"><tr><td align="center" style="padding:18px 28px;background:#fff;border-bottom:4px solid #0b6b3a"><img src="${escapeHtml(emailLogoUrl)}" width="180" height="63" alt="Rent Me CT" style="display:block;width:180px;height:auto;max-width:100%;border:0;outline:none;text-decoration:none"><div style="display:none;color:#123d2b;font-size:20px;font-weight:800">Rent Me CT</div></td></tr><tr><td class="rentmect-email-content" style="padding:30px 28px;line-height:1.6">${content}<hr style="border:0;border-top:1px solid #dce3df;margin:28px 0 18px"><p style="margin:0;font-size:12px;color:#6e7a74">Rent Me CT · 12 Holmes Circle, Farmington, CT</p>${unsubscribe}</td></tr></table></td></tr></table></body></html>`;
 }
 
-function renderTransactionalHtml(template: { html_body: unknown; preheader?: unknown }, variables: Json) {
-  return emailShell(render(sanitizeTemplateHtml(template.html_body), variables), render(template.preheader, variables));
+function renderTransactionalHtml(template: { html_body: unknown; preheader?: unknown }, variables: Json, breakdown?: ReturnType<typeof balanceBreakdown>) {
+  const body = sanitizeTemplateHtml(template.html_body);
+  // Substitute only the trusted layout. Customer-provided values are escaped inside balanceHtml.
+  const html = breakdown ? body.split(/<pre\b[^>]*>\s*{{\s*statement\s*}}\s*<\/pre>|{{\s*statement\s*}}/gi)
+    .map(part => render(part, variables)).join(balanceHtml(breakdown, escapeHtml)) : render(body, variables);
+  return emailShell(html, render(template.preheader, variables));
 }
 
 async function previewRentalBalance(req: Request) {
@@ -82,10 +87,11 @@ async function previewRentalBalance(req: Request) {
   const { data: template, error: templateError } = await adminClient!.from("email_templates")
     .select("html_body,preheader").eq("template_key", "renter_balance_statement").eq("enabled", true).single();
   if (templateError) return json({ error: "The rental balance email template is unavailable." }, 409);
-  return json({ statement, html: renderTransactionalHtml(template, {
+  const breakdown = balanceBreakdown(statement.statement);
+  return json({ statement, breakdown, html: renderTransactionalHtml(template, {
     statement: statement.statement,
     manage_booking_url: "https://login.rentmect.com/?billing=1&statement=" + rentalId,
-  }) });
+  }, breakdown) });
 }
 
 async function requireAdmin(req: Request, permissionKey?: string) {
@@ -176,8 +182,9 @@ async function processOutbox(limit = 25) {
     try {
       const variables = job.payload || {};
       const subject = render(template.subject, variables);
-      const html = renderTransactionalHtml(template, variables);
-      const text = render(template.text_body || template.subject, variables);
+      const breakdown = job.email_type === "renter_balance_statement" ? balanceBreakdown(variables.statement) : undefined;
+      const html = renderTransactionalHtml(template, variables, breakdown);
+      const text = breakdown ? String(template.text_body || "{{statement}}").replace(/{{\s*(\w+)\s*}}/g, (_, key) => key === "statement" ? balanceText(breakdown) : String(variables[key] ?? "")) : render(template.text_body || template.subject, variables);
       const messageId = await sendMail({
         to: job.recipient_email,
         toName: job.recipient_name,
