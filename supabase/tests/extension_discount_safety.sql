@@ -8,15 +8,18 @@ do $test$
 declare rid uuid; cid uuid; eid uuid; key uuid; q jsonb; result jsonb;
 begin
   rid:=pg_temp.account_fixture(300,400);
+  -- Represent a fee created before the ban on automatic late fees.
+  perform set_config('session_replication_role','replica',true);
   insert into rental_charge_items(rental_id,user_id,name,charge_type,amount,tax_amount,total_amount,status,source_type,source_reference)
     select id,user_id,'Synthetic late fee','late_fee',25,1.59,26.59,'pending','late_return',id||':late-fee'
     from rentals where id=rid returning id into cid;
+  perform set_config('session_replication_role','origin',true);
   q:=public.admin_preview_rental_extension(rid,current_date+7,'9:00 AM',69,'Customer approved seven more days');
   if (q->>'late_charges_removed')::numeric<>26.59 or (q->>'total_due')::numeric<>927.34 then
     raise exception 'Extension preview includes fees that the schedule update will remove: %',q;
   end if;
   result:=public.admin_apply_rental_extension(rid,current_date+7,'9:00 AM',69,'Customer approved seven more days',gen_random_uuid(),q->>'revision');
-  if result->'settlement'->>'balance_due'<>q->>'total_due'
+  if (result->'settlement'->>'balance_due')::numeric<>(q->>'total_due')::numeric
     or (select status from rental_charge_items where id=cid)<>'waived' then
     raise exception 'Extension quote and saved balance disagree.';
   end if;
