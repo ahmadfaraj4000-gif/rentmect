@@ -98,7 +98,7 @@
     "cars2Thumbnails", "cars2VehicleName", "cars2VehicleMeta",
     "cars2VehicleDescription", "cars2Features", "cars2DailyRate",
     "cars2DetailAvailability", "cars2RentalDays", "cars2RentalSubtotal",
-    "cars2QuoteStatus", "cars2TaxAmount", "cars2TourismSurcharge",
+    "cars2QuoteStatus", "cars2TaxLabel", "cars2Under25Rate", "cars2TaxAmount", "cars2TourismSurcharge",
     "cars2SecurityDeposit", "cars2TotalDueToday", "cars2Under25Quote",
     "cars2Under25Rental", "cars2Under25Tax", "cars2Under25Deposit", "cars2Under25Total",
     "cars2BookVehicle", "cars2AvailabilityForm", "cars2CheckAvailability", "cars2TripSummary",
@@ -550,6 +550,9 @@
     elements.cars2QuoteStatus.classList.toggle("ready", quoteReady);
     elements.cars2RentalSubtotal.textContent = quoteReady ? money(selectedQuote.base_rental_total) : "—";
     elements.cars2TourismSurcharge.textContent = quoteReady ? money(selectedQuote.tourism_surcharge || 0) : "—";
+    const rate = quoteReady && selectedQuote.tax_rate != null ? ` (${(Number(selectedQuote.tax_rate) * 100).toFixed(2)}%)` : "";
+    elements.cars2TaxLabel.textContent = "CT sales tax" + rate;
+    elements.cars2Under25Rate.textContent = rate;
     elements.cars2TaxAmount.textContent = quoteReady ? money(selectedQuote.tax_amount) : "—";
     elements.cars2SecurityDeposit.textContent = quoteReady ? money(selectedQuote.security_deposit) : "—";
     elements.cars2TotalDueToday.textContent = quoteReady ? money(selectedQuote.total_due_today) : "—";
