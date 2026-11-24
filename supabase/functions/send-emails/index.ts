@@ -160,8 +160,8 @@ async function sendMail(params: {
   return response.headers.get("x-message-id") || "";
 }
 
-async function processOutbox(limit = 25) {
-  const { data: jobs, error } = await adminClient!
+async function processOutbox(limit = 25, balanceJobId?: string) {
+  let query = adminClient!
     .from("email_outbox")
     .select("*, email_templates(*)")
     .in("status", ["pending", "failed"])
@@ -169,23 +169,30 @@ async function processOutbox(limit = 25) {
     .lt("attempts", 5)
     .order("created_at", { ascending: true })
     .limit(limit);
+  if (balanceJobId) query = query.eq("id", balanceJobId).eq("email_type", "renter_balance_statement");
+  const { data: jobs, error } = await query;
   if (error) throw error;
 
   const results = [];
   for (const job of jobs || []) {
+    const { data: claim, error: claimError } = await adminClient!.from("email_outbox")
+      .update({ status: "processing", attempts: job.attempts + 1 })
+      .eq("id", job.id).eq("status", job.status).eq("attempts", job.attempts).select("id").maybeSingle();
+    if (claimError) throw claimError;
+    if (!claim) continue;
     const template = Array.isArray(job.email_templates) ? job.email_templates[0] : job.email_templates;
     if (!template?.enabled) {
       await adminClient!.from("email_outbox").update({ status: "cancelled", last_error: "Template disabled." }).eq("id", job.id);
       continue;
     }
-    await adminClient!.from("email_outbox").update({ status: "processing", attempts: Number(job.attempts || 0) + 1 }).eq("id", job.id);
+    let messageId: string;
     try {
       const variables = job.payload || {};
       const subject = render(template.subject, variables);
       const breakdown = job.email_type === "renter_balance_statement" ? balanceBreakdown(variables.statement) : undefined;
       const html = renderTransactionalHtml(template, variables, breakdown);
       const text = breakdown ? String(template.text_body || "{{statement}}").replace(/{{\s*(\w+)\s*}}/g, (_, key) => key === "statement" ? balanceText(breakdown) : String(variables[key] ?? "")) : render(template.text_body || template.subject, variables);
-      const messageId = await sendMail({
+      messageId = await sendMail({
         to: job.recipient_email,
         toName: job.recipient_name,
         subject,
@@ -193,8 +200,6 @@ async function processOutbox(limit = 25) {
         text,
         customArgs: { outbox_id: job.id, rental_id: job.rental_id || "", email_type: job.email_type },
       });
-      await adminClient!.from("email_outbox").update({ status: "sent", sent_at: new Date().toISOString(), provider_message_id: messageId, last_error: null }).eq("id", job.id);
-      results.push({ id: job.id, status: "sent" });
     } catch (error) {
       const attempts = Number(job.attempts || 0) + 1;
       const retryMinutes = Math.min(60, 2 ** attempts);
@@ -204,9 +209,36 @@ async function processOutbox(limit = 25) {
         next_attempt_at: new Date(Date.now() + retryMinutes * 60_000).toISOString(),
       }).eq("id", job.id);
       results.push({ id: job.id, status: "failed" });
+      continue;
     }
+    const { error: saveError } = await adminClient!.from("email_outbox").update({
+      status: "sent", sent_at: new Date().toISOString(), provider_message_id: messageId, last_error: null
+    }).eq("id", job.id);
+    if (saveError) throw saveError;
+    results.push({ id: job.id, status: "sent" });
   }
   return results;
+}
+
+async function sendRentalBalance(req: Request) {
+  assertConfigured();
+  const authorization = req.headers.get("Authorization");
+  if (!authorization) return json({ error: "Sign in to send the balance." }, 401);
+  const { rentalId, requestId, statement } = await req.json();
+  const caller = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") || "", {
+    global: { headers: { Authorization: authorization } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+  // The RPC authorizes operations staff, validates the preview and reuses the same job on retries.
+  const { data: id, error } = await caller.rpc("email_rental_balance_statement", {
+    p_rental_id: rentalId, p_request_id: requestId, p_preview: statement
+  });
+  if (error) return json({ error: error.message }, error.code === "42501" ? 403 : 400);
+  await processOutbox(1, id);
+  const { data: job, error: readError } = await adminClient!.from("email_outbox")
+    .select("status,attempts,last_error,next_attempt_at").eq("id", id).single();
+  if (readError) throw readError;
+  return json(job);
 }
 
 async function campaignAudience(campaign: Json): Promise<Recipient[]> {
@@ -580,6 +612,7 @@ Deno.serve(async (req) => {
       assertConfigured();
       return await handleWebhook(req);
     }
+    if (pathname.endsWith("/balance-send")) return await sendRentalBalance(req);
     if (pathname.endsWith("/balance-preview")) return await previewRentalBalance(req);
     if (pathname.endsWith("/test")) return await handleTest(req);
     if (pathname.endsWith("/agreement")) return await handleAgreementEmail(req);
