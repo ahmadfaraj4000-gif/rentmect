@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="booking-picker.css?v=20260818-from-until-2" />
   <script src="fleet-gallery-data.js" defer></script>
   <script src="script.js?v=20261114-next-day-1" defer></script>
-  <script src="cars-2.js?v=20261114-next-day-1" defer></script>
+  <script src="cars-2.js?v=20261124-tax-rate" defer></script>
   <script src="booking-picker.js?v=20260816-mobile-sheet-1" defer></script>
 </head>
 <body class="site-v2 cars-v2-page">
@@ -226,7 +226,7 @@
               <strong id="cars2RentalSubtotal">—</strong>
             </div>
             <div class="cars2-price-row">
-              <span>CT sales tax</span>
+              <span id="cars2TaxLabel">CT sales tax</span>
               <strong id="cars2TaxAmount">—</strong>
             </div>
             <div class="cars2-price-row"><span>Connecticut tourism surcharge</span><strong id="cars2TourismSurcharge">—</strong></div>
@@ -242,7 +242,7 @@
           </section>
           <div id="cars2Under25Quote" class="cars2-under25-quote" hidden>
             <strong>Driver age 21–24?</strong>
-            <span>Your date of birth is confirmed during checkout. For this vehicle, age 21–24 pricing would be <b id="cars2Under25Rental">—</b> rental, <b id="cars2Under25Tax">—</b> tax, and a <b id="cars2Under25Deposit">—</b> refundable deposit.</span>
+            <span>Your date of birth is confirmed during checkout. For this vehicle, age 21–24 pricing would be <b id="cars2Under25Rental">—</b> rental, <b id="cars2Under25Tax">—</b> tax<span id="cars2Under25Rate"></span>, and a <b id="cars2Under25Deposit">—</b> refundable deposit.</span>
             <span class="cars2-under25-total">Age 21–24 total due today: <b id="cars2Under25Total">—</b></span>
           </div>
           <div class="cars2-checkout-insurance-note">

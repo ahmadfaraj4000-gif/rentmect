@@ -487,7 +487,7 @@ async function handleAgreementEmail(req: Request) {
   const { rentalId } = await req.json();
   if (!rentalId) return json({ error: "Rental is required." }, 400);
   const { data: rental, error } = await adminClient!.from("rentals")
-    .select("id,user_id,pickup_date,return_date,agreement_signed,agreement_snapshot,agreement_signature_name")
+    .select("id,user_id,pickup_date,return_date,agreement_signed,agreement_signed_at,agreement_snapshot,agreement_signature_name")
     .eq("id", rentalId).single();
   if (error || !rental) return json({ error: "Rental not found." }, 404);
   if (!rental.agreement_signed || !rental.agreement_snapshot) return json({ error: "This rental has no saved signed agreement." }, 409);
