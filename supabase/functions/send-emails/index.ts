@@ -436,13 +436,32 @@ async function handleCustomerEmail(req: Request) {
   };
   const collection = await allocatedPaymentMessage(adminClient, String(payload.paymentReceiptId || ''), rentalId, customerId);
   const subject = collection ? `Rent Me CT payment request · ${collection.amount}` : render(template.subject, variables);
-  const renderedBody = collection?.text || render(template.text_body || template.subject, variables);
+  const balanceRequest = Boolean(rental && (collection || charge || template.template_key === "manual_payment_due"));
+  let statement = "";
+  if (balanceRequest) {
+    const sessionClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") || "", {
+      global: { headers: { Authorization: req.headers.get("authorization") || "" } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const staff = await sessionClient.rpc("rental_operations_staff_name");
+    if (staff.error) throw staff.error;
+    if (staff.data) {
+      const balance = await sessionClient.rpc("rental_balance_statement", { p_rental_id: rentalId });
+      if (balance.error) throw balance.error;
+      if (String(balance.data?.recipient || "").trim().toLowerCase() !== recipient) throw new Error("The customer email changed. Refresh before sending.");
+      statement = String(balance.data.statement);
+      variables.manage_booking_url = `${clientPortalUrl}?billing=1&statement=${encodeURIComponent(rentalId)}`;
+    }
+  }
+  const paymentBody = collection?.text || render(template.text_body || template.subject, variables);
+  const renderedBody = statement ? `${statement}\n\n${paymentBody}` : paymentBody;
+  const statementHtml = statement ? `<pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(statement)}</pre>` : "";
   try {
     const messageId = await sendMail({
       to: recipient,
       toName: profile.full_name,
       subject,
-      html: emailShell(collection ? `<p>${escapeHtml(collection.text)}</p><p><a href="${escapeHtml(collection.url)}">Pay ${escapeHtml(collection.amount)} securely with Stripe</a></p>` : render(sanitizeTemplateHtml(template.html_body), variables), render(template.preheader, variables)),
+      html: emailShell(statementHtml + (collection ? `<p>${escapeHtml(collection.text)}</p><p><a href="${escapeHtml(collection.url)}">Pay ${escapeHtml(collection.amount)} securely with Stripe</a></p>` : render(sanitizeTemplateHtml(template.html_body), variables)), render(template.preheader, variables)),
       text: renderedBody,
       customArgs: { email_type: "admin_customer_manual", customer_id: customerId, rental_id: rentalId, charge_id: chargeId, extension_request_id: extensionRequestId },
     });
