@@ -8,7 +8,7 @@ const corsHeaders = {
 
 type NotificationEvent = {
   event_id: string;
-  event_type: "reservation_started" | "reservation_stalled" | "new_booking" | "document_pending_review" | "return_due_today" | "maintenance_due" | "maintenance_due_soon" | "maintenance_override" | "extension_requested" | "extension_approved" | "emergency_exception_created" | "rental_payment_received" | "extension_payment_received" | "rental_overdue" | "vehicle_price_changed" | "rental_return_initiated" | "customer_message_received" | "vehicle_report_submitted" | "toll_needs_review" | "toll_sync_failed" | "customer_charge_failed" | "refund_failed" | "deposit_release_failed" | "rental_cancelled" | "rental_ready_for_pickup" | "identity_verification_failed" | "extension_payment_failed" | "rental_payment_failed" | "chargeback_created" | "stripe_reconciliation_required";
+  event_type: "online_customer_steps_complete" | "reservation_started" | "reservation_stalled" | "new_booking" | "document_pending_review" | "return_due_today" | "maintenance_due" | "maintenance_due_soon" | "maintenance_override" | "extension_requested" | "extension_approved" | "emergency_exception_created" | "rental_payment_received" | "extension_payment_received" | "rental_overdue" | "vehicle_price_changed" | "rental_return_initiated" | "customer_message_received" | "vehicle_report_submitted" | "toll_needs_review" | "toll_sync_failed" | "customer_charge_failed" | "refund_failed" | "deposit_release_failed" | "rental_cancelled" | "rental_ready_for_pickup" | "identity_verification_failed" | "extension_payment_failed" | "rental_payment_failed" | "chargeback_created" | "stripe_reconciliation_required";
   source_id: string;
   rental_id: string | null;
   attempts: number;
@@ -19,6 +19,8 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const pushoverAppToken = Deno.env.get("PUSHOVER_APP_TOKEN") || "";
 const pushoverUserKey = Deno.env.get("PUSHOVER_USER_KEY") || "";
+// The existing production recipient was verified as the Ancona and Jennifer group.
+const operationsGroup = Deno.env.get("PUSHOVER_RENTAL_OPERATIONS_GROUP") || pushoverUserKey;
 const adminPortalUrl = Deno.env.get("RENTMECT_ADMIN_PORTAL_URL") || "";
 
 const adminClient = createClient(supabaseUrl, serviceRoleKey, {
@@ -64,10 +66,11 @@ async function sendPushover(
   priority = "0",
   destinationParams: Record<string, string> = {},
   destinationTitle = "Open Rent Me CT Admin",
+  recipient = pushoverUserKey,
 ) {
   const form = new URLSearchParams({
     token: pushoverAppToken,
-    user: pushoverUserKey,
+    user: recipient,
     title,
     message,
     priority,
@@ -145,6 +148,23 @@ async function pendingReservationDetails(pendingBookingId: string) {
 }
 
 async function deliver(event: NotificationEvent) {
+  if (event.event_type === "customer_message_received" || event.event_type === "online_customer_steps_complete") {
+    if (!operationsGroup) throw new Error("Configure the Ancona and Jennifer Pushover group.");
+    const test = event.metadata?.notification_test === true;
+    if (event.event_type === "customer_message_received") {
+      const message = test ? null : await adminClient.from("rental_messages")
+        .select("id,user_id,sender_role").eq("id",event.source_id).single();
+      if (message && (message.error || !message.data || message.data.sender_role !== "client")) throw new Error("Inbound customer message unavailable.");
+      return await sendPushover(test ? "[TEST] New customer message" : "New customer message",
+        test ? "Synthetic customer message. Open Communications to review." : "A customer sent a portal message. Open the conversation to reply.",
+        "1", message?.data ? {tab:"emails",message:message.data.id} : {tab:"emails"}, "Open Communications", operationsGroup);
+    }
+    const details = test ? null : await rentalDetails(event.rental_id || event.source_id);
+    return await sendPushover(test ? "[TEST] Online rental complete" : "Online rental complete",
+      `${details ? `${details.customer} completed the online steps for ${details.vehicle}. Pickup ${readableDate(details.rental.pickup_date,details.rental.pickup_time)}.` : "Synthetic customer completed the online rental."} Prepare the car, take pickup photos, and inspect insurance.`,
+      "1",details ? {tab:"rentals",rental:details.rental.id} : {tab:"rentals"}, "Open Rentals", operationsGroup);
+  }
+
   if (event.metadata?.notification_test === true) {
     if (event.event_type === "rental_payment_received") {
       return await sendPushover(
@@ -382,35 +402,6 @@ async function deliver(event: NotificationEvent) {
       selected.message,
       selected.priority,
       { tab: "rentals", rental: rental.id },
-    );
-  }
-
-  if (event.event_type === "customer_message_received") {
-    const { data: message, error } = await adminClient
-      .from("rental_messages")
-      .select("id, rental_id, user_id, message")
-      .eq("id", event.source_id)
-      .single();
-    if (error || !message) throw new Error(error?.message || "Customer message not found.");
-    if (message.rental_id) {
-      const { rental, customer, vehicle } = await rentalDetails(message.rental_id);
-      return await sendPushover(
-        "Customer message needs a reply",
-        `${customer} messaged about ${vehicle}: ${String(message.message || "").slice(0, 240)}`,
-        "1",
-        { tab: "emails", rental: rental.id },
-      );
-    }
-    const { data: profile } = await adminClient
-      .from("profiles")
-      .select("full_name, email, phone")
-      .eq("id", message.user_id)
-      .maybeSingle();
-    return await sendPushover(
-      "Customer message needs a reply",
-      `${profile?.full_name || profile?.email || profile?.phone || "A customer"}: ${String(message.message || "").slice(0, 240)}`,
-      "1",
-      { tab: "emails" },
     );
   }
 
